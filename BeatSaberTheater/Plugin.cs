@@ -8,10 +8,20 @@ using IpaConfig = IPA.Config.Config;
 
 namespace BeatSaberTheater;
 
-[Plugin(RuntimeOptions.DynamicInit), NoEnableDisable]
+[Plugin(RuntimeOptions.DynamicInit)]
+[NoEnableDisable]
 internal class Plugin
 {
+    internal const string CAPABILITY = "Theater";
+    private static bool _enabled;
+
     internal static IpaLogger Log { get; private set; } = null!;
+
+    public static bool Enabled
+    {
+        get => _enabled && SettingsStore.Instance.PluginEnabled;
+        private set => _enabled = value;
+    }
 
     // Methods with [Init] are called when the plugin is first loaded by IPA.
     // All the parameters are provided by IPA and are optional.
