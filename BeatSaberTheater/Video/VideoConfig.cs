@@ -63,11 +63,11 @@ public class VideoConfig
                 }
                 catch (Exception e)
                 {
-                    Log.Error($"Failed to combine video path for {videoFile}: {e.Message}");
+                    Plugin.Log.Error($"Failed to combine video path for {videoFile}: {e.Message}");
                     return null;
                 }
 
-            Log.Debug("VideoPath is null");
+            Plugin.Log.Debug("VideoPath is null");
             return null;
         }
     }

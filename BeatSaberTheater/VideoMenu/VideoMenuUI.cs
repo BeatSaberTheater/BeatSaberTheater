@@ -17,13 +17,16 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UI;
+using Zenject;
 using Object = UnityEngine.Object;
 
-// ReSharper disable ArrangeMethodOrOperatorBody
 namespace BeatSaberTheater.VideoMenu;
 
-public class VideoMenu
+public class VideoMenuUI : IInitializable, IDisposable
 {
+    private readonly LoggingService _loggingService;
+    private readonly GameplaySetup _gameplaySetup;
+
     [UIObject("root-object")] private readonly GameObject _root = null!;
     [UIComponent("no-video-bg")] private readonly RectTransform _noVideoViewRect = null!;
     [UIComponent("video-details")] private readonly RectTransform _videoDetailsViewRect = null!;
@@ -91,10 +94,18 @@ public class VideoMenu
     // private readonly SearchController _searchController = new SearchController();
     // private readonly List<YTResult> _searchResults = new();
 
-    public static VideoMenu? Instance { get; private set; }
-
-    public void Init()
+    public VideoMenuUI(LoggingService loggingService, GameplaySetup gameplaySetup)
     {
+        _loggingService = loggingService;
+        _gameplaySetup = gameplaySetup;
+    }
+
+    public void Initialize()
+    {
+        _loggingService.Debug("Adding tab");
+        _gameplaySetup.AddTab("Theater", "BeatSaberTheater.VideoMenu.Views.video-menu.bsml", this);
+
+        _loggingService.Debug("Initializing VideoMenu");
         Events.LevelSelected -= OnLevelSelected;
         Events.LevelSelected += OnLevelSelected;
         Events.DifficultySelected -= OnDifficultySelected;
@@ -102,7 +113,7 @@ public class VideoMenu
 
         if (_root == null)
         {
-            Log.Debug("RootObject is null!");
+            _loggingService.Debug("RootObject is null!");
             return;
         }
 
@@ -132,6 +143,11 @@ public class VideoMenu
         //         $"One or more of the libraries are missing. Downloading videos will not work. To fix this, reinstall Cinema and make sure yt-dlp and ffmpeg are in the Libs folder of Beat Saber, which is located at {UnityGame.LibraryPath}.");
     }
 
+    public void Dispose()
+    {
+        _gameplaySetup.RemoveTab("Theater");
+    }
+
     public void CreateStatusListener()
     {
         //This needs to be reinitialized every time a fresh menu scene load happens
@@ -143,30 +159,9 @@ public class VideoMenu
         }
 
         _menuStatus = _root.AddComponent<VideoMenuStatus>();
-        Log.Debug("Adding status listener to: " + _menuStatus.name);
+        _loggingService.Debug("Adding status listener to: " + _menuStatus.name);
         _menuStatus.DidEnable += StatusViewerDidEnable;
         _menuStatus.DidDisable += StatusViewerDidDisable;
-    }
-
-    public static void AddTab()
-    {
-        if (Instance == null)
-        {
-            Log.Debug("Initializing VideoMenu");
-            Instance = new VideoMenu();
-            Instance.Init();
-        }
-
-        Log.Debug("Adding tab");
-        GameplaySetup.Instance.AddTab("Cinema", "BeatSaberCinema.VideoMenu.Views.video-menu.bsml", Instance,
-            MenuType.All);
-    }
-
-    public static void RemoveTab()
-    {
-        Log.Debug("Removing tab");
-        GameplaySetup.Instance.RemoveTab("Cinema");
-        Instance = null;
     }
 
     public void ResetVideoMenu()
@@ -267,7 +262,7 @@ public class VideoMenu
     {
         if (_videoSearchResultsViewRect == null)
         {
-            Log.Warn("Video search results view rect is null, skipping UI setup");
+            _loggingService.Warn("Video search results view rect is null, skipping UI setup");
             return;
         }
 
@@ -287,7 +282,7 @@ public class VideoMenu
         if (!_videoMenuActive)
         {
             ResetVideoMenu();
-            Log.Debug("Video Menu is not active");
+            _loggingService.Debug("Video Menu is not active");
             return;
         }
 
@@ -486,7 +481,7 @@ public class VideoMenu
     {
         if (_currentLevel != null && level.levelID == _currentLevel.levelID) return;
 
-        Log.Debug($"Setting level to {level.levelID}");
+        _loggingService.Debug($"Setting level to {level.levelID}");
         HandleDidSelectLevel(level);
     }
 
@@ -549,8 +544,8 @@ public class VideoMenu
     {
         if (!_videoMenuInitialized)
         {
-            Log.Debug("Initializing video menu (late)");
-            Init();
+            _loggingService.Debug("Initializing video menu (late)");
+            Initialize();
         }
 
         if (levelSelectedArgs.BeatmapData != null)
@@ -618,7 +613,7 @@ public class VideoMenu
     {
         if (_currentLevel == null)
         {
-            Log.Warn("Selected level was null on search action");
+            _loggingService.Warn("Selected level was null on search action");
             return;
         }
 
@@ -645,7 +640,7 @@ public class VideoMenu
         }
         catch (Exception e)
         {
-            Log.Warn(e);
+            _loggingService.Warn(e);
         }
 
         var item = new CustomListTableData.CustomCellInfo(title, description);
@@ -659,7 +654,7 @@ public class VideoMenu
         }
         else
         {
-            Log.Debug(request.error);
+            _loggingService.Debug(request.error);
         }
 
         _customListTableData.Data.Add(item);
@@ -708,7 +703,7 @@ public class VideoMenu
     {
         if (_currentVideo == null)
         {
-            Log.Warn("Current video was null on delete action");
+            _loggingService.Warn("Current video was null on delete action");
             return;
         }
 
@@ -750,7 +745,7 @@ public class VideoMenu
     {
         if (_currentVideo == null || _currentLevel == null)
         {
-            Log.Warn("Failed to delete config: Either currentVideo or currentLevel is null");
+            _loggingService.Warn("Failed to delete config: Either currentVideo or currentLevel is null");
             return;
         }
 
@@ -874,10 +869,10 @@ public class VideoMenu
     [UsedImplicitly]
     private void OnDownloadAction()
     {
-        Log.Debug("Download pressed");
+        _loggingService.Debug("Download pressed");
         if (_selectedCell < 0 || _currentLevel == null)
         {
-            Log.Error("No cell or level selected on download action");
+            _loggingService.Error("No cell or level selected on download action");
             return;
         }
 
@@ -902,27 +897,45 @@ public class VideoMenu
 
     [UIAction("on-offset-decrease-action-high")]
     [UsedImplicitly]
-    private void DecreaseOffsetHigh() => ApplyOffset(-1000);
+    private void DecreaseOffsetHigh()
+    {
+        ApplyOffset(-1000);
+    }
 
     [UIAction("on-offset-decrease-action-mid")]
     [UsedImplicitly]
-    private void DecreaseOffsetMid() => ApplyOffset(-100);
+    private void DecreaseOffsetMid()
+    {
+        ApplyOffset(-100);
+    }
 
     [UIAction("on-offset-decrease-action-low")]
     [UsedImplicitly]
-    private void DecreaseOffsetLow() => ApplyOffset(-20);
+    private void DecreaseOffsetLow()
+    {
+        ApplyOffset(-20);
+    }
 
     [UIAction("on-offset-increase-action-high")]
     [UsedImplicitly]
-    private void IncreaseOffsetHigh() => ApplyOffset(1000);
+    private void IncreaseOffsetHigh()
+    {
+        ApplyOffset(1000);
+    }
 
     [UIAction("on-offset-increase-action-mid")]
     [UsedImplicitly]
-    private void IncreaseOffsetMid() => ApplyOffset(100);
+    private void IncreaseOffsetMid()
+    {
+        ApplyOffset(100);
+    }
 
     [UIAction("on-offset-increase-action-low")]
     [UsedImplicitly]
-    private void IncreaseOffsetLow() => ApplyOffset(20);
+    private void IncreaseOffsetLow()
+    {
+        ApplyOffset(20);
+    }
 }
 
 public class VideoMenuStatus : MonoBehaviour

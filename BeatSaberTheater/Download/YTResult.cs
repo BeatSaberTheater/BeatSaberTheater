@@ -77,7 +77,7 @@ public class YTResult
         }
         catch (Exception e)
         {
-            Log.Warn(e);
+            Plugin.Log.Warn(e);
         }
 
         return resultList;

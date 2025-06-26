@@ -1,5 +1,5 @@
 <!--suppress CheckTagEmptyBody -->
-<bg id='root-object' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'>
+<bg id='root-object' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='https://monkeymanboy.github.io/BSML-Docs/BSMLSchema.xsd'>
     <bg id='no-video-bg' height='30' vertical-fit='PreferredSize'>
         <vertical align='Center' vertical-fit='PreferredSize' child-expand-height='false'>
             <text id='no-video-text' align='Center' text="No video configured"></text>

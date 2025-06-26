@@ -28,6 +28,8 @@
 
     <ItemGroup>
         <EmbeddedResource Include="Menu\example.bsml"/>
+        <None Remove="VideoMenu\Views\video-menu.bsml"/>
+        <EmbeddedResource Include="VideoMenu\Views\video-menu.bsml"/>
     </ItemGroup>
 
     <ItemGroup>

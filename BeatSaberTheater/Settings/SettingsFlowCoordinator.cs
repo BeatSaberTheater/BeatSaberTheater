@@ -1,11 +1,13 @@
 using System;
 using BeatSaberMarkupLanguage;
 using BeatSaberTheater.Settings;
+using BeatSaberTheater.Util;
 using HMUI;
+using Zenject;
 
 namespace BeatSaberTheater;
 
-public class SettingsFlowCoordinator : FlowCoordinator
+public class SettingsFlowCoordinator(LoggingService _loggingService) : FlowCoordinator, IInitializable
 {
     private SettingsController? _controller;
 
@@ -26,12 +28,16 @@ public class SettingsFlowCoordinator : FlowCoordinator
         }
         catch (Exception ex)
         {
-            Util.Log.Error(ex);
+            _loggingService.Error(ex);
         }
     }
 
     protected override void BackButtonWasPressed(ViewController viewController)
     {
         BeatSaberUI.MainFlowCoordinator.DismissFlowCoordinator(this);
+    }
+
+    public void Initialize()
+    {
     }
 }

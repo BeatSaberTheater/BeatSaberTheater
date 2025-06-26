@@ -12,7 +12,7 @@ public class CoroutineStarter : MonoBehaviour
         {
             if (_instance == null)
             {
-                Log.Debug("Creating new CoroutineStarter");
+                Plugin.Log.Debug("Creating new CoroutineStarter");
                 var gameObject = new GameObject();
                 _instance = gameObject.AddComponent<CoroutineStarter>();
                 gameObject.name = typeof(CoroutineStarter).ToString();

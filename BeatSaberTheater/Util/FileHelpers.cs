@@ -64,7 +64,7 @@ public static class FileHelpers
 
         if (allowedLength > 0) return s.Substring(0, allowedLength);
 
-        Log.Warn("Video path length might be too long!");
+        Plugin.Log.Warn("Video path length might be too long!");
         return s;
     }
 
@@ -125,7 +125,7 @@ public static class FileHelpers
         }
         catch (Exception e)
         {
-            Log.Error(e);
+            Plugin.Log.Error(e);
         }
 
         return string.Join("\n", info);

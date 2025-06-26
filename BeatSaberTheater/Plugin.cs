@@ -1,8 +1,15 @@
-﻿using IPA;
+﻿using System.IO;
+using BeatSaberMarkupLanguage.GameplaySetup;
+using IPA;
 using IPA.Config.Stores;
 using IPA.Loader;
 using SiraUtil.Zenject;
 using BeatSaberTheater.Installers;
+using BeatSaberTheater.Screen;
+using BS_Utils.Utilities;
+using IPA.Utilities;
+using JetBrains.Annotations;
+using SongCore;
 using IpaLogger = IPA.Logging.Logger;
 using IpaConfig = IPA.Config.Config;
 
@@ -12,7 +19,7 @@ namespace BeatSaberTheater;
 [NoEnableDisable]
 internal class Plugin
 {
-    internal const string CAPABILITY = "Theater";
+    internal const string Capability = "Theater";
     private static bool _enabled;
 
     internal static IpaLogger Log { get; private set; } = null!;
@@ -40,8 +47,50 @@ internal class Plugin
         zenjector.Install<AppInstaller>(Location.App, pluginConfig);
 
         // Instructs SiraUtil to use this installer when the main menu initializes
-        zenjector.Install<MenuInstaller>(Location.Menu);
+        zenjector.Install<VideoMenuInstaller>(Location.Menu);
 
         Log.Info($"{pluginMetadata.Name} {pluginMetadata.HVersion} initialized.");
+    }
+
+    [OnEnable]
+    [UsedImplicitly]
+    public void OnEnable()
+    {
+        Enabled = true;
+        BSEvents.lateMenuSceneLoadedFresh += OnMenuSceneLoadedFresh;
+        // EnvironmentController.Init();
+        Collections.RegisterCapability(Capability);
+        if (File.Exists(Path.Combine(UnityGame.InstallPath, "dxgi.dll")))
+            Log.Warn(
+                "dxgi.dll is present, video may fail to play. To fix this, delete the file dxgi.dll from your main Beat Saber folder (not in Plugins).");
+
+        //No need to index maps if the filter isn't going to be applied anyway
+        // if (InstalledMods.BetterSongList) Loader.SongsLoadedEvent += VideoLoader.IndexMaps;
+    }
+
+    [OnDisable]
+    [UsedImplicitly]
+    public void OnDisable()
+    {
+        Enabled = false;
+        BSEvents.lateMenuSceneLoadedFresh -= OnMenuSceneLoadedFresh;
+        // Loader.SongsLoadedEvent -= VideoLoader.IndexMaps;
+        SettingsUI.RemoveMenu();
+
+        //TODO Destroying and re-creating the PlaybackController messes up the VideoMenu without any exceptions in the log. Investigate.
+        //PlaybackController.Destroy();
+
+        // EnvironmentController.Disable();
+        // VideoLoader.StopFileSystemWatcher();
+        Collections.DeregisterCapability(Capability);
+    }
+
+    private static void OnMenuSceneLoadedFresh(ScenesTransitionSetupDataSO scenesTransition)
+    {
+        PlaybackController.Create();
+
+        SettingsUI.CreateMenu();
+        // SongPreviewPlayerController.Init();
+        // AddBetterSongListFilter();
     }
 }

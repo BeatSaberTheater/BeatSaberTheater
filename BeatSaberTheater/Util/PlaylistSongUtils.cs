@@ -51,14 +51,14 @@ public static class PlaylistSongUtils
             }
             catch (Exception e)
             {
-                Log.Error($"Error parsing video json {playlistSong.Name}:");
-                Log.Error(e);
+                Plugin.Log.Error($"Error parsing video json {playlistSong.Name}:");
+                Plugin.Log.Error(e);
                 return null;
             }
 
             if (videoConfig == null)
             {
-                Log.Warn($"Deserializing video config for {playlistSong.Name} failed");
+                Plugin.Log.Warn($"Deserializing video config for {playlistSong.Name} failed");
                 return null;
             }
 
@@ -68,7 +68,7 @@ public static class PlaylistSongUtils
             return videoConfig;
         }
 
-        Log.Error($"No config exists for {playlistSong.Name}:");
+        Plugin.Log.Error($"No config exists for {playlistSong.Name}:");
         return null;
     }
 }

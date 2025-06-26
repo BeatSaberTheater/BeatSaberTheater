@@ -8,13 +8,13 @@ public static class ExtensionMethods
 {
     public static bool HasCinemaSuggestion(this SongData.DifficultyData difficultyData)
     {
-        return difficultyData.additionalDifficultyData._suggestions.Any(suggestion => suggestion == Plugin.CAPABILITY);
+        return difficultyData.additionalDifficultyData._suggestions.Any(suggestion => suggestion == Plugin.Capability);
     }
 
     public static bool HasCinemaRequirement(this SongData.DifficultyData difficultyData)
     {
         return difficultyData.additionalDifficultyData._requirements.Any(requirement =>
-            requirement == Plugin.CAPABILITY);
+            requirement == Plugin.Capability);
     }
 
     public static bool HasCinema(this SongData.DifficultyData difficultyData)
@@ -55,8 +55,9 @@ public static class ExtensionMethods
             }
             catch (Exception ex)
             {
-                Log.Error($"Exception thrown in '{eventName}' handler '{handler.Method.Name}': {ex.Message}");
-                Log.Debug(ex);
+                Plugin.Log.Error(
+                    $"Exception thrown in '{eventName}' handler '{handler.Method.Name}': {ex.Message}");
+                Plugin.Log.Debug(ex);
             }
     }
 

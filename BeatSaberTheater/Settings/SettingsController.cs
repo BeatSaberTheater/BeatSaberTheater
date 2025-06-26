@@ -5,12 +5,13 @@ using BeatSaberMarkupLanguage.ViewControllers;
 using BeatSaberTheater.Screen;
 using BeatSaberTheater.Util;
 using JetBrains.Annotations;
+using Zenject;
 
 // ReSharper disable UnusedMember.Global -- The getter functions are used by BSML
 
 namespace BeatSaberTheater.Settings;
 
-public class SettingsController : BSMLResourceViewController
+public class SettingsController(LoggingService _loggingService) : BSMLResourceViewController, IInitializable
 {
     public override string ResourceName => "BeatSaberTheater.Settings.Views.settings.bsml";
     private const float FADE_DURATION = 0.2f;
@@ -25,9 +26,9 @@ public class SettingsController : BSMLResourceViewController
             if (value)
                 SetSettingsTexture();
             // PlaybackController.Instance.VideoPlayer.FadeIn(FADE_DURATION);
-            else
-                // PlaybackController.Instance.VideoPlayer.FadeOut(FADE_DURATION);
-                VideoMenu.VideoMenu.Instance?.HandleDidSelectLevel(null);
+            // else
+            // PlaybackController.Instance.VideoPlayer.FadeOut(FADE_DURATION);
+            // VideoMenu.VideoMenuUI.Instance?.HandleDidSelectLevel(null);
 
             SettingsStore.Instance.PluginEnabled = value;
         }
@@ -142,7 +143,11 @@ public class SettingsController : BSMLResourceViewController
         }
         catch (Exception e)
         {
-            Util.Log.Debug(e);
+            _loggingService.Debug(e);
         }
+    }
+
+    public void Initialize()
+    {
     }
 }

@@ -20,7 +20,7 @@ internal class ExampleSettingsMenu
     [UIAction("#post-parse")]
     private void PostParse()
     {
-        Plugin.Log.Debug($"{nameof(ExampleSettingsMenu)} parsed");
+        // Plugin.Log.Debug($"{nameof(ExampleSettingsMenu)} parsed");
     }
 
     // [UIAction] will be used by UI elements like buttons to invoke methods such as the one here.
