@@ -1,57 +1,82 @@
 <!--suppress CheckTagEmptyBody -->
-<bg id='root-object' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='https://monkeymanboy.github.io/BSML-Docs/BSMLSchema.xsd'>
+<bg id='root-object' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'
+    xsi:noNamespaceSchemaLocation='https://monkeymanboy.github.io/BSML-Docs/BSMLSchema.xsd'>
     <bg id='no-video-bg' height='30' vertical-fit='PreferredSize'>
         <vertical align='Center' vertical-fit='PreferredSize' child-expand-height='false'>
             <text id='no-video-text' align='Center' text="No video configured"></text>
-			<button id='search-button' text='Search' on-click='on-search-action'/>
+            <button id='search-button' text='Search' on-click='on-search-action'/>
         </vertical>
     </bg>
     <bg id='video-details'>
         <vertical child-expand-height="false" spacing="0" vertical-fit="PreferredSize" pad-top="-3" align="top">
             <horizontal preferred-width='100' horizontal-fit='PreferredSize' align="Center">
-                <text id='video-title' font-size='5' align='Center' overflow-mode='Ellipsis' preferred-width='90' text='Video Title'></text>
-				<button-with-icon id='delete-config-button' icon='BeatSaberCinema.Resources.trash.png' align='Right' text=' ' horizontal-fit='PreferredSize' vertical-fit='PreferredSize' hover-hint='Delete video configuration&#xD;&#xA;&#xD;&#xA;(will also delete the video if downloaded)' on-click='on-delete-config-action'/>
+                <text id='video-title' font-size='5' align='Center' overflow-mode='Ellipsis' preferred-width='90'
+                      text='Video Title'></text>
+                <button-with-icon id='delete-config-button' icon='BeatSaberTheater.Resources.trash.png' align='Right'
+                                  text=' ' horizontal-fit='PreferredSize' vertical-fit='PreferredSize'
+                                  hover-hint='Delete video configuration&#xD;&#xA;&#xD;&#xA;(will also delete the video if downloaded)'
+                                  on-click='on-delete-config-action'/>
             </horizontal>
 
-            <horizontal horizontal-fit='PreferredSize' vertical-fit='PreferredSize' width='50' height='25' child-expand-width='false' child-expand-height='false'>
+            <horizontal horizontal-fit='PreferredSize' vertical-fit='PreferredSize' width='50' height='25'
+                        child-expand-width='false' child-expand-height='false'>
                 <image id='video-thumbnail' pref-width='40' pref-height='25' preserve-aspect='true'/>
-                <vertical align='Top' pad-left='3' spacing='0' pref-width='40' child-expand-width='false' vertical-fit='PreferredSize'>
-                    <text id='video-author' font-size='3' align='Left' overflow-mode='Ellipsis' text='Author Name'></text>
+                <vertical align='Top' pad-left='3' spacing='0' pref-width='40' child-expand-width='false'
+                          vertical-fit='PreferredSize'>
+                    <text id='video-author' font-size='3' align='Left' overflow-mode='Ellipsis'
+                          text='Author Name'></text>
                     <text id='video-duration' font-size='3' align='Left' overflow-mode='Ellipsis' text='4:20'></text>
                     <text id='video-status' align='Left' color='red' text='Not downloaded'></text>
-					<button id='delete-video-button' text='Delete Video' on-click='on-delete-video-action'/>
+                    <button id='delete-video-button' text='Delete Video' on-click='on-delete-video-action'/>
                 </vertical>
             </horizontal>
 
             <vertical pad-top='2'>
-				<vertical id="offset-controls">
-					<text id='video-offset-label' align='Center' font-size='3' text='Video Offset'></text>
-					<horizontal horizontal-fit='PreferredSize'  align='Center' spacing="1">
-						<button id='offset-decrease-button-high' font-size='3' pref-width='10' hover-hint='Starts video later (-1000 ms)' text='---' on-click='on-offset-decrease-action-high'/>
-						<button id='offset-decrease-button-mid' font-size='3' pref-width='10' hover-hint='Starts video later (-100 ms)' text='--' on-click='on-offset-decrease-action-mid'/>
-						<button id='offset-decrease-button-low' font-size='3' pref-width='10' hover-hint='Starts video later (-20 ms)' text='-' on-click='on-offset-decrease-action-low'/>
-						<vertical pref-width='16'>
-							<text   id='video-offset' text="0" pad-left='5' pad-right='5' font-size='5' align='Center'></text>
-						</vertical>
-						<button id='offset-increase-button-low' font-size='3' pref-width='10' hover-hint='Starts video earlier (+20 ms)' text='+' on-click='on-offset-increase-action-low'/>
-						<button id='offset-increase-button-mid' font-size='3' pref-width='10' hover-hint='Starts video earlier (+100 ms)' text='++' on-click='on-offset-increase-action-mid'/>
-						<button id='offset-increase-button-high' font-size='3' pref-width='10' hover-hint='Starts video earlier (+1000 ms)' text='+++' on-click='on-offset-increase-action-high'/>
-					</horizontal>
-				</vertical>
-				<horizontal id="customize-offset-toggle" preferred-width="45">
-					<bool-setting apply-on-change="true" text='Customize offset' value='customize-offset' bind-value="true" get-event="update-customize-offset"
-								  hover-hint="Change the offset that was configured by the mapper.&#xD;&#xA;&#xD;&#xA;Only check this if the video is out of sync for you."></bool-setting>
-				</horizontal>
-				<button id='preview-button' hover-hint='Left ear is the video, right ear is the map' text='Preview' on-click='on-preview-action'/>
+                <vertical id="offset-controls">
+                    <text id='video-offset-label' align='Center' font-size='3' text='Video Offset'></text>
+                    <horizontal horizontal-fit='PreferredSize' align='Center' spacing="1">
+                        <button id='offset-decrease-button-high' font-size='3' pref-width='10'
+                                hover-hint='Starts video later (-1000 ms)' text='---'
+                                on-click='on-offset-decrease-action-high'/>
+                        <button id='offset-decrease-button-mid' font-size='3' pref-width='10'
+                                hover-hint='Starts video later (-100 ms)' text='--'
+                                on-click='on-offset-decrease-action-mid'/>
+                        <button id='offset-decrease-button-low' font-size='3' pref-width='10'
+                                hover-hint='Starts video later (-20 ms)' text='-'
+                                on-click='on-offset-decrease-action-low'/>
+                        <vertical pref-width='16'>
+                            <text id='video-offset' text="0" pad-left='5' pad-right='5' font-size='5'
+                                  align='Center'></text>
+                        </vertical>
+                        <button id='offset-increase-button-low' font-size='3' pref-width='10'
+                                hover-hint='Starts video earlier (+20 ms)' text='+'
+                                on-click='on-offset-increase-action-low'/>
+                        <button id='offset-increase-button-mid' font-size='3' pref-width='10'
+                                hover-hint='Starts video earlier (+100 ms)' text='++'
+                                on-click='on-offset-increase-action-mid'/>
+                        <button id='offset-increase-button-high' font-size='3' pref-width='10'
+                                hover-hint='Starts video earlier (+1000 ms)' text='+++'
+                                on-click='on-offset-increase-action-high'/>
+                    </horizontal>
+                </vertical>
+                <horizontal id="customize-offset-toggle" preferred-width="45">
+                    <bool-setting apply-on-change="true" text='Customize offset' value='customize-offset'
+                                  bind-value="true" get-event="update-customize-offset"
+                                  hover-hint="Change the offset that was configured by the mapper.&#xD;&#xA;&#xD;&#xA;Only check this if the video is out of sync for you."></bool-setting>
+                </horizontal>
+                <button id='preview-button' hover-hint='Left ear is the video, right ear is the map' text='Preview'
+                        on-click='on-preview-action'/>
             </vertical>
         </vertical>
     </bg>
 
     <bg id='video-search-results'>
         <horizontal pad-top='-3' pad-bottom='8' pad-left="8" pad-right="8">
-            <list pad-top='3' id='video-list' list-width='100' visible-cells='6' select-cell='on-select-cell' stick-scrolling="true" show-scrollbar="true"/>
+            <list pad-top='3' id='video-list' list-width='100' visible-cells='6' select-cell='on-select-cell'
+                  stick-scrolling="true" show-scrollbar="true"/>
         </horizontal>
-        <text id='search-results-loading' active='false' font-size='3' text='Loading Results...' align='Center' anchor-pos-y='5'/>
+        <text id='search-results-loading' active='false' font-size='3' text='Loading Results...' align='Center'
+              anchor-pos-y='5'/>
         <modal-keyboard id='search-keyboard' on-enter='on-query' clear-on-open='false' show-event='show-keyboard'
                         hide-event='hide-keyboard' move-to-center='true' click-off-closes='true'/>
         <horizontal pad-top='50'>

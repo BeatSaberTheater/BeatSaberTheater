@@ -24,8 +24,9 @@ namespace BeatSaberTheater.VideoMenu;
 
 public class VideoMenuUI : IInitializable, IDisposable
 {
-    private readonly LoggingService _loggingService;
     private readonly GameplaySetup _gameplaySetup;
+    private readonly LoggingService _loggingService;
+    private readonly PluginConfig _config;
 
     [UIObject("root-object")] private readonly GameObject _root = null!;
     [UIComponent("no-video-bg")] private readonly RectTransform _noVideoViewRect = null!;
@@ -94,10 +95,11 @@ public class VideoMenuUI : IInitializable, IDisposable
     // private readonly SearchController _searchController = new SearchController();
     // private readonly List<YTResult> _searchResults = new();
 
-    public VideoMenuUI(LoggingService loggingService, GameplaySetup gameplaySetup)
+    internal VideoMenuUI(GameplaySetup gameplaySetup, LoggingService loggingService, PluginConfig config)
     {
-        _loggingService = loggingService;
         _gameplaySetup = gameplaySetup;
+        _loggingService = loggingService;
+        _config = config;
     }
 
     public void Initialize()
@@ -140,7 +142,7 @@ public class VideoMenuUI : IInitializable, IDisposable
 
         // if (!_downloadController.LibrariesAvailable())
         //     Log.Warn(
-        //         $"One or more of the libraries are missing. Downloading videos will not work. To fix this, reinstall Cinema and make sure yt-dlp and ffmpeg are in the Libs folder of Beat Saber, which is located at {UnityGame.LibraryPath}.");
+        //         $"One or more of the libraries are missing. Downloading videos will not work. To fix this, reinstall Theater and make sure yt-dlp and ffmpeg are in the Libs folder of Beat Saber, which is located at {UnityGame.LibraryPath}.");
     }
 
     public void Dispose()
@@ -174,14 +176,14 @@ public class VideoMenuUI : IInitializable, IDisposable
         // if (!_downloadController.LibrariesAvailable())
         // {
         //     _noVideoText.text =
-        //         "Libraries not found. Please reinstall Cinema.\r\nMake sure you unzip the files from the Libs folder into 'Beat Saber\\Libs'.";
+        //         "Libraries not found. Please reinstall Theater.\r\nMake sure you unzip the files from the Libs folder into 'Beat Saber\\Libs'.";
         //     _searchButton.gameObject.SetActive(false);
         //     return;
         // }
 
-        if (!Plugin.Enabled)
+        if (!_config.PluginEnabled)
         {
-            _noVideoText.text = "Cinema is disabled.\r\nYou can re-enable it on the left side of the main menu.";
+            _noVideoText.text = "Theater is disabled.\r\nYou can re-enable it on the left side of the main menu.";
             return;
         }
 
@@ -292,7 +294,7 @@ public class VideoMenuUI : IInitializable, IDisposable
             if (_currentVideo.forceEnvironmentModifications != true) return;
 
             _noVideoText.text =
-                "This map uses Cinema to modify the environment\r\nwithout displaying a video.\r\n\r\nNo configuration options available.";
+                "This map uses Theater to modify the environment\r\nwithout displaying a video.\r\n\r\nNo configuration options available.";
             _searchButton.interactable = false;
             _searchButton.gameObject.SetActive(false);
 
@@ -338,11 +340,11 @@ public class VideoMenuUI : IInitializable, IDisposable
         switch (videoConfig.DownloadState)
         {
             case DownloadState.Downloaded:
-                if (_difficultyData?.HasCinema() == false &&
-                    _extraSongData?.HasCinemaInAnyDifficulty() == false)
+                if (_difficultyData?.HasTheater() == false &&
+                    _extraSongData?.HasTheaterInAnyDifficulty() == false)
                 {
                     _levelDetailMenu.SetActive(true);
-                    _levelDetailMenu.SetText("Please add Cinema as a suggestion", null, Color.red);
+                    _levelDetailMenu.SetText("Please add Theater as a suggestion", null, Color.red);
                 }
                 else if (videoConfig.ErrorMessage != null)
                 {
@@ -386,7 +388,7 @@ public class VideoMenuUI : IInitializable, IDisposable
                 _levelDetailMenu.SetActive(true);
                 if (videoConfig.ErrorMessage != null)
                     _levelDetailMenu.SetText(videoConfig.ErrorMessage, "Retry", Color.red, Color.red);
-                else if (_difficultyData?.HasCinemaRequirement() == true)
+                else if (_difficultyData?.HasTheaterRequirement() == true)
                     _levelDetailMenu.SetText("Video required to play this map", "Download", Color.red, Color.green);
                 else
                     _levelDetailMenu.SetText("Video available", "Download Video", null, Color.green);
@@ -487,7 +489,7 @@ public class VideoMenuUI : IInitializable, IDisposable
 
     public void HandleDidSelectEditorBeatmap(BeatmapDataModel beatmapData, string originalPath)
     {
-        if (!Plugin.Enabled) return;
+        if (_config.PluginEnabled) return;
 
         // PlaybackController.Instance.StopPreview(true);
         // if (_currentVideo?.NeedsToSave == true) VideoLoader.SaveVideoConfig(_currentVideo);
@@ -509,7 +511,7 @@ public class VideoMenuUI : IInitializable, IDisposable
         _extraSongData = null;
         _difficultyData = null;
 
-        if (!Plugin.Enabled ||
+        if (!_config.PluginEnabled ||
             (_currentLevel == level &&
              _currentLevelIsPlaylistSong)) //Ignores the duplicate event that occurs when selecting a playlist song
             return;

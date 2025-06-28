@@ -41,24 +41,24 @@ public static class PlaylistSongUtils
     public static VideoConfig? TryLoadConfig(this PlaylistLevel playlistLevel, string levelPath)
     {
         var playlistSong = playlistLevel.playlistSong;
-        if (playlistSong.TryGetCustomData("cinema", out var cinemaData))
+        if (playlistSong.TryGetCustomData("theater", out var theaterData))
         {
             VideoConfig? videoConfig;
             try
             {
-                var json = JsonSerializer.Serialize(cinemaData);
+                var json = JsonSerializer.Serialize(theaterData);
                 videoConfig = JsonSerializer.Deserialize<VideoConfig>(json);
             }
             catch (Exception e)
             {
-                Plugin.Log.Error($"Error parsing video json {playlistSong.Name}:");
-                Plugin.Log.Error(e);
+                Plugin._log.Error($"Error parsing video json {playlistSong.Name}:");
+                Plugin._log.Error(e);
                 return null;
             }
 
             if (videoConfig == null)
             {
-                Plugin.Log.Warn($"Deserializing video config for {playlistSong.Name} failed");
+                Plugin._log.Warn($"Deserializing video config for {playlistSong.Name} failed");
                 return null;
             }
 
@@ -68,7 +68,7 @@ public static class PlaylistSongUtils
             return videoConfig;
         }
 
-        Plugin.Log.Error($"No config exists for {playlistSong.Name}:");
+        Plugin._log.Error($"No config exists for {playlistSong.Name}:");
         return null;
     }
 }

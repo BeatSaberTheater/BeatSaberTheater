@@ -6,35 +6,35 @@ namespace BeatSaberTheater.Util;
 
 public static class ExtensionMethods
 {
-    public static bool HasCinemaSuggestion(this SongData.DifficultyData difficultyData)
+    public static bool HasTheaterSuggestion(this SongData.DifficultyData difficultyData)
     {
         return difficultyData.additionalDifficultyData._suggestions.Any(suggestion => suggestion == Plugin.Capability);
     }
 
-    public static bool HasCinemaRequirement(this SongData.DifficultyData difficultyData)
+    public static bool HasTheaterRequirement(this SongData.DifficultyData difficultyData)
     {
         return difficultyData.additionalDifficultyData._requirements.Any(requirement =>
             requirement == Plugin.Capability);
     }
 
-    public static bool HasCinema(this SongData.DifficultyData difficultyData)
+    public static bool HasTheater(this SongData.DifficultyData difficultyData)
     {
-        return difficultyData.HasCinemaSuggestion() || difficultyData.HasCinemaRequirement();
+        return difficultyData.HasTheaterSuggestion() || difficultyData.HasTheaterRequirement();
     }
 
-    public static bool HasCinemaSuggestionInAnyDifficulty(this SongData songData)
+    public static bool HasTheaterSuggestionInAnyDifficulty(this SongData songData)
     {
-        return songData._difficulties.Any(difficulty => difficulty.HasCinemaSuggestion());
+        return songData._difficulties.Any(difficulty => difficulty.HasTheaterSuggestion());
     }
 
-    public static bool HasCinemaRequirementInAnyDifficulty(this SongData songData)
+    public static bool HasTheaterRequirementInAnyDifficulty(this SongData songData)
     {
-        return songData._difficulties.Any(difficulty => difficulty.HasCinemaRequirement());
+        return songData._difficulties.Any(difficulty => difficulty.HasTheaterRequirement());
     }
 
-    public static bool HasCinemaInAnyDifficulty(this SongData songData)
+    public static bool HasTheaterInAnyDifficulty(this SongData songData)
     {
-        return songData.HasCinemaSuggestionInAnyDifficulty() || songData.HasCinemaRequirementInAnyDifficulty();
+        return songData.HasTheaterSuggestionInAnyDifficulty() || songData.HasTheaterRequirementInAnyDifficulty();
     }
 
 
@@ -55,9 +55,9 @@ public static class ExtensionMethods
             }
             catch (Exception ex)
             {
-                Plugin.Log.Error(
+                Plugin._log.Error(
                     $"Exception thrown in '{eventName}' handler '{handler.Method.Name}': {ex.Message}");
-                Plugin.Log.Debug(ex);
+                Plugin._log.Debug(ex);
             }
     }
 

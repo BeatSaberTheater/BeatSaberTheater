@@ -1,5 +1,5 @@
 using Zenject;
-using BeatSaberTheater.Menu;
+using BeatSaberTheater.Settings;
 
 namespace BeatSaberTheater.Installers;
 
@@ -7,7 +7,7 @@ namespace BeatSaberTheater.Installers;
 // MainSettingsMenuViewControllersInstaller installer in the base game, and its InstallBindings is called when the
 // game first loads into the main menu, and after settings are applied, which causes an internal reload of the game.
 
-internal class MenuInstaller : Installer
+internal class SettingsMenuInstaller : Installer
 {
     public override void InstallBindings()
     {
@@ -15,9 +15,12 @@ internal class MenuInstaller : Installer
         // The BindInterfacesTo shortcut is useful since you don't want to write out and remember every base type:
         // Container.Bind(typeof(IInitializable, typeof(IDisposable)).To<SettingsMenuManager>().AsSingle();
         // Is the same as:
-        Container.BindInterfacesTo<SettingsMenuManager>().AsSingle();
+        // Container.BindInterfacesTo<SettingsMenuManager>().AsSingle();
 
         // This will create a single instance of ExampleSettingsMenu, and lets it be injected into other types
-        Container.Bind<ExampleSettingsMenu>().AsSingle();
+        // Container.Bind<ExampleSettingsMenu>().AsSingle();
+        Container.Bind<TheaterSettingsViewController>().FromNewComponentAsViewController().AsSingle();
+        Container.Bind<TheaterSettingsFlowCoordinator>().FromNewComponentOnNewGameObject().AsSingle();
+        Container.BindInterfacesTo<MenuButtonManager>().AsSingle();
     }
 }

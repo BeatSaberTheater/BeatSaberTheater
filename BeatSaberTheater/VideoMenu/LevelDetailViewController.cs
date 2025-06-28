@@ -40,7 +40,7 @@ public class LevelDetailViewController
 
         BSMLParser.Instance.Parse(
             Utilities.GetResourceContent(Assembly.GetExecutingAssembly(),
-                "BeatSaberCinema.VideoMenu.Views.level-detail.bsml"), levelDetail.gameObject, this);
+                "BeatSaberTheater.VideoMenu.Views.level-detail.bsml"), levelDetail.gameObject, this);
         SetActive(false);
 
 

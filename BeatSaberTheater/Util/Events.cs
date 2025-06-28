@@ -9,10 +9,10 @@ namespace BeatSaberTheater.Util;
 public static class Events
 {
     /// <summary>
-    /// Indicates if Cinema will be doing something on the upcoming song (either play a video or modify the scene).
+    /// Indicates if Theater will be doing something on the upcoming song (either play a video or modify the scene).
     /// Will be invoked as soon as the scene transition to the gameplay scene is initiated.
     /// </summary>
-    public static event Action<bool>? CinemaActivated;
+    public static event Action<bool>? TheaterActivated;
 
     /// <summary>
     /// Used by CustomPlatforms to detect whether or not a custom platform should be loaded.
@@ -30,25 +30,25 @@ public static class Events
     /// </summary>
     public static event Action<ExtraSongDataArgs>? DifficultySelected;
 
-    internal static void InvokeSceneTransitionEvents(VideoConfig? videoConfig)
+    internal static void InvokeSceneTransitionEvents(PluginConfig config, VideoConfig? videoConfig)
     {
-        if (!Plugin.Enabled || videoConfig == null)
+        if (!config.PluginEnabled || videoConfig == null)
         {
-            CinemaActivated?.Invoke(false);
+            TheaterActivated?.Invoke(false);
             AllowCustomPlatform?.Invoke(true);
             return;
         }
 
-        var cinemaActivated = videoConfig.IsPlayable || videoConfig.forceEnvironmentModifications == true;
-        CinemaActivated?.Invoke(cinemaActivated);
+        var theaterActivated = videoConfig.IsPlayable || videoConfig.forceEnvironmentModifications == true;
+        TheaterActivated?.Invoke(theaterActivated);
 
         bool allowCustomPlatform;
         if (videoConfig.allowCustomPlatform == null)
             //If the mapper didn't explicitly allow or disallow custom platforms, use global setting
-            allowCustomPlatform = !cinemaActivated || !SettingsStore.Instance.DisableCustomPlatforms;
+            allowCustomPlatform = !theaterActivated || !config.DisableCustomPlatforms;
         else
             //Otherwise use that setting instead of the global one
-            allowCustomPlatform = !cinemaActivated || videoConfig.allowCustomPlatform == true;
+            allowCustomPlatform = !theaterActivated || videoConfig.allowCustomPlatform == true;
 
         AllowCustomPlatform?.Invoke(allowCustomPlatform);
     }

@@ -44,7 +44,7 @@ public class PlaybackController : MonoBehaviour
     {
         if (Instance != null) return;
 
-        new GameObject("CinemaPlaybackController").AddComponent<PlaybackController>();
+        new GameObject("TheaterPlaybackController").AddComponent<PlaybackController>();
     }
 
     public void Destroy()
@@ -495,12 +495,12 @@ public class PlaybackController : MonoBehaviour
     //     var difficultyData = extraSongDataArgs.SelectedDifficultyData;
     //     var songData = extraSongDataArgs.SongData;
     //
-    //     //If there is any difficulty that has a Cinema suggestion but the current one doesn't, disable playback. The current difficulty most likely has the suggestion missing on purpose.
+    //     //If there is any difficulty that has a Theater suggestion but the current one doesn't, disable playback. The current difficulty most likely has the suggestion missing on purpose.
     //     //If there are no difficulties that have the suggestion set, play the video. It might be a video added by the user.
     //     //Otherwise, if the map is WIP, disable playback even when no difficulty has the suggestion, to convince the mapper to add it.
-    //     if (difficultyData?.HasCinema() == false && songData?.HasCinemaInAnyDifficulty() == true)
+    //     if (difficultyData?.HasTheater() == false && songData?.HasTheaterInAnyDifficulty() == true)
     //         VideoConfig.PlaybackDisabledByMissingSuggestion = true;
-    //     else if (VideoConfig.IsWIPLevel && difficultyData?.HasCinema() == false)
+    //     else if (VideoConfig.IsWIPLevel && difficultyData?.HasTheater() == false)
     //         VideoConfig.PlaybackDisabledByMissingSuggestion = true;
     //     else
     //         VideoConfig.PlaybackDisabledByMissingSuggestion = false;

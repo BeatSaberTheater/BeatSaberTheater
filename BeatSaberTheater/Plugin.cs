@@ -1,5 +1,4 @@
 ﻿using System.IO;
-using BeatSaberMarkupLanguage.GameplaySetup;
 using IPA;
 using IPA.Config.Stores;
 using IPA.Loader;
@@ -20,15 +19,9 @@ namespace BeatSaberTheater;
 internal class Plugin
 {
     internal const string Capability = "Theater";
-    private static bool _enabled;
 
-    internal static IpaLogger Log { get; private set; } = null!;
-
-    public static bool Enabled
-    {
-        get => _enabled && SettingsStore.Instance.PluginEnabled;
-        private set => _enabled = value;
-    }
+    internal static IpaLogger _log { get; private set; } = null!;
+    private PluginConfig _config { get; set; }
 
     // Methods with [Init] are called when the plugin is first loaded by IPA.
     // All the parameters are provided by IPA and are optional.
@@ -36,32 +29,33 @@ internal class Plugin
     [Init]
     public Plugin(IpaLogger ipaLogger, IpaConfig ipaConfig, Zenjector zenjector, PluginMetadata pluginMetadata)
     {
-        Log = ipaLogger;
-        zenjector.UseLogger(Log);
+        _log = ipaLogger;
+        zenjector.UseLogger(_log);
 
         // Creates an instance of PluginConfig used by IPA to load and store config values
-        var pluginConfig = ipaConfig.Generated<PluginConfig>();
+        _config = ipaConfig.Generated<PluginConfig>();
 
         // Instructs SiraUtil to use this installer during Beat Saber's initialization
         // The PluginConfig is used as a constructor parameter for AppInstaller, so pass it to zenjector.Install()
-        zenjector.Install<AppInstaller>(Location.App, pluginConfig);
+        zenjector.Install<AppInstaller>(Location.App, _config);
 
         // Instructs SiraUtil to use this installer when the main menu initializes
+        zenjector.Install<SettingsMenuInstaller>(Location.Menu);
         zenjector.Install<VideoMenuInstaller>(Location.Menu);
 
-        Log.Info($"{pluginMetadata.Name} {pluginMetadata.HVersion} initialized.");
+        _log.Info($"{pluginMetadata.Name} {pluginMetadata.HVersion} initialized.");
     }
 
     [OnEnable]
     [UsedImplicitly]
     public void OnEnable()
     {
-        Enabled = true;
+        _config.PluginEnabled = true;
         BSEvents.lateMenuSceneLoadedFresh += OnMenuSceneLoadedFresh;
         // EnvironmentController.Init();
         Collections.RegisterCapability(Capability);
         if (File.Exists(Path.Combine(UnityGame.InstallPath, "dxgi.dll")))
-            Log.Warn(
+            _log.Warn(
                 "dxgi.dll is present, video may fail to play. To fix this, delete the file dxgi.dll from your main Beat Saber folder (not in Plugins).");
 
         //No need to index maps if the filter isn't going to be applied anyway
@@ -72,10 +66,9 @@ internal class Plugin
     [UsedImplicitly]
     public void OnDisable()
     {
-        Enabled = false;
+        _config.PluginEnabled = false;
         BSEvents.lateMenuSceneLoadedFresh -= OnMenuSceneLoadedFresh;
         // Loader.SongsLoadedEvent -= VideoLoader.IndexMaps;
-        SettingsUI.RemoveMenu();
 
         //TODO Destroying and re-creating the PlaybackController messes up the VideoMenu without any exceptions in the log. Investigate.
         //PlaybackController.Destroy();
@@ -89,7 +82,6 @@ internal class Plugin
     {
         PlaybackController.Create();
 
-        SettingsUI.CreateMenu();
         // SongPreviewPlayerController.Init();
         // AddBetterSongListFilter();
     }
