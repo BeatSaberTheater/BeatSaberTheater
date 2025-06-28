@@ -13,6 +13,7 @@ namespace BeatSaberTheater.Services;
 
 public class SearchService : YoutubeDLServiceBase
 {
+    // TODO: On search finish, results are disposed and disappear from menu
     public readonly List<YTResult> SearchResults = new();
     private Coroutine? _searchCoroutine;
     private Process? _searchProcess;
