@@ -8,7 +8,7 @@ using Zenject;
 
 namespace BeatSaberTheater.Services;
 
-public abstract class YoutubeDownloadService : IInitializable
+public abstract class YoutubeDLServiceBase : IInitializable
 {
     private readonly string _youtubeDLFilepath = Path.Combine(UnityGame.LibraryPath, "yt-dlp.exe");
     private readonly string _ffmpegFilepath = Path.Combine(UnityGame.LibraryPath, "ffmpeg.exe");
@@ -18,7 +18,7 @@ public abstract class YoutubeDownloadService : IInitializable
 
     protected readonly LoggingService _loggingService;
 
-    public YoutubeDownloadService(LoggingService loggingService)
+    public YoutubeDLServiceBase(LoggingService loggingService)
     {
         _loggingService = loggingService;
     }

@@ -15,7 +15,7 @@ using UnityEngine;
 
 namespace BeatSaberTheater.Services;
 
-public class DownloadService : YoutubeDownloadService
+public class DownloadService : YoutubeDLServiceBase
 {
     private readonly ConcurrentDictionary<VideoConfig, Process> _downloadProcesses = new();
 

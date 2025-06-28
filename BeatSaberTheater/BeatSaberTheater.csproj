@@ -34,6 +34,8 @@
         <EmbeddedResource Include="Resources\trash.png"/>
         <None Remove="Resources\configs.json"/>
         <EmbeddedResource Include="Resources\configs.json"/>
+        <None Remove="VideoMenu\Views\level-detail.bsml" />
+        <EmbeddedResource Include="VideoMenu\Views\level-detail.bsml" />
     </ItemGroup>
 
     <ItemGroup>
@@ -105,7 +107,7 @@
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\IPA.Loader.dll</HintPath>
             <Private>false</Private>
         </Reference>
-        <Reference Include="Main">
+        <Reference Include="Main" Publicize="true">
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\Main.dll</HintPath>
             <Private>false</Private>
         </Reference>

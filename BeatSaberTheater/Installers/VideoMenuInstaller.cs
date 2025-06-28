@@ -13,6 +13,7 @@ public class VideoMenuInstaller : Installer
         Container.BindInterfacesAndSelfTo<LoggingService>().AsSingle();
         Container.BindInterfacesAndSelfTo<VideoLoader>().AsSingle();
         Container.BindInterfacesAndSelfTo<DownloadService>().AsSingle();
+        Container.BindInterfacesAndSelfTo<SearchService>().AsSingle();
         Container.BindInterfacesTo<VideoMenuUI>().AsSingle();
         // Container
         //     .BindInterfacesTo<EnvironmentMaterialsManager.EnvironmentMaterialsManagerInitializer>()

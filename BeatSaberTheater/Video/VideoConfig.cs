@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using BeatSaberTheater.Download;
 using BeatSaberTheater.Util;
 using Newtonsoft.Json;
 using SongCore.Data;
@@ -88,6 +89,22 @@ public class VideoConfig
             Plugin._log.Debug("VideoPath is null");
             return null;
         }
+    }
+
+    public VideoConfig()
+    {
+        //Intentionally empty. Used as ctor for JSON deserializer
+    }
+
+    public VideoConfig(YTResult searchResult, string levelPath)
+    {
+        videoID = searchResult.ID;
+        title = searchResult.Title;
+        author = searchResult.Author;
+        duration = searchResult.Duration;
+
+        LevelDir = levelPath;
+        videoFile = GetVideoFileName(levelPath);
     }
 
     public DownloadState UpdateDownloadState()

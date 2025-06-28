@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using BeatmapEditor3D.DataModels;
 using BeatSaberMarkupLanguage;
 using BeatSaberMarkupLanguage.Attributes;
@@ -96,17 +97,20 @@ public class VideoMenuUI : IInitializable, IDisposable
     private string? _thumbnailURL;
 
     private readonly DownloadService _downloadService;
+    private readonly SearchService _searchService;
+    private readonly VideoLoader _videoLoader;
 
-    // private readonly SearchController _searchController = new SearchController();
     private readonly List<YTResult> _searchResults = [];
 
     internal VideoMenuUI(DownloadService downloadService, GameplaySetup gameplaySetup, LoggingService loggingService,
-        PluginConfig config)
+        PluginConfig config, SearchService searchService, VideoLoader videoLoader)
     {
+        _config = config;
         _downloadService = downloadService;
         _gameplaySetup = gameplaySetup;
         _loggingService = loggingService;
-        _config = config;
+        _searchService = searchService;
+        _videoLoader = videoLoader;
     }
 
     public void Initialize()
@@ -141,11 +145,11 @@ public class VideoMenuUI : IInitializable, IDisposable
         _videoDetailsViewRect.gameObject.SetActive(false);
         _videoSearchResultsViewRect.gameObject.SetActive(false);
 
-        // _searchController.SearchProgress += SearchProgress;
-        // _searchController.SearchFinished += SearchFinished;
+        _searchService.SearchProgress += SearchProgress;
+        _searchService.SearchFinished += SearchFinished;
         _downloadService.DownloadProgress += OnDownloadProgress;
         _downloadService.DownloadFinished += OnDownloadFinished;
-        // VideoLoader.ConfigChanged += OnConfigChanged;
+        VideoLoader.ConfigChanged += OnConfigChanged;
 
         if (!_downloadService.LibrariesAvailable())
             _loggingService.Warn(
@@ -220,7 +224,7 @@ public class VideoMenuUI : IInitializable, IDisposable
         _previewButtonText.text = PlaybackController.Instance.IsPreviewPlaying ? "Stop preview" : "Preview";
 
         if (_currentLevel != null && VideoLoader.IsDlcSong(_currentLevel) && _downloadService.LibrariesAvailable())
-            CheckEntitlementAndEnableSearch(_currentLevel);
+            CheckEntitlementAndEnableSearch(_currentLevel).Start();
 
         if (_currentVideo == null) return;
 
@@ -261,15 +265,15 @@ public class VideoMenuUI : IInitializable, IDisposable
         }
     }
 
-    private void CheckEntitlementAndEnableSearch(BeatmapLevel level)
+    private async Task CheckEntitlementAndEnableSearch(BeatmapLevel level)
     {
-        // var entitlement = await VideoLoader.GetEntitlementForLevel(level);
-        // if (entitlement == EntitlementStatus.Owned && _currentLevel == level) _searchButton.gameObject.SetActive(true);
+        var entitlement = await VideoLoader.GetEntitlementForLevel(level);
+        if (entitlement == EntitlementStatus.Owned && _currentLevel == level) _searchButton.gameObject.SetActive(true);
     }
 
     public void SetupVideoDetails()
     {
-        if (_videoSearchResultsViewRect == null)
+        if (!_videoSearchResultsViewRect)
         {
             _loggingService.Warn("Video search results view rect is null, skipping UI setup");
             return;
@@ -499,10 +503,10 @@ public class VideoMenuUI : IInitializable, IDisposable
         if (_config.PluginEnabled) return;
 
         // PlaybackController.Instance.StopPreview(true);
-        // if (_currentVideo?.NeedsToSave == true) VideoLoader.SaveVideoConfig(_currentVideo);
+        if (_currentVideo?.NeedsToSave == true) _videoLoader.SaveVideoConfig(_currentVideo);
 
-        // _currentVideo = VideoLoader.GetConfigForEditorLevel(beatmapData, originalPath);
-        // VideoLoader.SetupFileSystemWatcher(originalPath);
+        _currentVideo = _videoLoader.GetConfigForEditorLevel(beatmapData, originalPath);
+        _videoLoader.SetupFileSystemWatcher(originalPath);
         // PlaybackController.Instance.SetSelectedLevel(null, _currentVideo);
     }
 
@@ -523,7 +527,7 @@ public class VideoMenuUI : IInitializable, IDisposable
 
         // PlaybackController.Instance.StopPreview(true);
 
-        // if (_currentVideo?.NeedsToSave == true) VideoLoader.SaveVideoConfig(_currentVideo);
+        if (_currentVideo?.NeedsToSave == true) _videoLoader.SaveVideoConfig(_currentVideo);
         _currentLevel = level;
         if (_currentLevel == null)
         {
@@ -533,9 +537,9 @@ public class VideoMenuUI : IInitializable, IDisposable
             return;
         }
 
-        // _currentVideo = VideoLoader.GetConfigForLevel(_currentLevel);
+        _currentVideo = _videoLoader.GetConfigForLevel(_currentLevel);
 
-        // VideoLoader.SetupFileSystemWatcher(_currentLevel);
+        _videoLoader.SetupFileSystemWatcher(_currentLevel);
         // PlaybackController.Instance.SetSelectedLevel(_currentLevel, _currentVideo);
         SetupVideoDetails();
 
@@ -583,11 +587,11 @@ public class VideoMenuUI : IInitializable, IDisposable
     public void StatusViewerDidDisable(object sender, EventArgs e)
     {
         _videoMenuActive = false;
-        // if (_currentVideo?.NeedsToSave == true) VideoLoader.SaveVideoConfig(_currentVideo);
+        if (_currentVideo?.NeedsToSave == true) _videoLoader.SaveVideoConfig(_currentVideo);
 
         if (PlaybackController.Instance == null) return;
 
-        // _searchController.StopSearch();
+        _searchService.StopSearch();
 
         // try
         // {
@@ -680,7 +684,7 @@ public class VideoMenuUI : IInitializable, IDisposable
 
         // PlaybackController.Instance.PrepareVideo(video);
 
-        // if (_currentLevel != null) VideoLoader.RemoveConfigFromCache(_currentLevel);
+        if (_currentLevel != null) _videoLoader.RemoveConfigFromCache(_currentLevel);
 
         SetupVideoDetails();
         _levelDetailMenu?.SetActive(true);
@@ -723,13 +727,13 @@ public class VideoMenuUI : IInitializable, IDisposable
             case DownloadState.NotDownloaded:
             case DownloadState.Cancelled:
                 _currentVideo.DownloadProgress = 0;
-                // _searchController.StopSearch();
+                _searchService.StopSearch();
                 _downloadService.StartDownload(_currentVideo, _config.QualityMode);
                 _currentVideo.NeedsToSave = true;
-                // VideoLoader.AddConfigToCache(_currentVideo, _currentLevel!);
+                _videoLoader.AddConfigToCache(_currentVideo, _currentLevel!);
                 break;
             default:
-                // VideoLoader.DeleteVideo(_currentVideo);
+                _videoLoader.DeleteVideo(_currentVideo);
                 // PlaybackController.Instance.VideoPlayer.Stop();
                 // PlaybackController.Instance.VideoPlayer.Player.url = null;
                 // PlaybackController.Instance.VideoPlayer.Player.Prepare();
@@ -758,9 +762,9 @@ public class VideoMenuUI : IInitializable, IDisposable
 
         if (_currentVideo.IsDownloading) _downloadService.CancelDownload(_currentVideo);
 
-        // VideoLoader.DeleteVideo(_currentVideo);
-        // var success = VideoLoader.DeleteConfig(_currentVideo, _currentLevel);
-        // if (success) _currentVideo = null;
+        _videoLoader.DeleteVideo(_currentVideo);
+        var success = _videoLoader.DeleteConfig(_currentVideo, _currentLevel);
+        if (success) _currentVideo = null;
 
         _levelDetailMenu?.SetActive(false);
         ResetVideoMenu();
@@ -787,7 +791,7 @@ public class VideoMenuUI : IInitializable, IDisposable
         _downloadButton.interactable = false;
         _searchLoadingCoroutine = CoroutineStarter.Instance.StartCoroutine(SearchLoadingCoroutine());
 
-        // _searchController.Search(query);
+        _searchService.Search(query);
         _searchText = query;
     }
 
@@ -880,13 +884,13 @@ public class VideoMenuUI : IInitializable, IDisposable
         }
 
         _downloadButton.interactable = false;
-        // var config =
-        //     new VideoConfig(_searchController.SearchResults[_selectedCell], VideoLoader.GetLevelPath(_currentLevel))
-        //         { NeedsToSave = true };
-        // VideoLoader.AddConfigToCache(config, _currentLevel);
-        // _searchController.StopSearch();
-        // _downloadService.StartDownload(config, SettingsStore.Instance.QualityMode);
-        // _currentVideo = config;
+        var config =
+            new VideoConfig(_searchService.SearchResults[_selectedCell], VideoLoader.GetLevelPath(_currentLevel))
+                { NeedsToSave = true };
+        _videoLoader.AddConfigToCache(config, _currentLevel);
+        _searchService.StopSearch();
+        _downloadService.StartDownload(config, _config.QualityMode);
+        _currentVideo = config;
         SetupVideoDetails();
     }
 
