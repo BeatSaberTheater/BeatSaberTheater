@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using BeatSaberTheater.Util;
+using Newtonsoft.Json.Linq;
 
 namespace BeatSaberTheater.Download;
 
@@ -18,16 +18,15 @@ public class YTResult
     public readonly IEnumerable<YTFormat> Formats;
     public readonly YTFormat? HighestFormat;
 
-    public YTResult(JsonNode result)
+    public YTResult(JObject result)
     {
         ID = result["id"]!.ToString();
         Title = FileHelpers.FilterEmoji(result["title"]?.ToString() ?? "Untitled Video");
         Author = FileHelpers.FilterEmoji(result["uploader"]?.ToString() ?? "Unknown Author");
         var duration = double.Parse(result["duration"]?.ToString() ?? "0");
         Duration = Convert.ToInt32(duration);
-        Formats = ParseFormats(result["formats"]?.AsObject());
-        HighestFormat = ParseFormats(result["requested_formats"]?.AsObject())
-            .FirstOrDefault(format => format.VideoCodec != null);
+        Formats = ParseFormats(result["formats"]);
+        HighestFormat = ParseFormats(result["requested_formats"]).FirstOrDefault(format => format.VideoCodec != null);
     }
 
     public bool QualityAvailable(string quality)
@@ -66,14 +65,14 @@ public class YTResult
         return height + "p " + HighestFormat?.FramesPerSecond + "fps";
     }
 
-    private static IEnumerable<YTFormat> ParseFormats(JsonObject? formats)
+    private static IEnumerable<YTFormat> ParseFormats(JToken? formats)
     {
         var resultList = new List<YTFormat>();
-        if (formats is null || formats.Count < 1) return resultList;
+        if (formats?.HasValues != true) return resultList;
 
         try
         {
-            resultList.AddRange(formats.Select(format => new YTFormat(format.Value)));
+            resultList.AddRange(formats.Select(format => new YTFormat(format)));
         }
         catch (Exception e)
         {

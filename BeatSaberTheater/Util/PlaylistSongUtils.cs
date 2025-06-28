@@ -1,7 +1,7 @@
 using System;
-using System.Text.Json;
 using BeatSaberPlaylistsLib.Types;
 using BeatSaberTheater.Video;
+using Newtonsoft.Json;
 
 namespace BeatSaberTheater.Util;
 
@@ -46,8 +46,8 @@ public static class PlaylistSongUtils
             VideoConfig? videoConfig;
             try
             {
-                var json = JsonSerializer.Serialize(theaterData);
-                videoConfig = JsonSerializer.Deserialize<VideoConfig>(json);
+                var json = JsonConvert.SerializeObject(theaterData);
+                videoConfig = JsonConvert.DeserializeObject<VideoConfig>(json);
             }
             catch (Exception e)
             {

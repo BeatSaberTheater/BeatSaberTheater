@@ -1,4 +1,6 @@
+using BeatSaberTheater.Services;
 using BeatSaberTheater.Util;
+using BeatSaberTheater.Video;
 using Zenject;
 
 namespace BeatSaberTheater.Installers;
@@ -30,6 +32,5 @@ internal class AppInstaller : Installer
         // The BindInterfacesTo shortcut is useful since you don't want to write out and remember every base type:
         // Container.Bind(typeof(IInitializable, typeof(IDisposable)).To<ExampleController>().AsSingle();
         // Container.BindInterfacesTo<ExampleController>().AsSingle();
-        Container.BindInterfacesTo<LoggingService>().AsSingle();
     }
 }

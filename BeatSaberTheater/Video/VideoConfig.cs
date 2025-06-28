@@ -1,7 +1,9 @@
 ﻿using System;
 using System.IO;
-using System.Text.Json.Serialization;
+using System.Linq;
 using BeatSaberTheater.Util;
+using Newtonsoft.Json;
+using SongCore.Data;
 
 namespace BeatSaberTheater.Video;
 
@@ -9,6 +11,7 @@ public class VideoConfig
 {
     public bool? allowCustomPlatform;
     public string? author;
+    public bool? bundledConfig;
     public bool? configByMapper;
     public int duration; //s
     public bool? forceEnvironmentModifications;
@@ -26,6 +29,8 @@ public class VideoConfig
     [JsonIgnore] [NonSerialized] public bool NeedsToSave;
     [JsonIgnore] [NonSerialized] public bool PlaybackDisabledByMissingSuggestion;
 
+    [JsonIgnore] public string? ConfigPath => LevelDir != null ? VideoLoader.GetConfigPath(LevelDir) : null;
+
     [JsonIgnore]
     public bool IsDownloading => DownloadState == DownloadState.Preparing ||
                                  DownloadState == DownloadState.Downloading ||
@@ -37,6 +42,19 @@ public class VideoConfig
     [JsonIgnore]
     public bool IsPlayable => DownloadState == DownloadState.Downloaded &&
                               !PlaybackDisabledByMissingSuggestion;
+
+    [JsonIgnore]
+    public bool IsWIPLevel =>
+        LevelDir != null &&
+        (LevelDir.Contains(VideoLoader.WIP_MAPS_FOLDER) ||
+         SongCore.Loader.SeparateSongFolders.Any(folder =>
+         {
+             var isWIP =
+                 (folder.SongFolderEntry.Pack == FolderLevelPack.CustomWIPLevels || folder.SongFolderEntry.WIP) &&
+                 LevelDir.Contains(new DirectoryInfo(folder.SongFolderEntry.Path).Name);
+             return isWIP;
+         })
+        );
 
     [JsonIgnore]
     public string? VideoPath

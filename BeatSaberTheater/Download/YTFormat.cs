@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text.Json;
-using System.Text.Json.Nodes;
+using Newtonsoft.Json.Linq;
 
 namespace BeatSaberTheater.Download;
 
@@ -18,19 +16,18 @@ public class YTFormat
     public float? FramesPerSecond;
     public long? FileSize;
 
-    public YTFormat(JsonNode? jToken)
+    public YTFormat(JToken jToken)
     {
-        if (jToken is null || (jToken["acodec"] == null && jToken["vcodec"] == null))
-            throw new ArgumentException("Invalid format");
+        if (jToken["acodec"] == null && jToken["vcodec"] == null) throw new ArgumentException("Invalid format");
 
-        Quality = jToken["format_note"]?.GetValue<string?>();
-        FileSize = jToken["filesize"]?.GetValue<long?>();
-        Width = jToken["width"]?.GetValue<int?>();
-        Height = jToken["height"]?.GetValue<int?>();
-        AudioCodec = jToken["acodec"]?.GetValue<string?>();
-        VideoCodec = jToken["vcodec"]?.GetValue<string?>();
-        FileExtension = jToken["ext"]?.GetValue<string?>();
-        URL = jToken["url"]?.GetValue<string?>();
-        FramesPerSecond = jToken["fps"]?.GetValue<float?>();
+        Quality = jToken["format_note"]?.Value<string?>();
+        FileSize = jToken["filesize"]?.Value<long?>();
+        Width = jToken["width"]?.Value<int?>();
+        Height = jToken["height"]?.Value<int?>();
+        AudioCodec = jToken["acodec"]?.Value<string?>();
+        VideoCodec = jToken["vcodec"]?.Value<string?>();
+        FileExtension = jToken["ext"]?.Value<string?>();
+        URL = jToken["url"]?.Value<string?>();
+        FramesPerSecond = jToken["fps"]?.Value<float?>();
     }
 }

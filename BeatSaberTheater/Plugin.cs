@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using BeatSaberTheater.Harmony;
 using IPA;
 using IPA.Config.Stores;
 using IPA.Loader;
@@ -9,6 +10,7 @@ using BS_Utils.Utilities;
 using IPA.Utilities;
 using JetBrains.Annotations;
 using SongCore;
+using Zenject;
 using IpaLogger = IPA.Logging.Logger;
 using IpaConfig = IPA.Config.Config;
 
@@ -20,8 +22,10 @@ internal class Plugin
 {
     internal const string Capability = "Theater";
 
-    internal static IpaLogger _log { get; private set; } = null!;
     private PluginConfig _config { get; set; }
+    private HarmonyPatchController? _harmonyPatchController;
+    internal static IpaLogger _log { get; private set; } = null!;
+    internal static DiContainer _menuContainer = null!;
 
     // Methods with [Init] are called when the plugin is first loaded by IPA.
     // All the parameters are provided by IPA and are optional.
@@ -52,6 +56,8 @@ internal class Plugin
     {
         _config.PluginEnabled = true;
         BSEvents.lateMenuSceneLoadedFresh += OnMenuSceneLoadedFresh;
+        _harmonyPatchController = new HarmonyPatchController();
+        ApplyHarmonyPatches();
         // EnvironmentController.Init();
         Collections.RegisterCapability(Capability);
         if (File.Exists(Path.Combine(UnityGame.InstallPath, "dxgi.dll")))
@@ -76,6 +82,11 @@ internal class Plugin
         // EnvironmentController.Disable();
         // VideoLoader.StopFileSystemWatcher();
         Collections.DeregisterCapability(Capability);
+    }
+
+    private void ApplyHarmonyPatches()
+    {
+        _harmonyPatchController?.PatchAll();
     }
 
     private static void OnMenuSceneLoadedFresh(ScenesTransitionSetupDataSO scenesTransition)

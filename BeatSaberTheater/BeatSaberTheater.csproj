@@ -23,7 +23,6 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="System.Text.Json" Version="9.0.6"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -33,6 +32,8 @@
         <EmbeddedResource Include="Settings\Views\settings.bsml"/>
         <None Remove="Resources\trash.png"/>
         <EmbeddedResource Include="Resources\trash.png"/>
+        <None Remove="Resources\configs.json"/>
+        <EmbeddedResource Include="Resources\configs.json"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -40,6 +41,14 @@
     </ItemGroup>
 
     <ItemGroup>
+        <Reference Include="0Harmony">
+            <HintPath>$(BeatSaberDir)\Libs\0Harmony.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="AdditionalContentModel.Interfaces">
+            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\AdditionalContentModel.Interfaces.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="BeatmapCore">
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\BeatmapCore.dll</HintPath>
             <Private>false</Private>
@@ -64,6 +73,10 @@
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\BGLib.AppFlow.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="BGLib.DotnetExtension">
+            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\BGLib.DotnetExtension.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="BS_Utils">
             <HintPath>$(BeatSaberDir)\Plugins\BS_Utils.dll</HintPath>
             <Private>false</Private>
@@ -76,7 +89,7 @@
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\Colors.dll</HintPath>
             <Private>false</Private>
         </Reference>
-        <Reference Include="DataModels">
+        <Reference Include="DataModels" Publicize="true">
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\DataModels.dll</HintPath>
             <Private>false</Private>
         </Reference>
@@ -96,13 +109,21 @@
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\Main.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="MediaLoader">
+            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\MediaLoader.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="mscorlib"/>
         <Reference Include="netstandard"/>
+        <Reference Include="Newtonsoft.Json">
+            <HintPath>$(BeatSaberDir)\IPA\Libs\Newtonsoft.Json.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="SiraUtil">
             <HintPath>$(BeatSaberDir)\Plugins\SiraUtil.dll</HintPath>
             <Private>false</Private>
         </Reference>
-        <Reference Include="SongCore">
+        <Reference Include="SongCore" Publicize="true">
             <HintPath>$(BeatSaberDir)\Plugins\SongCore.dll</HintPath>
             <Private>false</Private>
         </Reference>
@@ -117,6 +138,10 @@
         </Reference>
         <Reference Include="UnityEngine">
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="UnityEngine.AudioModule">
+            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.AudioModule.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="UnityEngine.CoreModule">
@@ -147,7 +172,7 @@
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.VRModule.dll</HintPath>
             <Private>false</Private>
         </Reference>
-        <Reference Include="Zenject">
+        <Reference Include="Zenject" Publicize="true">
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\Zenject.dll</HintPath>
             <Private>false</Private>
         </Reference>

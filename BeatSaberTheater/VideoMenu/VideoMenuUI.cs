@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using BeatmapEditor3D.DataModels;
 using BeatSaberMarkupLanguage;
 using BeatSaberMarkupLanguage.Attributes;
@@ -8,9 +9,11 @@ using BeatSaberMarkupLanguage.GameplaySetup;
 using BeatSaberMarkupLanguage.Parser;
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Screen;
+using BeatSaberTheater.Services;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
 using HMUI;
+using IPA.Utilities;
 using JetBrains.Annotations;
 using SongCore.Data;
 using TMPro;
@@ -91,12 +94,16 @@ public class VideoMenuUI : IInitializable, IDisposable
     private string _searchText = "";
 
     private string? _thumbnailURL;
-    // private readonly DownloadController _downloadController = new DownloadController();
-    // private readonly SearchController _searchController = new SearchController();
-    // private readonly List<YTResult> _searchResults = new();
 
-    internal VideoMenuUI(GameplaySetup gameplaySetup, LoggingService loggingService, PluginConfig config)
+    private readonly DownloadService _downloadService;
+
+    // private readonly SearchController _searchController = new SearchController();
+    private readonly List<YTResult> _searchResults = [];
+
+    internal VideoMenuUI(DownloadService downloadService, GameplaySetup gameplaySetup, LoggingService loggingService,
+        PluginConfig config)
     {
+        _downloadService = downloadService;
         _gameplaySetup = gameplaySetup;
         _loggingService = loggingService;
         _config = config;
@@ -136,13 +143,13 @@ public class VideoMenuUI : IInitializable, IDisposable
 
         // _searchController.SearchProgress += SearchProgress;
         // _searchController.SearchFinished += SearchFinished;
-        // _downloadController.DownloadProgress += OnDownloadProgress;
-        // _downloadController.DownloadFinished += OnDownloadFinished;
+        _downloadService.DownloadProgress += OnDownloadProgress;
+        _downloadService.DownloadFinished += OnDownloadFinished;
         // VideoLoader.ConfigChanged += OnConfigChanged;
 
-        // if (!_downloadController.LibrariesAvailable())
-        //     Log.Warn(
-        //         $"One or more of the libraries are missing. Downloading videos will not work. To fix this, reinstall Theater and make sure yt-dlp and ffmpeg are in the Libs folder of Beat Saber, which is located at {UnityGame.LibraryPath}.");
+        if (!_downloadService.LibrariesAvailable())
+            _loggingService.Warn(
+                $"One or more of the libraries are missing. Downloading videos will not work. To fix this, reinstall Theater and make sure yt-dlp and ffmpeg are in the Libs folder of Beat Saber, which is located at {UnityGame.LibraryPath}.");
     }
 
     public void Dispose()
@@ -173,13 +180,13 @@ public class VideoMenuUI : IInitializable, IDisposable
         _videoDetailsViewRect.gameObject.SetActive(false);
         SetButtonState(false);
 
-        // if (!_downloadController.LibrariesAvailable())
-        // {
-        //     _noVideoText.text =
-        //         "Libraries not found. Please reinstall Theater.\r\nMake sure you unzip the files from the Libs folder into 'Beat Saber\\Libs'.";
-        //     _searchButton.gameObject.SetActive(false);
-        //     return;
-        // }
+        if (!_downloadService.LibrariesAvailable())
+        {
+            _noVideoText.text =
+                "Libraries not found. Please reinstall Theater.\r\nMake sure you unzip the files from the Libs folder into 'Beat Saber\\Libs'.";
+            _searchButton.gameObject.SetActive(false);
+            return;
+        }
 
         if (!_config.PluginEnabled)
         {
@@ -207,13 +214,13 @@ public class VideoMenuUI : IInitializable, IDisposable
         _previewButton.interactable = state;
         _deleteButton.interactable = state;
         _deleteVideoButton.interactable = state;
-        // _searchButton.gameObject.SetActive(_currentLevel != null &&
-        //                                    !VideoLoader.IsDlcSong(_currentLevel) &&
-        //                                    _downloadController.LibrariesAvailable());
+        _searchButton.gameObject.SetActive(_currentLevel != null &&
+                                           !VideoLoader.IsDlcSong(_currentLevel) &&
+                                           _downloadService.LibrariesAvailable());
         _previewButtonText.text = PlaybackController.Instance.IsPreviewPlaying ? "Stop preview" : "Preview";
 
-        // if (_currentLevel != null && VideoLoader.IsDlcSong(_currentLevel) && _downloadController.LibrariesAvailable())
-        //     CheckEntitlementAndEnableSearch(_currentLevel);
+        if (_currentLevel != null && VideoLoader.IsDlcSong(_currentLevel) && _downloadService.LibrariesAvailable())
+            CheckEntitlementAndEnableSearch(_currentLevel);
 
         if (_currentVideo == null) return;
 
@@ -237,11 +244,11 @@ public class VideoMenuUI : IInitializable, IDisposable
                 _deleteVideoButtonText.SetText("Download");
                 _deleteVideoButton.interactable = false;
                 var underlineColor = Color.clear;
-                // if (state && _downloadController.LibrariesAvailable())
-                // {
-                //     underlineColor = Color.green;
-                //     _deleteVideoButton.interactable = true;
-                // }
+                if (state && _downloadService.LibrariesAvailable())
+                {
+                    underlineColor = Color.green;
+                    _deleteVideoButton.interactable = true;
+                }
 
                 _deleteVideoButton.transform.Find("Underline").gameObject.GetComponent<Image>().color = underlineColor;
                 _previewButton.interactable = false;
@@ -271,12 +278,12 @@ public class VideoMenuUI : IInitializable, IDisposable
         _videoSearchResultsViewRect.gameObject.SetActive(false);
         _levelDetailMenu?.SetActive(false);
 
-        // if (_currentVideo == null || !_downloadController.LibrariesAvailable())
-        // {
-        //     ResetVideoMenu();
-        //     Log.Debug("No video configured");
-        //     return;
-        // }
+        if (_currentVideo == null || !_downloadService.LibrariesAvailable())
+        {
+            ResetVideoMenu();
+            _loggingService.Debug("No video configured");
+            return;
+        }
 
         SetupLevelDetailView(_currentVideo!);
 
@@ -499,12 +506,6 @@ public class VideoMenuUI : IInitializable, IDisposable
         // PlaybackController.Instance.SetSelectedLevel(null, _currentVideo);
     }
 
-    [Obsolete("This overload is depreciated, isPlaylistSong is determined automatically.", true)]
-    public void HandleDidSelectLevel(BeatmapLevel? level, bool isPlaylistSong = false)
-    {
-        HandleDidSelectLevel(level);
-    }
-
     public void HandleDidSelectLevel(BeatmapLevel? level)
     {
         //These will be set a bit later by a Harmony patch. Clear them to not accidentally access outdated info.
@@ -717,13 +718,13 @@ public class VideoMenuUI : IInitializable, IDisposable
             case DownloadState.Downloading:
             case DownloadState.DownloadingAudio:
             case DownloadState.DownloadingVideo:
-                // _downloadController.CancelDownload(_currentVideo);
+                _downloadService.CancelDownload(_currentVideo);
                 break;
             case DownloadState.NotDownloaded:
             case DownloadState.Cancelled:
                 _currentVideo.DownloadProgress = 0;
                 // _searchController.StopSearch();
-                // _downloadController.StartDownload(_currentVideo, SettingsStore.Instance.QualityMode);
+                _downloadService.StartDownload(_currentVideo, _config.QualityMode);
                 _currentVideo.NeedsToSave = true;
                 // VideoLoader.AddConfigToCache(_currentVideo, _currentLevel!);
                 break;
@@ -755,7 +756,7 @@ public class VideoMenuUI : IInitializable, IDisposable
         // PlaybackController.Instance.StopPlayback();
         // PlaybackController.Instance.VideoPlayer.Hide();
 
-        // if (_currentVideo.IsDownloading) _downloadController.CancelDownload(_currentVideo);
+        if (_currentVideo.IsDownloading) _downloadService.CancelDownload(_currentVideo);
 
         // VideoLoader.DeleteVideo(_currentVideo);
         // var success = VideoLoader.DeleteConfig(_currentVideo, _currentLevel);
@@ -884,7 +885,7 @@ public class VideoMenuUI : IInitializable, IDisposable
         //         { NeedsToSave = true };
         // VideoLoader.AddConfigToCache(config, _currentLevel);
         // _searchController.StopSearch();
-        // _downloadController.StartDownload(config, SettingsStore.Instance.QualityMode);
+        // _downloadService.StartDownload(config, SettingsStore.Instance.QualityMode);
         // _currentVideo = config;
         SetupVideoDetails();
     }

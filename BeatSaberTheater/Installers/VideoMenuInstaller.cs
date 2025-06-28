@@ -1,4 +1,6 @@
-﻿using BeatSaberTheater.Util;
+﻿using BeatSaberTheater.Services;
+using BeatSaberTheater.Util;
+using BeatSaberTheater.Video;
 using BeatSaberTheater.VideoMenu;
 using Zenject;
 
@@ -9,6 +11,8 @@ public class VideoMenuInstaller : Installer
     public override void InstallBindings()
     {
         Container.BindInterfacesAndSelfTo<LoggingService>().AsSingle();
+        Container.BindInterfacesAndSelfTo<VideoLoader>().AsSingle();
+        Container.BindInterfacesAndSelfTo<DownloadService>().AsSingle();
         Container.BindInterfacesTo<VideoMenuUI>().AsSingle();
         // Container
         //     .BindInterfacesTo<EnvironmentMaterialsManager.EnvironmentMaterialsManagerInitializer>()
