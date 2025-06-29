@@ -21,9 +21,9 @@ public class SearchService : YoutubeDLServiceBase
     public event Action<YTResult>? SearchProgress;
     public event Action? SearchFinished;
 
-    private readonly TheaterCoroutineStarter _coroutineStarter;
+    private readonly CoroutineStarter _coroutineStarter;
 
-    public SearchService(TheaterCoroutineStarter coroutineStarter, LoggingService loggingService) : base(loggingService)
+    public SearchService(CoroutineStarter coroutineStarter, LoggingService loggingService) : base(loggingService)
     {
         _coroutineStarter = coroutineStarter;
     }

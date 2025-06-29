@@ -36,10 +36,10 @@ public class DownloadService : YoutubeDLServiceBase
         "https://vimeo.com/"
     };
 
-    private readonly TheaterCoroutineStarter _coroutineStarter;
+    private readonly CoroutineStarter _coroutineStarter;
     private readonly VideoLoader _videoLoader;
 
-    public DownloadService(TheaterCoroutineStarter coroutineStarter, LoggingService loggingService,
+    public DownloadService(CoroutineStarter coroutineStarter, LoggingService loggingService,
         VideoLoader videoLoader) : base(loggingService)
     {
         _coroutineStarter = coroutineStarter;
