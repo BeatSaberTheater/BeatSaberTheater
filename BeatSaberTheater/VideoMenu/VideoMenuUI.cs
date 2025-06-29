@@ -48,8 +48,10 @@ public class VideoMenuUI : IInitializable, IDisposable
     [UIComponent("video-duration")] private readonly TextMeshProUGUI _videoDurationText = null!;
     [UIComponent("video-status")] private readonly TextMeshProUGUI _videoStatusText = null!;
     [UIComponent("video-offset")] private readonly TextMeshProUGUI _videoOffsetText = null!;
+
     [UIComponent("video-thumbnail")] private readonly Image _videoThumnnail = null!;
-    [UIComponent("preview-button")] private readonly TextMeshProUGUI _previewButtonText = null!;
+
+    // [UIComponent("preview-button")] private readonly TextMeshProUGUI _previewButtonText = null!;
     [UIComponent("preview-button")] private readonly Button _previewButton = null!;
     [UIComponent("search-button")] private readonly Button _searchButton = null!;
     [UIComponent("delete-config-button")] private readonly Button _deleteButton = null!;
@@ -96,16 +98,19 @@ public class VideoMenuUI : IInitializable, IDisposable
 
     private string? _thumbnailURL;
 
+    private readonly TheaterCoroutineStarter _coroutineStarter;
     private readonly DownloadService _downloadService;
     private readonly SearchService _searchService;
     private readonly VideoLoader _videoLoader;
 
     private readonly List<YTResult> _searchResults = [];
 
-    internal VideoMenuUI(DownloadService downloadService, GameplaySetup gameplaySetup, LoggingService loggingService,
+    internal VideoMenuUI(TheaterCoroutineStarter coroutineStarter, DownloadService downloadService,
+        GameplaySetup gameplaySetup, LoggingService loggingService,
         PluginConfig config, SearchService searchService, VideoLoader videoLoader)
     {
         _config = config;
+        _coroutineStarter = coroutineStarter;
         _downloadService = downloadService;
         _gameplaySetup = gameplaySetup;
         _loggingService = loggingService;
@@ -221,7 +226,7 @@ public class VideoMenuUI : IInitializable, IDisposable
         _searchButton.gameObject.SetActive(_currentLevel != null &&
                                            !VideoLoader.IsDlcSong(_currentLevel) &&
                                            _downloadService.LibrariesAvailable());
-        _previewButtonText.text = PlaybackController.Instance.IsPreviewPlaying ? "Stop preview" : "Preview";
+        // _previewButtonText.text = PlaybackController.Instance.IsPreviewPlaying ? "Stop preview" : "Preview";
 
         if (_currentLevel != null && VideoLoader.IsDlcSong(_currentLevel) && _downloadService.LibrariesAvailable())
             CheckEntitlementAndEnableSearch(_currentLevel).Start();
@@ -317,9 +322,9 @@ public class VideoMenuUI : IInitializable, IDisposable
 
         SetButtonState(true);
 
-        _videoTitleText.text = FileHelpers.FilterEmoji(_currentVideo.title ?? "Untitled Video");
-        _videoAuthorText.text = "Author: " + FileHelpers.FilterEmoji(_currentVideo.author ?? "Unknown Author");
-        _videoDurationText.text = "Duration: " + FileHelpers.SecondsToString(_currentVideo.duration);
+        _videoTitleText.text = TheaterFileHelpers.FilterEmoji(_currentVideo.title ?? "Untitled Video");
+        _videoAuthorText.text = "Author: " + TheaterFileHelpers.FilterEmoji(_currentVideo.author ?? "Unknown Author");
+        _videoDurationText.text = "Duration: " + TheaterFileHelpers.SecondsToString(_currentVideo.duration);
 
         _videoOffsetText.text = $"{_currentVideo.offset:n0}" + " ms";
         SetThumbnail(_currentVideo.videoID != null
@@ -589,7 +594,7 @@ public class VideoMenuUI : IInitializable, IDisposable
         _videoMenuActive = false;
         if (_currentVideo?.NeedsToSave == true) _videoLoader.SaveVideoConfig(_currentVideo);
 
-        if (PlaybackController.Instance == null) return;
+        // if (PlaybackController.Instance == null) return;
 
         _searchService.StopSearch();
 
@@ -631,8 +636,9 @@ public class VideoMenuUI : IInitializable, IDisposable
 
     private IEnumerator UpdateSearchResults(YTResult result)
     {
-        var title = $"[{FileHelpers.SecondsToString(result.Duration)}] {FileHelpers.FilterEmoji(result.Title)}";
-        var description = $"{FileHelpers.FilterEmoji(result.Author)}";
+        var title =
+            $"[{TheaterFileHelpers.SecondsToString(result.Duration)}] {TheaterFileHelpers.FilterEmoji(result.Title)}";
+        var description = $"{TheaterFileHelpers.FilterEmoji(result.Author)}";
 
         try
         {
@@ -789,7 +795,7 @@ public class VideoMenuUI : IInitializable, IDisposable
 
         ResetSearchView();
         _downloadButton.interactable = false;
-        _searchLoadingCoroutine = CoroutineStarter.Instance.StartCoroutine(SearchLoadingCoroutine());
+        _searchLoadingCoroutine = _coroutineStarter.StartCoroutine(SearchLoadingCoroutine());
 
         _searchService.Search(query);
         _searchText = query;
@@ -802,7 +808,7 @@ public class VideoMenuUI : IInitializable, IDisposable
 
         // _searchResults.Add(result);
         var updateSearchResultsCoroutine = UpdateSearchResults(result);
-        _updateSearchResultsCoroutine = CoroutineStarter.Instance.StartCoroutine(updateSearchResultsCoroutine);
+        _updateSearchResultsCoroutine = _coroutineStarter.StartCoroutine(updateSearchResultsCoroutine);
     }
 
     private void SearchFinished()
@@ -817,9 +823,9 @@ public class VideoMenuUI : IInitializable, IDisposable
 
     private void ResetSearchView()
     {
-        if (_searchLoadingCoroutine != null) CoroutineStarter.Instance.StopCoroutine(_searchLoadingCoroutine);
+        if (_searchLoadingCoroutine != null) _coroutineStarter.StopCoroutine(_searchLoadingCoroutine);
         if (_updateSearchResultsCoroutine != null)
-            CoroutineStarter.Instance.StopCoroutine(_updateSearchResultsCoroutine);
+            _coroutineStarter.StopCoroutine(_updateSearchResultsCoroutine);
 
         if (_customListTableData.Data != null && _customListTableData.Data.Count > 0)
         {

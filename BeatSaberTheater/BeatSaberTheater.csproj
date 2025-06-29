@@ -34,8 +34,8 @@
         <EmbeddedResource Include="Resources\trash.png"/>
         <None Remove="Resources\configs.json"/>
         <EmbeddedResource Include="Resources\configs.json"/>
-        <None Remove="VideoMenu\Views\level-detail.bsml" />
-        <EmbeddedResource Include="VideoMenu\Views\level-detail.bsml" />
+        <None Remove="VideoMenu\Views\level-detail.bsml"/>
+        <EmbeddedResource Include="VideoMenu\Views\level-detail.bsml"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -79,6 +79,10 @@
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\BGLib.DotnetExtension.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="BGLib.UnityExtension" Publicize="true">
+            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\BGLib.UnityExtension.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="BS_Utils">
             <HintPath>$(BeatSaberDir)\Plugins\BS_Utils.dll</HintPath>
             <Private>false</Private>
@@ -97,6 +101,10 @@
         </Reference>
         <Reference Include="Hive.Versioning">
             <HintPath>$(BeatSaberDir)\Libs\Hive.Versioning.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="HMRendering" Publicize="true">
+            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\HMRendering.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="HMUI">
@@ -142,6 +150,10 @@
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="UnityEngine.AssetBundleModule">
+            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.AssetBundleModule.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="UnityEngine.AudioModule">
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.AudioModule.dll</HintPath>
             <Private>false</Private>
@@ -168,6 +180,10 @@
         </Reference>
         <Reference Include="UnityEngine.UnityWebRequestTextureModule">
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.UnityWebRequestTextureModule.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="UnityEngine.VideoModule">
+            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.VideoModule.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="UnityEngine.VRModule">

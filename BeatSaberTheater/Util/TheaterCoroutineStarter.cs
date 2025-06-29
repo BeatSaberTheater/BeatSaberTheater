@@ -3,13 +3,11 @@ using Zenject;
 
 namespace BeatSaberTheater.Util;
 
-public class CoroutineStarter : MonoBehaviour
+public class TheaterCoroutineStarter : MonoBehaviour, IInitializable
 {
-    // [Inject] private LoggingService _loggingService = null!;
+    private static TheaterCoroutineStarter? _instance;
 
-    private static CoroutineStarter? _instance;
-
-    public static CoroutineStarter Instance
+    public static TheaterCoroutineStarter Instance
     {
         get
         {
@@ -17,13 +15,17 @@ public class CoroutineStarter : MonoBehaviour
             {
                 Plugin._log.Debug("Creating new CoroutineStarter");
                 var gameObject = new GameObject();
-                _instance = gameObject.AddComponent<CoroutineStarter>();
-                gameObject.name = typeof(CoroutineStarter).ToString();
+                _instance = gameObject.AddComponent<TheaterCoroutineStarter>();
+                gameObject.name = typeof(TheaterCoroutineStarter).ToString();
                 DontDestroyOnLoad(gameObject);
             }
 
             var result = _instance;
             return result;
         }
+    }
+
+    public void Initialize()
+    {
     }
 }

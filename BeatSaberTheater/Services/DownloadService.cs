@@ -36,16 +36,19 @@ public class DownloadService : YoutubeDLServiceBase
         "https://vimeo.com/"
     };
 
+    private readonly TheaterCoroutineStarter _coroutineStarter;
     private readonly VideoLoader _videoLoader;
 
-    public DownloadService(LoggingService loggingService, VideoLoader videoLoader) : base(loggingService)
+    public DownloadService(TheaterCoroutineStarter coroutineStarter, LoggingService loggingService,
+        VideoLoader videoLoader) : base(loggingService)
     {
+        _coroutineStarter = coroutineStarter;
         _videoLoader = videoLoader;
     }
 
     public void StartDownload(VideoConfig video, VideoQuality.Mode quality)
     {
-        CoroutineStarter.Instance.StartCoroutine(DownloadVideoCoroutine(video, quality));
+        _coroutineStarter.StartCoroutine(DownloadVideoCoroutine(video, quality));
     }
 
     private IEnumerator DownloadVideoCoroutine(VideoConfig video, VideoQuality.Mode quality)
@@ -137,7 +140,7 @@ public class DownloadService : YoutubeDLServiceBase
             video.DownloadState = DownloadState.Downloaded;
             video.ErrorMessage = null;
             video.NeedsToSave = true;
-            CoroutineStarter.Instance.StartCoroutine(WaitForDownloadToFinishCoroutine(video));
+            _coroutineStarter.StartCoroutine(WaitForDownloadToFinishCoroutine(video));
             _loggingService.Info($"Download of {video.title} finished");
         }
 

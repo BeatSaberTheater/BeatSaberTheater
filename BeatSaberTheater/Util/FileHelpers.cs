@@ -9,7 +9,7 @@ using UnityEngine.XR;
 
 namespace BeatSaberTheater.Util;
 
-public static class FileHelpers
+public static class TheaterFileHelpers
 {
     public static bool IsFileLocked(FileInfo file)
     {

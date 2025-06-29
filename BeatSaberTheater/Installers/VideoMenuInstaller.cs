@@ -11,6 +11,7 @@ public class VideoMenuInstaller : Installer
     public override void InstallBindings()
     {
         Container.BindInterfacesAndSelfTo<LoggingService>().AsSingle();
+        // Container.BindInterfacesAndSelfTo<TheaterCoroutineStarter>().AsSingle();
         Container.BindInterfacesAndSelfTo<VideoLoader>().AsSingle();
         Container.BindInterfacesAndSelfTo<DownloadService>().AsSingle();
         Container.BindInterfacesAndSelfTo<SearchService>().AsSingle();

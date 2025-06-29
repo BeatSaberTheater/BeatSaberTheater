@@ -20,7 +20,8 @@ using Zenject;
 
 namespace BeatSaberTheater.Video;
 
-public class VideoLoader(LoggingService _loggingService) : IInitializable, IDisposable
+public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingService _loggingService)
+    : IInitializable, IDisposable
 {
     private const string OST_DIRECTORY_NAME = "TheaterOSTVideos";
     internal const string WIP_DIRECTORY_NAME = "TheaterWIPVideos";
@@ -161,7 +162,7 @@ public class VideoLoader(LoggingService _loggingService) : IInitializable, IDisp
     {
         var levelID = !level.hasPrecalculatedData
             ? level.levelID
-            : FileHelpers.ReplaceIllegalFilesystemChars(level.songName.Trim());
+            : TheaterFileHelpers.ReplaceIllegalFilesystemChars(level.songName.Trim());
         BundledConfigs.TryGetValue(levelID, out var config);
 
         if (config == null)
@@ -231,14 +232,14 @@ public class VideoLoader(LoggingService _loggingService) : IInitializable, IDisp
     private void OnConfigChangedMainThread(FileSystemEventArgs e)
     {
         _loggingService.Debug("Config " + e.ChangeType + " detected: " + e.FullPath);
-        if (_ignoreNextEventForPath == e.FullPath && !FileHelpers.IsInEditor())
+        if (_ignoreNextEventForPath == e.FullPath && !TheaterFileHelpers.IsInEditor())
         {
             _loggingService.Debug("Ignoring event after saving");
             _ignoreNextEventForPath = null;
             return;
         }
 
-        CoroutineStarter.Instance.StartCoroutine(WaitForConfigWriteCoroutine(e));
+        _coroutineStarter.StartCoroutine(WaitForConfigWriteCoroutine(e));
     }
 
     private IEnumerator WaitForConfigWriteCoroutine(FileSystemEventArgs e)
@@ -253,7 +254,7 @@ public class VideoLoader(LoggingService _loggingService) : IInitializable, IDisp
         var configFileInfo = new FileInfo(configPath);
         var timeout = new DownloadTimeout(3f);
         yield return new WaitUntil(() =>
-            !FileHelpers.IsFileLocked(configFileInfo) || timeout.HasTimedOut);
+            !TheaterFileHelpers.IsFileLocked(configFileInfo) || timeout.HasTimedOut);
         var config = LoadConfig(configPath);
         ConfigChanged?.Invoke(config);
     }
@@ -346,7 +347,7 @@ public class VideoLoader(LoggingService _loggingService) : IInitializable, IDisp
     public static string GetLevelPath(BeatmapLevel level)
     {
         var songName = level.songName.Trim();
-        songName = FileHelpers.ReplaceIllegalFilesystemChars(songName);
+        songName = TheaterFileHelpers.ReplaceIllegalFilesystemChars(songName);
         return Path.Combine(Environment.CurrentDirectory, "Beat Saber_Data", "CustomLevels", OST_DIRECTORY_NAME,
             songName);
     }

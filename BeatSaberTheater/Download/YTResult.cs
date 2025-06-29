@@ -21,8 +21,8 @@ public class YTResult
     public YTResult(JObject result)
     {
         ID = result["id"]!.ToString();
-        Title = FileHelpers.FilterEmoji(result["title"]?.ToString() ?? "Untitled Video");
-        Author = FileHelpers.FilterEmoji(result["uploader"]?.ToString() ?? "Unknown Author");
+        Title = TheaterFileHelpers.FilterEmoji(result["title"]?.ToString() ?? "Untitled Video");
+        Author = TheaterFileHelpers.FilterEmoji(result["uploader"]?.ToString() ?? "Unknown Author");
         var duration = double.Parse(result["duration"]?.ToString() ?? "0");
         Duration = Convert.ToInt32(duration);
         Formats = ParseFormats(result["formats"]);

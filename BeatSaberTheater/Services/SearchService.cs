@@ -21,15 +21,18 @@ public class SearchService : YoutubeDLServiceBase
     public event Action<YTResult>? SearchProgress;
     public event Action? SearchFinished;
 
-    public SearchService(LoggingService loggingService) : base(loggingService)
+    private readonly TheaterCoroutineStarter _coroutineStarter;
+
+    public SearchService(TheaterCoroutineStarter coroutineStarter, LoggingService loggingService) : base(loggingService)
     {
+        _coroutineStarter = coroutineStarter;
     }
 
     public void Search(string query)
     {
-        if (_searchCoroutine != null) CoroutineStarter.Instance.StopCoroutine(_searchCoroutine);
+        if (_searchCoroutine != null) _coroutineStarter.StopCoroutine(_searchCoroutine);
 
-        _searchCoroutine = CoroutineStarter.Instance.StartCoroutine(SearchCoroutine(query));
+        _searchCoroutine = _coroutineStarter.StartCoroutine(SearchCoroutine(query));
     }
 
     private IEnumerator SearchCoroutine(string query, int expectedResultCount = 20)

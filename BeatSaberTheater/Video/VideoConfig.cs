@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using BeatSaberTheater.Download;
+using BeatSaberTheater.Models;
 using BeatSaberTheater.Util;
 using Newtonsoft.Json;
 using SongCore.Data;
@@ -13,15 +14,25 @@ public class VideoConfig
     public bool? allowCustomPlatform;
     public string? author;
     public bool? bundledConfig;
+    public bool? colorBlending;
     public bool? configByMapper;
+    public bool? curveYAxis;
     public int duration; //s
     public bool? forceEnvironmentModifications;
     public int offset; //ms
+    public float? screenHeight;
+    public float? screenCurvature;
+    public SerializableVector3? screenPosition;
+    public SerializableVector3? screenRotation;
+    public int? screenSubsurfaces;
     public string? title;
     public UserSettings? userSettings;
     public string? videoFile;
     public string? videoID;
     public string? videoUrl;
+
+    public ColorCorrection? colorCorrection;
+    public Vignette? vignette;
 
     [JsonIgnore] [NonSerialized] public float DownloadProgress;
     [JsonIgnore] [NonSerialized] public DownloadState DownloadState;
@@ -116,8 +127,8 @@ public class VideoConfig
 
     private string GetVideoFileName(string levelPath)
     {
-        var fileName = videoFile ?? FileHelpers.ReplaceIllegalFilesystemChars(title ?? videoID ?? "video");
-        fileName = FileHelpers.ShortenFilename(levelPath, fileName);
+        var fileName = videoFile ?? TheaterFileHelpers.ReplaceIllegalFilesystemChars(title ?? videoID ?? "video");
+        fileName = TheaterFileHelpers.ShortenFilename(levelPath, fileName);
         if (!fileName.EndsWith(".mp4")) fileName += ".mp4";
         return fileName;
     }

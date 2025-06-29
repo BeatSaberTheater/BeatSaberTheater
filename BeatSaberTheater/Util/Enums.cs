@@ -11,3 +11,10 @@ public enum DownloadState
     Downloaded,
     Cancelled
 }
+
+public enum Scene
+{
+    SoloGameplay,
+    Menu,
+    Other
+}

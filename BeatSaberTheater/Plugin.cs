@@ -91,7 +91,7 @@ internal class Plugin
 
     private static void OnMenuSceneLoadedFresh(ScenesTransitionSetupDataSO scenesTransition)
     {
-        PlaybackController.Create();
+        // PlaybackController.Create();
 
         // SongPreviewPlayerController.Init();
         // AddBetterSongListFilter();
