@@ -31,10 +31,12 @@ public class ScreenManager : IInitializable
     private const string BODY_SHADER_NAME = "Custom/OpaqueNeonLight";
 
     private readonly PluginConfig _config;
+    private readonly LoggingService _loggingService;
 
-    internal ScreenManager(PluginConfig config)
+    internal ScreenManager(PluginConfig config, LoggingService loggingService)
     {
         _config = config;
+        _loggingService = loggingService;
         _materialPropertyBlock = new MaterialPropertyBlock();
     }
 
@@ -51,7 +53,7 @@ public class ScreenManager : IInitializable
         Screens.Add(newScreen);
     }
 
-    private static void CreateScreenBody(Component parent)
+    private void CreateScreenBody(Component parent)
     {
         var body = new GameObject("Body");
         body.AddComponent<CurvedSurface>();
@@ -71,7 +73,7 @@ public class ScreenManager : IInitializable
             var bodyRenderer = body.GetComponent<Renderer>();
             if (bodyRenderer == null)
             {
-                Log.Error("Could not find body renderer for screen");
+                _loggingService.Error("Could not find body renderer for screen");
                 return;
             }
 
@@ -80,13 +82,13 @@ public class ScreenManager : IInitializable
         });
     }
 
-    private static void AssignBodyMaterial(Renderer bodyRenderer)
+    private void AssignBodyMaterial(Renderer bodyRenderer)
     {
         var bodyShader = Resources.FindObjectsOfTypeAll<Shader>().LastOrDefault(x => x.name == BODY_SHADER_NAME);
         if (bodyShader != null)
         {
             bodyRenderer.material = new Material(bodyShader);
-            Log.Debug("Assigned body shader: " + bodyShader.name);
+            _loggingService.Debug("Assigned body shader: " + bodyShader.name);
         }
         else
         {
@@ -94,11 +96,11 @@ public class ScreenManager : IInitializable
             if (shader != null)
             {
                 bodyRenderer.material = new Material(shader);
-                Log.Debug("Assigned body shader: " + shader.name);
+                _loggingService.Debug("Assigned body shader: " + shader.name);
             }
             else
             {
-                Log.Error("Could not find body shader");
+                _loggingService.Error("Could not find body shader");
             }
         }
 
@@ -264,12 +266,12 @@ public class ScreenManager : IInitializable
 
     public void EnableColorBlending(bool enable)
     {
-        Log.Debug("Enabling color blending: " + enable);
+        _loggingService.Debug("Enabling color blending: " + enable);
         var screenRenderer = Screens[0].GetComponent<Renderer>();
         SetBlendMode(enable ? BlendMode.SoftAdditive : BlendMode.PerfectVisibility, screenRenderer.material);
     }
 
-    private static void SetBlendMode(BlendMode blendMode, Material material)
+    private void SetBlendMode(BlendMode blendMode, Material material)
     {
         switch (blendMode)
         {
@@ -291,7 +293,7 @@ public class ScreenManager : IInitializable
                 throw new ArgumentOutOfRangeException(nameof(blendMode), blendMode, null);
         }
 
-        Log.Debug("Set blend mode to " + blendMode);
+        _loggingService.Debug("Set blend mode to " + blendMode);
     }
 
     private enum BlendMode

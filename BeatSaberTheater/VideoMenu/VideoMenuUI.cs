@@ -562,6 +562,7 @@ public class VideoMenuUI : IInitializable, IDisposable
 
         if (levelSelectedArgs.BeatmapData != null)
         {
+            _loggingService.Debug("Level selected from VideoMenuUI");
             HandleDidSelectEditorBeatmap(levelSelectedArgs.BeatmapData, levelSelectedArgs.OriginalPath!);
             return;
         }

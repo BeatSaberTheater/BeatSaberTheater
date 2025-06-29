@@ -23,11 +23,15 @@ namespace BeatSaberTheater.Video;
 public class VideoLoader(CoroutineStarter _coroutineStarter, LoggingService _loggingService)
     : IInitializable, IDisposable
 {
+    private const string LEGACY_OST_DIRECTORY_NAME = "CinemaOSTVideos";
+
     private const string OST_DIRECTORY_NAME = "TheaterOSTVideos";
-    internal const string WIP_DIRECTORY_NAME = "TheaterWIPVideos";
+
+    // internal const string LEGACY_WIP_DIRECTORY_NAME = "TheaterWIPVideos";
+    // internal const string WIP_DIRECTORY_NAME = "TheaterWIPVideos";
     internal const string WIP_MAPS_FOLDER = "CustomWIPLevels";
+    private const string LEGACY_CONFIG_FILENAME = "cinema-video.json";
     private const string CONFIG_FILENAME = "theater-video.json";
-    private const string CONFIG_FILENAME_MVP = "video.json";
 
     private static FileSystemWatcher? _fileSystemWatcher;
     public static event Action<VideoConfig?>? ConfigChanged;
@@ -76,30 +80,30 @@ public class VideoLoader(CoroutineStarter _coroutineStarter, LoggingService _log
 
     private static AudioClipAsyncLoader? _audioClipAsyncLoader;
 
-    internal async void IndexMaps(Loader? loader = null,
-        ConcurrentDictionary<string, BeatmapLevel>? beatmapLevels = null)
-    {
-        _loggingService.Debug("Indexing maps...");
-        var stopwatch = new Stopwatch();
-        stopwatch.Start();
-
-        var officialMaps = GetOfficialMaps();
-
-        void Action()
-        {
-            var options = new ParallelOptions
-                { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2 - 1) };
-            Parallel.ForEach(Loader.CustomLevels, options, IndexMap);
-            if (officialMaps.Count > 0) Parallel.ForEach(officialMaps, options, IndexMap);
-        }
-
-        var loadingTask = new Task((Action)Action, CancellationToken.None);
-        var loadingAwaiter = loadingTask.ConfigureAwait(false);
-        loadingTask.Start();
-        await loadingAwaiter;
-
-        _loggingService.Debug($"Indexing took {stopwatch.ElapsedMilliseconds} ms");
-    }
+    // internal async void IndexMaps(Loader? loader = null,
+    //     ConcurrentDictionary<string, BeatmapLevel>? beatmapLevels = null)
+    // {
+    //     _loggingService.Debug("Indexing maps...");
+    //     var stopwatch = new Stopwatch();
+    //     stopwatch.Start();
+    //
+    //     var officialMaps = GetOfficialMaps();
+    //
+    //     void Action()
+    //     {
+    //         var options = new ParallelOptions
+    //             { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2 - 1) };
+    //         Parallel.ForEach(Loader.CustomLevels, options, IndexMap);
+    //         if (officialMaps.Count > 0) Parallel.ForEach(officialMaps, options, IndexMap);
+    //     }
+    //
+    //     var loadingTask = new Task((Action)Action, CancellationToken.None);
+    //     var loadingAwaiter = loadingTask.ConfigureAwait(false);
+    //     loadingTask.Start();
+    //     await loadingAwaiter;
+    //
+    //     _loggingService.Debug($"Indexing took {stopwatch.ElapsedMilliseconds} ms");
+    // }
 
     private List<BeatmapLevel> GetOfficialMaps()
     {
@@ -116,25 +120,27 @@ public class VideoLoader(CoroutineStarter _coroutineStarter, LoggingService _log
         return officialMaps;
     }
 
-    private static void IndexMap(KeyValuePair<string, BeatmapLevel> levelKeyValuePair)
-    {
-        IndexMap(levelKeyValuePair.Value);
-    }
+    // private static void IndexMap(KeyValuePair<string, BeatmapLevel> levelKeyValuePair)
+    // {
+    //     IndexMap(levelKeyValuePair.Value);
+    // }
 
-    private static void IndexMap(BeatmapLevel level)
-    {
-        var configPath = GetConfigPath(level);
-        if (File.Exists(configPath)) MapsWithVideo.TryAdd(level.levelID, 0);
-    }
+    // private static void IndexMap(BeatmapLevel level)
+    // {
+    //     var configPath = GetConfigPath(level);
+    //     if (File.Exists(configPath)) MapsWithVideo.TryAdd(level.levelID, 0);
+    // }
 
-    public static string GetConfigPath(BeatmapLevel level)
-    {
-        var levelPath = GetLevelPath(level);
-        return Path.Combine(levelPath, CONFIG_FILENAME);
-    }
+    // public static string GetConfigPath(BeatmapLevel level)
+    // {
+    //     var levelPath = GetLevelPath(level);
+    //     return Path.Combine(levelPath, CONFIG_FILENAME);
+    // }
 
     public static string GetConfigPath(string levelPath)
     {
+        if (levelPath.Contains(LEGACY_OST_DIRECTORY_NAME)) return Path.Combine(levelPath, LEGACY_CONFIG_FILENAME);
+
         return Path.Combine(levelPath, CONFIG_FILENAME);
     }
 
@@ -326,16 +332,9 @@ public class VideoLoader(CoroutineStarter _coroutineStarter, LoggingService _log
         VideoConfig? videoConfig = null;
         var levelPath = GetLevelPath(level);
         if (Directory.Exists(levelPath))
-        {
             videoConfig = LoadConfig(GetConfigPath(levelPath));
-            if (videoConfig == null && !InstalledMods.MusicVideoPlayer)
-                //Back compatiblity with MVP configs, but only if MVP is not installed
-                videoConfig = LoadConfig(Path.Combine(levelPath, CONFIG_FILENAME_MVP));
-        }
         else
-        {
             _loggingService.Debug($"Path does not exist: {levelPath}");
-        }
 
         if (InstalledMods.BeatSaberPlaylistsLib && videoConfig == null &&
             level.TryGetPlaylistLevelConfig(levelPath, out var playlistConfig)) videoConfig = playlistConfig;
@@ -348,8 +347,21 @@ public class VideoLoader(CoroutineStarter _coroutineStarter, LoggingService _log
     {
         var songName = level.songName.Trim();
         songName = TheaterFileHelpers.ReplaceIllegalFilesystemChars(songName);
-        return Path.Combine(Environment.CurrentDirectory, "Beat Saber_Data", "CustomLevels", OST_DIRECTORY_NAME,
+        var levelPath = Path.Combine(Environment.CurrentDirectory, "Beat Saber_Data", "CustomLevels",
+            OST_DIRECTORY_NAME,
             songName);
+
+        // Check Cinema folder if Theater config doesn't exist
+        if (!Directory.Exists(levelPath))
+        {
+            var legacyLevelPath = Path.Combine(Environment.CurrentDirectory, "Beat Saber_Data", "CustomLevels",
+                LEGACY_OST_DIRECTORY_NAME,
+                songName);
+            if (Directory.Exists(legacyLevelPath))
+                levelPath = legacyLevelPath;
+        }
+
+        return levelPath;
     }
 
     public void SaveVideoConfig(VideoConfig videoConfig)
@@ -415,7 +427,7 @@ public class VideoLoader(CoroutineStarter _coroutineStarter, LoggingService _log
 
     public bool DeleteConfig(VideoConfig videoConfig, BeatmapLevel level)
     {
-        if (videoConfig.LevelDir == null)
+        if (videoConfig.LevelDir is null)
         {
             _loggingService.Error("LevelDir was null when trying to delete config");
             return false;
@@ -425,9 +437,6 @@ public class VideoLoader(CoroutineStarter _coroutineStarter, LoggingService _log
         {
             var theaterConfigPath = GetConfigPath(videoConfig.LevelDir);
             if (File.Exists(theaterConfigPath)) File.Delete(theaterConfigPath);
-
-            var mvpConfigPath = Path.Combine(videoConfig.LevelDir, CONFIG_FILENAME_MVP);
-            if (File.Exists(mvpConfigPath)) File.Delete(mvpConfigPath);
 
             MapsWithVideo.TryRemove(level.levelID, out _);
         }

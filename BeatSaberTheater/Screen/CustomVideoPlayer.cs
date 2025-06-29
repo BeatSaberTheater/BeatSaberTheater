@@ -18,6 +18,7 @@ public class CustomVideoPlayer : MonoBehaviour
 {
     [Inject] private readonly PluginConfig _config = null!;
     [Inject] private readonly EasingHandler _easingHandler = null!;
+    [Inject] private readonly LoggingService _loggingService = null!;
     [Inject] private readonly PlaybackController _playbackController = null!;
     [Inject] private readonly VideoMenuUI _videoMenu = null!;
 
@@ -164,7 +165,7 @@ public class CustomVideoPlayer : MonoBehaviour
 
     private void CreateScreen()
     {
-        ScreenManager = new ScreenManager(_config);
+        ScreenManager = new ScreenManager(_config, _loggingService);
         ScreenManager.CreateScreen(transform);
         ScreenManager.SetScreensActive(true);
         SetDefaultMenuPlacement();
