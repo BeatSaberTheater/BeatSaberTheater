@@ -31,20 +31,28 @@ public class ScreenManager : IInitializable
     private const string BODY_SHADER_NAME = "Custom/OpaqueNeonLight";
 
     private readonly PluginConfig _config;
+    private readonly ICurvedSurfaceFactory _curvedSurfaceFactory;
     private readonly LoggingService _loggingService;
 
-    internal ScreenManager(PluginConfig config, LoggingService loggingService)
+    internal ScreenManager(PluginConfig config, ICurvedSurfaceFactory curvedSurfaceFactory,
+        LoggingService loggingService)
     {
         _config = config;
+        _curvedSurfaceFactory = curvedSurfaceFactory;
         _loggingService = loggingService;
         _materialPropertyBlock = new MaterialPropertyBlock();
     }
 
     internal void CreateScreen(Transform parent)
     {
-        var newScreen = new GameObject("CinemaScreen");
-        newScreen.transform.parent = parent.transform;
-        newScreen.AddComponent<CurvedSurface>();
+        var newScreen = new GameObject("TheaterScreen")
+        {
+            transform =
+            {
+                parent = parent.transform
+            }
+        };
+        _curvedSurfaceFactory.Create(newScreen);
         newScreen.layer = LayerMask.NameToLayer("Environment");
         newScreen.GetComponent<Renderer>();
         CreateScreenBody(newScreen.transform);
@@ -56,7 +64,7 @@ public class ScreenManager : IInitializable
     private void CreateScreenBody(Component parent)
     {
         var body = new GameObject("Body");
-        body.AddComponent<CurvedSurface>();
+        _curvedSurfaceFactory.Create(body);
         body.transform.parent = parent.transform;
         body.transform.localPosition =
             new Vector3(0, 0, 0.4f); //A fixed offset is necessary for the center segments of the curved screen

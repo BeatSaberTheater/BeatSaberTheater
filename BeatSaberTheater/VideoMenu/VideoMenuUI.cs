@@ -30,6 +30,7 @@ public class VideoMenuUI : IInitializable, IDisposable
 {
     private readonly GameplaySetup _gameplaySetup;
     private readonly LoggingService _loggingService;
+    private readonly PlaybackController _playbackController;
     private readonly PluginConfig _config;
 
     [UIObject("root-object")] private readonly GameObject _root = null!;
@@ -48,10 +49,8 @@ public class VideoMenuUI : IInitializable, IDisposable
     [UIComponent("video-duration")] private readonly TextMeshProUGUI _videoDurationText = null!;
     [UIComponent("video-status")] private readonly TextMeshProUGUI _videoStatusText = null!;
     [UIComponent("video-offset")] private readonly TextMeshProUGUI _videoOffsetText = null!;
-
     [UIComponent("video-thumbnail")] private readonly Image _videoThumnnail = null!;
-
-    // [UIComponent("preview-button")] private readonly TextMeshProUGUI _previewButtonText = null!;
+    [UIComponent("preview-button")] private readonly TextMeshProUGUI _previewButtonText = null!;
     [UIComponent("preview-button")] private readonly Button _previewButton = null!;
     [UIComponent("search-button")] private readonly Button _searchButton = null!;
     [UIComponent("delete-config-button")] private readonly Button _deleteButton = null!;
@@ -106,7 +105,7 @@ public class VideoMenuUI : IInitializable, IDisposable
     private readonly List<YTResult> _searchResults = [];
 
     internal VideoMenuUI(CoroutineStarter coroutineStarter, DownloadService downloadService,
-        GameplaySetup gameplaySetup, LoggingService loggingService,
+        GameplaySetup gameplaySetup, LoggingService loggingService, PlaybackController playbackController,
         PluginConfig config, SearchService searchService, VideoLoader videoLoader)
     {
         _config = config;
@@ -114,6 +113,7 @@ public class VideoMenuUI : IInitializable, IDisposable
         _downloadService = downloadService;
         _gameplaySetup = gameplaySetup;
         _loggingService = loggingService;
+        _playbackController = playbackController;
         _searchService = searchService;
         _videoLoader = videoLoader;
     }
@@ -226,7 +226,7 @@ public class VideoMenuUI : IInitializable, IDisposable
         _searchButton.gameObject.SetActive(_currentLevel != null &&
                                            !VideoLoader.IsDlcSong(_currentLevel) &&
                                            _downloadService.LibrariesAvailable());
-        // _previewButtonText.text = PlaybackController.Instance.IsPreviewPlaying ? "Stop preview" : "Preview";
+        _previewButtonText.text = _playbackController.IsPreviewPlaying ? "Stop preview" : "Preview";
 
         if (_currentLevel != null && VideoLoader.IsDlcSong(_currentLevel) && _downloadService.LibrariesAvailable())
             CheckEntitlementAndEnableSearch(_currentLevel).Start();
@@ -507,12 +507,12 @@ public class VideoMenuUI : IInitializable, IDisposable
     {
         if (_config.PluginEnabled) return;
 
-        // PlaybackController.Instance.StopPreview(true);
+        _playbackController.StopPreview(true);
         if (_currentVideo?.NeedsToSave == true) _videoLoader.SaveVideoConfig(_currentVideo);
 
         _currentVideo = _videoLoader.GetConfigForEditorLevel(beatmapData, originalPath);
         _videoLoader.SetupFileSystemWatcher(originalPath);
-        // PlaybackController.Instance.SetSelectedLevel(null, _currentVideo);
+        _playbackController.SetSelectedLevel(null, _currentVideo);
     }
 
     public void HandleDidSelectLevel(BeatmapLevel? level)
@@ -530,14 +530,14 @@ public class VideoMenuUI : IInitializable, IDisposable
         if (InstalledMods.BeatSaberPlaylistsLib && _currentLevelIsPlaylistSong)
             level = level.GetLevelFromPlaylistIfAvailable();
 
-        // PlaybackController.Instance.StopPreview(true);
+        _playbackController.StopPreview(true);
 
         if (_currentVideo?.NeedsToSave == true) _videoLoader.SaveVideoConfig(_currentVideo);
         _currentLevel = level;
         if (_currentLevel == null)
         {
             _currentVideo = null;
-            // PlaybackController.Instance.SetSelectedLevel(null, null);
+            _playbackController.SetSelectedLevel(null, null);
             SetupVideoDetails();
             return;
         }
@@ -545,7 +545,7 @@ public class VideoMenuUI : IInitializable, IDisposable
         _currentVideo = _videoLoader.GetConfigForLevel(_currentLevel);
 
         _videoLoader.SetupFileSystemWatcher(_currentLevel);
-        // PlaybackController.Instance.SetSelectedLevel(_currentLevel, _currentVideo);
+        _playbackController.SetSelectedLevel(_currentLevel, _currentVideo);
         SetupVideoDetails();
 
         _searchText = _currentLevel.songName +
@@ -586,7 +586,7 @@ public class VideoMenuUI : IInitializable, IDisposable
     public void StatusViewerDidEnable(object sender, EventArgs e)
     {
         _videoMenuActive = true;
-        // PlaybackController.Instance.StopPreview(false);
+        _playbackController.StopPreview(false);
         SetupVideoDetails();
     }
 
@@ -595,19 +595,17 @@ public class VideoMenuUI : IInitializable, IDisposable
         _videoMenuActive = false;
         if (_currentVideo?.NeedsToSave == true) _videoLoader.SaveVideoConfig(_currentVideo);
 
-        // if (PlaybackController.Instance == null) return;
-
         _searchService.StopSearch();
 
-        // try
-        // {
-        //     PlaybackController.Instance.StopPreview(true);
-        // }
-        // catch (Exception exception)
-        // {
-        //     //This can happen when closing the game
-        //     Log.Debug(exception);
-        // }
+        try
+        {
+            _playbackController.StopPreview(true);
+        }
+        catch (Exception exception)
+        {
+            //This can happen when closing the game
+            _loggingService.Debug(exception);
+        }
     }
 
     private void ApplyOffset(int offset)
@@ -617,7 +615,7 @@ public class VideoMenuUI : IInitializable, IDisposable
         _currentVideo.offset += offset;
         _videoOffsetText.text = $"{_currentVideo.offset:n0}" + " ms";
         _currentVideo.NeedsToSave = true;
-        // PlaybackController.Instance.ApplyOffset(offset);
+        // _playbackController.ApplyOffset(offset);
     }
 
     [UIAction("on-search-action")]
@@ -689,7 +687,7 @@ public class VideoMenuUI : IInitializable, IDisposable
             return;
         }
 
-        // PlaybackController.Instance.PrepareVideo(video);
+        _playbackController.PrepareVideo(video);
 
         if (_currentLevel != null) _videoLoader.RemoveConfigFromCache(_currentLevel);
 
@@ -741,9 +739,9 @@ public class VideoMenuUI : IInitializable, IDisposable
                 break;
             default:
                 _videoLoader.DeleteVideo(_currentVideo);
-                // PlaybackController.Instance.VideoPlayer.Stop();
-                // PlaybackController.Instance.VideoPlayer.Player.url = null;
-                // PlaybackController.Instance.VideoPlayer.Player.Prepare();
+                _playbackController._videoPlayer.Stop();
+                _playbackController._videoPlayer.Player.url = null;
+                _playbackController._videoPlayer.Player.Prepare();
                 SetupLevelDetailView(_currentVideo);
                 _levelDetailMenu?.RefreshContent();
                 break;
@@ -763,9 +761,9 @@ public class VideoMenuUI : IInitializable, IDisposable
             return;
         }
 
-        // PlaybackController.Instance.StopPreview(true);
-        // PlaybackController.Instance.StopPlayback();
-        // PlaybackController.Instance.VideoPlayer.Hide();
+        _playbackController.StopPreview(true);
+        _playbackController.StopPlayback();
+        _playbackController._videoPlayer.Hide();
 
         if (_currentVideo.IsDownloading) _downloadService.CancelDownload(_currentVideo);
 
@@ -905,7 +903,7 @@ public class VideoMenuUI : IInitializable, IDisposable
     [UsedImplicitly]
     private void OnPreviewAction()
     {
-        // PlaybackController.Instance.StartPreview();
+        _playbackController.StartPreview();
         SetButtonState(true);
     }
 

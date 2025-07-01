@@ -270,26 +270,26 @@ public class VideoLoader(CoroutineStarter _coroutineStarter, LoggingService _log
         return level.GetType() == typeof(BeatmapLevelSO);
     }
 
-    public async Task<AudioClip?> GetAudioClipForLevel(BeatmapLevel level)
+    public static async Task<AudioClip?> GetAudioClipForLevel(BeatmapLevel level)
     {
         if (!IsDlcSong(level)) return await LoadAudioClipAsync(level);
 
         var beatmapLevelLoader = (BeatmapLevelLoader)BeatmapLevelsModel.levelLoader;
         if (beatmapLevelLoader._loadedBeatmapLevelDataCache.TryGetFromCache(level.levelID, out var beatmapLevelData))
         {
-            _loggingService.Debug("Getting audio clip from async cache");
+            Plugin._log.Debug("Getting audio clip from async cache");
             return await _audioClipAsyncLoader.LoadSong(beatmapLevelData);
         }
 
         return await LoadAudioClipAsync(level);
     }
 
-    private async Task<AudioClip?> LoadAudioClipAsync(BeatmapLevel level)
+    private static async Task<AudioClip?> LoadAudioClipAsync(BeatmapLevel level)
     {
         var loaderTask = AudioClipAsyncLoader?.LoadPreview(level);
         if (loaderTask == null)
         {
-            _loggingService.Error("AudioClipAsyncLoader.LoadPreview() failed");
+            Plugin._log.Error("AudioClipAsyncLoader.LoadPreview() failed");
             return null;
         }
 

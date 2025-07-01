@@ -5,7 +5,6 @@ using IPA.Config.Stores;
 using IPA.Loader;
 using SiraUtil.Zenject;
 using BeatSaberTheater.Installers;
-using BeatSaberTheater.Screen;
 using BS_Utils.Utilities;
 using IPA.Utilities;
 using JetBrains.Annotations;
@@ -26,6 +25,7 @@ internal class Plugin
     private HarmonyPatchController? _harmonyPatchController;
     internal static IpaLogger _log { get; private set; } = null!;
     internal static DiContainer _menuContainer = null!;
+    internal static DiContainer gameCoreContainer = null!;
 
     // Methods with [Init] are called when the plugin is first loaded by IPA.
     // All the parameters are provided by IPA and are optional.

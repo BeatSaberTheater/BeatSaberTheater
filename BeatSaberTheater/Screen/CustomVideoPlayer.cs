@@ -4,8 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using BeatSaberTheater.Download;
+using BeatSaberTheater.Models;
 using BeatSaberTheater.Util;
-using BeatSaberTheater.VideoMenu;
 using BS_Utils.Utilities;
 using ModestTree;
 using UnityEngine;
@@ -17,10 +17,12 @@ namespace BeatSaberTheater.Screen;
 public class CustomVideoPlayer : MonoBehaviour
 {
     [Inject] private readonly PluginConfig _config = null!;
+    [Inject] private readonly ICurvedSurfaceFactory _curvedSurfaceFactory = null!;
     [Inject] private readonly EasingHandler _easingHandler = null!;
+
     [Inject] private readonly LoggingService _loggingService = null!;
-    [Inject] private readonly PlaybackController _playbackController = null!;
-    [Inject] private readonly VideoMenuUI _videoMenu = null!;
+    // [Inject] private readonly PlaybackController _playbackController = null!;
+    // [Inject] private readonly VideoMenuUI _videoMenu = null!;
 
     //Initialized by Awake()
     [NonSerialized] public VideoPlayer Player = null!;
@@ -165,7 +167,7 @@ public class CustomVideoPlayer : MonoBehaviour
 
     private void CreateScreen()
     {
-        ScreenManager = new ScreenManager(_config, _loggingService);
+        ScreenManager = new ScreenManager(_config, _curvedSurfaceFactory, _loggingService);
         ScreenManager.CreateScreen(transform);
         ScreenManager.SetScreensActive(true);
         SetDefaultMenuPlacement();
@@ -177,17 +179,17 @@ public class CustomVideoPlayer : MonoBehaviour
         if (path == null)
         {
             var bundle = BeatSaberMarkupLanguage.Utilities.GetResource(Assembly.GetExecutingAssembly(),
-                "BeatSaberCinema.Resources.bscinema.bundle");
+                "BeatSaberTheater.Resources.bstheater.bundle");
             if (bundle == null || bundle.Length == 0)
             {
-                Log.Error("GetResource failed");
+                Plugin._log.Error("GetResource failed");
                 return Shader.Find("Hidden/BlitAdd");
             }
 
             myLoadedAssetBundle = AssetBundle.LoadFromMemory(bundle);
             if (myLoadedAssetBundle == null)
             {
-                Log.Error("LoadFromMemory failed");
+                Plugin._log.Error("LoadFromMemory failed");
                 return Shader.Find("Hidden/BlitAdd");
             }
         }
@@ -240,7 +242,7 @@ public class CustomVideoPlayer : MonoBehaviour
         //So, we wait before the player renders its first frame and then set the color, making the switch invisible.
         FadeIn();
         _firstFrameStopwatch.Stop();
-        Log.Debug("Delay from Play() to first frame: " + _firstFrameStopwatch.ElapsedMilliseconds + " ms");
+        _loggingService.Debug("Delay from Play() to first frame: " + _firstFrameStopwatch.ElapsedMilliseconds + " ms");
         _firstFrameStopwatch.Reset();
         ScreenManager.SetAspectRatio(GetVideoAspectRatio());
         Player.frameReady -= FirstFrameReady;
@@ -302,7 +304,7 @@ public class CustomVideoPlayer : MonoBehaviour
     {
         if (_firstFrameStopwatch.IsRunning) return;
 
-        Log.Debug("Starting playback, waiting for first frame...");
+        _loggingService.Debug("Starting playback, waiting for first frame...");
         _waitingForFadeOut = false;
         _firstFrameStopwatch.Start();
         Player.frameReady -= FirstFrameReady;
@@ -319,7 +321,7 @@ public class CustomVideoPlayer : MonoBehaviour
 
     public void Stop()
     {
-        Log.Debug("Stopping playback");
+        _loggingService.Debug("Stopping playback");
         Player.Stop();
         stopped?.Invoke();
         SetStaticTexture(null);
@@ -389,14 +391,14 @@ public class CustomVideoPlayer : MonoBehaviour
 
     private static void VideoPlayerPrepareComplete(VideoPlayer source)
     {
-        Log.Debug("Video player prepare complete");
+        Plugin._log.Debug("Video player prepare complete");
         var texture = source.texture;
-        Log.Debug($"Video resolution: {texture.width}x{texture.height}");
+        Plugin._log.Debug($"Video resolution: {texture.width}x{texture.height}");
     }
 
     private void VideoPlayerStarted(VideoPlayer source)
     {
-        Log.Debug("Video player started event");
+        _loggingService.Debug("Video player started event");
         _currentlyPlayingVideo = source.url;
         _waitingForFadeOut = false;
         VideoEnded = false;
@@ -404,7 +406,7 @@ public class CustomVideoPlayer : MonoBehaviour
 
     private void VideoPlayerFinished(VideoPlayer source)
     {
-        Log.Debug("Video player loop point event");
+        _loggingService.Debug("Video player loop point event");
         if (!Player.isLooping)
         {
             VideoEnded = true;
@@ -418,21 +420,21 @@ public class CustomVideoPlayer : MonoBehaviour
             //Expected when preparing null source
             return;
 
-        Log.Error("Video player error: " + message);
-        _playbackController.StopPlayback();
-        var config = _playbackController.VideoConfig;
-        if (config == null) return;
-
-        config.UpdateDownloadState();
-        config.ErrorMessage = "Cinema playback error.";
-        if (message.Contains("Unexpected error code (10)") && SystemInfo.graphicsDeviceVendor == "NVIDIA")
-            config.ErrorMessage += " Try disabling NVIDIA Fast Sync.";
-        else if (message.Contains("It seems that the Microsoft Media Foundation is not installed on this machine"))
-            config.ErrorMessage += " Install Microsoft Media Foundation.";
-        else
-            config.ErrorMessage += " See logs for details.";
-
-        _videoMenu.SetupLevelDetailView(config);
+        _loggingService.Error("Video player error: " + message);
+        // _playbackController.StopPlayback();
+        // var config = _playbackController.VideoConfig;
+        // if (config == null) return;
+        //
+        // config.UpdateDownloadState();
+        // config.ErrorMessage = "Cinema playback error.";
+        // if (message.Contains("Unexpected error code (10)") && SystemInfo.graphicsDeviceVendor == "NVIDIA")
+        //     config.ErrorMessage += " Try disabling NVIDIA Fast Sync.";
+        // else if (message.Contains("It seems that the Microsoft Media Foundation is not installed on this machine"))
+        //     config.ErrorMessage += " Install Microsoft Media Foundation.";
+        // else
+        //     config.ErrorMessage += " See logs for details.";
+        //
+        // _videoMenu.SetupLevelDetailView(config);
     }
 
     public float GetVideoAspectRatio()
@@ -444,7 +446,7 @@ public class CustomVideoPlayer : MonoBehaviour
             return aspectRatio;
         }
 
-        Log.Debug("Using default aspect ratio (texture missing)");
+        _loggingService.Debug("Using default aspect ratio (texture missing)");
         return 16f / 9f;
     }
 

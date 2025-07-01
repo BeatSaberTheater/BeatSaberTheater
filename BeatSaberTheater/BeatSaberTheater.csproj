@@ -36,6 +36,8 @@
         <EmbeddedResource Include="Resources\configs.json"/>
         <None Remove="VideoMenu\Views\level-detail.bsml"/>
         <EmbeddedResource Include="VideoMenu\Views\level-detail.bsml"/>
+        <None Remove="Resources\bstheater.bundle"/>
+        <EmbeddedResource Include="Resources\bstheater.bundle"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -97,6 +99,10 @@
         </Reference>
         <Reference Include="DataModels" Publicize="true">
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\DataModels.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="GameplayCore">
+            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\GameplayCore.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="Hive.Versioning">

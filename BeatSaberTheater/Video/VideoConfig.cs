@@ -6,6 +6,7 @@ using BeatSaberTheater.Models;
 using BeatSaberTheater.Util;
 using Newtonsoft.Json;
 using SongCore.Data;
+using Zenject;
 
 namespace BeatSaberTheater.Video;
 
@@ -13,19 +14,24 @@ public class VideoConfig
 {
     public bool? allowCustomPlatform;
     public string? author;
+    public float? bloom;
     public bool? bundledConfig;
     public bool? colorBlending;
     public bool? configByMapper;
     public bool? curveYAxis;
     public int duration; //s
+    public float? endVideoAt;
     public bool? forceEnvironmentModifications;
+    public bool? loop;
     public int offset; //ms
+    public float? playbackSpeed; //percent
     public float? screenHeight;
     public float? screenCurvature;
     public SerializableVector3? screenPosition;
     public SerializableVector3? screenRotation;
     public int? screenSubsurfaces;
     public string? title;
+    public bool? transparency;
     public UserSettings? userSettings;
     public string? videoFile;
     public string? videoID;
@@ -68,6 +74,12 @@ public class VideoConfig
          })
         );
 
+    [JsonIgnore] public float PlaybackSpeed => playbackSpeed ?? 1;
+
+    [JsonIgnore]
+    public bool TransparencyEnabled => (transparency == null && !_config.TransparencyEnabled) ||
+                                       (transparency != null && !transparency.Value);
+
     [JsonIgnore]
     public string? VideoPath
     {
@@ -102,6 +114,8 @@ public class VideoConfig
         }
     }
 
+    [Inject] private readonly PluginConfig _config = null!;
+
     public VideoConfig()
     {
         //Intentionally empty. Used as ctor for JSON deserializer
@@ -116,6 +130,11 @@ public class VideoConfig
 
         LevelDir = levelPath;
         videoFile = GetVideoFileName(levelPath);
+    }
+
+    public float GetOffsetInSec()
+    {
+        return offset / 1000f;
     }
 
     public DownloadState UpdateDownloadState()
