@@ -9,6 +9,7 @@ using BeatSaberMarkupLanguage.Components;
 using BeatSaberMarkupLanguage.GameplaySetup;
 using BeatSaberMarkupLanguage.Parser;
 using BeatSaberTheater.Download;
+using BeatSaberTheater.Playback;
 using BeatSaberTheater.Screen;
 using BeatSaberTheater.Services;
 using BeatSaberTheater.Util;

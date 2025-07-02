@@ -5,6 +5,7 @@ using System.IO;
 using System.Reflection;
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Models;
+using BeatSaberTheater.Screen.Interfaces;
 using BeatSaberTheater.Util;
 using BS_Utils.Utilities;
 using ModestTree;
@@ -18,6 +19,7 @@ public class CustomVideoPlayer : MonoBehaviour
 {
     [Inject] private readonly PluginConfig _config = null!;
     [Inject] private readonly ICurvedSurfaceFactory _curvedSurfaceFactory = null!;
+    [Inject] private readonly ICustomBloomPrePassFactory _customBloomPrePassFactory = null!;
     [Inject] private readonly EasingHandler _easingHandler = null!;
 
     [Inject] private readonly LoggingService _loggingService = null!;
@@ -167,7 +169,7 @@ public class CustomVideoPlayer : MonoBehaviour
 
     private void CreateScreen()
     {
-        ScreenManager = new ScreenManager(_config, _curvedSurfaceFactory, _loggingService);
+        ScreenManager = new ScreenManager(_config, _curvedSurfaceFactory, _customBloomPrePassFactory, _loggingService);
         ScreenManager.CreateScreen(transform);
         ScreenManager.SetScreensActive(true);
         SetDefaultMenuPlacement();

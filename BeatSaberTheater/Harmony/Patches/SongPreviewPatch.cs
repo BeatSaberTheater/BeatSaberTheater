@@ -1,4 +1,5 @@
 ﻿using System;
+using BeatSaberTheater.Harmony.Signals;
 using BeatSaberTheater.Screen;
 using HarmonyLib;
 using JetBrains.Annotations;
@@ -13,13 +14,23 @@ namespace BeatSaberTheater.Harmony.Patches;
 [UsedImplicitly]
 public class SongPreviewPatch
 {
+    public static Action<SongPreviewPlayerSignal>? OnCrossfade;
+
     [UsedImplicitly]
     public static void Postfix(SongPreviewPlayer __instance, AudioClip audioClip, float startTime, bool isDefault)
     {
         try
         {
-            SongPreviewPlayerUpdater.SetFields(__instance._audioSourceControllers, __instance._channelsCount,
-                __instance._activeChannel, audioClip, startTime, __instance._timeToDefaultAudioTransition, isDefault);
+            OnCrossfade?.Invoke(new SongPreviewPlayerSignal
+            {
+                AudioSourceControllers = __instance._audioSourceControllers,
+                ChannelCount = __instance._channelsCount,
+                ActiveChannel = __instance._activeChannel,
+                AudioClip = audioClip,
+                StartTime = startTime,
+                TimeToDefault = __instance._timeToDefaultAudioTransition,
+                IsDefault = isDefault
+            });
         }
         catch (Exception e)
         {

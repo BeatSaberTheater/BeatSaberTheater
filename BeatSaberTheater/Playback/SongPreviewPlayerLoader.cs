@@ -1,9 +1,8 @@
 ﻿using System.Linq;
-using BeatSaberTheater.Util;
 using UnityEngine;
 using Zenject;
 
-namespace BeatSaberTheater.Screen;
+namespace BeatSaberTheater.Playback;
 
 public class SongPreviewPlayerLoader : IInitializable
 {

@@ -2,7 +2,7 @@
 using UnityEngine;
 using Zenject;
 
-namespace BeatSaberTheater.Models;
+namespace BeatSaberTheater.Screen;
 //Loosely based on https://gist.github.com/mfav/8cdcc922d1a75d0a7a7abf5d46e23ef0
 
 [RequireComponent(typeof(MeshFilter))]

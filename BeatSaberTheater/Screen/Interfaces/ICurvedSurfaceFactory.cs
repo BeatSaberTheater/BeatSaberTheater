@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace BeatSaberTheater.Models;
+namespace BeatSaberTheater.Screen.Interfaces;
 
 public interface ICurvedSurfaceFactory
 {

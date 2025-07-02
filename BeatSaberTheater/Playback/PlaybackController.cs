@@ -4,17 +4,16 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using BeatSaberTheater.Download;
+using BeatSaberTheater.Screen;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
-using BeatSaberTheater.VideoMenu;
-using ModestTree;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Video;
 using Zenject;
 using Scene = BeatSaberTheater.Util.Scene;
 
-namespace BeatSaberTheater.Screen;
+namespace BeatSaberTheater.Playback;
 
 public class PlaybackController : MonoBehaviour
 {
@@ -345,7 +344,7 @@ public class PlaybackController : MonoBehaviour
         _videoPlayer.IsSyncing = false;
 
         // Always hide screen body in the menu, since the drawbacks of the body being visible are large
-        if (VideoConfig.TransparencyEnabled && _activeScene != Scene.Menu)
+        if (VideoConfig.TransparencyEnabled && _config.TransparencyEnabled && _activeScene != Scene.Menu)
             _videoPlayer.ShowScreenBody();
         else
             _videoPlayer.HideScreenBody();

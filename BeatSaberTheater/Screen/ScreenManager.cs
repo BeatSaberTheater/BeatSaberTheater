@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using BeatSaberTheater.Models;
+using BeatSaberTheater.Screen.Interfaces;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
 using ModestTree;
@@ -32,13 +33,16 @@ public class ScreenManager : IInitializable
 
     private readonly PluginConfig _config;
     private readonly ICurvedSurfaceFactory _curvedSurfaceFactory;
+    private readonly ICustomBloomPrePassFactory _customBloomPrePassFactory;
     private readonly LoggingService _loggingService;
 
     internal ScreenManager(PluginConfig config, ICurvedSurfaceFactory curvedSurfaceFactory,
+        ICustomBloomPrePassFactory customBloomPrePassFactory,
         LoggingService loggingService)
     {
         _config = config;
         _curvedSurfaceFactory = curvedSurfaceFactory;
+        _customBloomPrePassFactory = customBloomPrePassFactory;
         _loggingService = loggingService;
         _materialPropertyBlock = new MaterialPropertyBlock();
     }
@@ -56,7 +60,7 @@ public class ScreenManager : IInitializable
         newScreen.layer = LayerMask.NameToLayer("Environment");
         newScreen.GetComponent<Renderer>();
         CreateScreenBody(newScreen.transform);
-        newScreen.AddComponent<CustomBloomPrePass>();
+        _customBloomPrePassFactory.Create(newScreen);
         newScreen.AddComponent<SoftParent>();
         Screens.Add(newScreen);
     }

@@ -77,7 +77,7 @@ public class VideoConfig
     [JsonIgnore] public float PlaybackSpeed => playbackSpeed ?? 1;
 
     [JsonIgnore]
-    public bool TransparencyEnabled => (transparency == null && !_config.TransparencyEnabled) ||
+    public bool TransparencyEnabled => transparency == null ||
                                        (transparency != null && !transparency.Value);
 
     [JsonIgnore]
@@ -113,8 +113,6 @@ public class VideoConfig
             return null;
         }
     }
-
-    [Inject] private readonly PluginConfig _config = null!;
 
     public VideoConfig()
     {

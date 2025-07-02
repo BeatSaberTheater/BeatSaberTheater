@@ -1,7 +1,8 @@
-﻿using Zenject;
+﻿using BeatSaberTheater.Screen.Interfaces;
 using UnityEngine;
+using Zenject;
 
-namespace BeatSaberTheater.Models;
+namespace BeatSaberTheater.Screen.Factories;
 
 public class CurvedSurfaceFactory : ICurvedSurfaceFactory
 {
