@@ -7,6 +7,7 @@ using BeatSaberTheater.Download;
 using BeatSaberTheater.Screen;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
+using BS_Utils.Utilities;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Video;
@@ -33,6 +34,7 @@ public class PlaybackController : MonoBehaviour
     private float _previewTimeRemaining;
     private bool _previewWaitingForPreviewPlayer;
     private bool _previewWaitingForVideoPlayer = true;
+    private SettingsManager? _settingsManager;
     private AudioTimeSyncController? _timeSyncController;
 
     [Inject] private readonly PluginConfig _config = null!;
@@ -47,6 +49,24 @@ public class PlaybackController : MonoBehaviour
     {
         _videoPlayer.Player.frameReady += FrameReady;
         _videoPlayer.Player.sendFrameReadyEvents = true;
+        _videoPlayer.Player.prepareCompleted += OnPrepareComplete;
+        BSEvents.lateMenuSceneLoadedFresh += OnMenuSceneLoadedFresh;
+        BSEvents.menuSceneLoaded += OnMenuSceneLoaded;
+        Events.DifficultySelected += DifficultySelected;
+    }
+
+    private void OnDestroy()
+    {
+        _videoPlayer.Player.frameReady -= FrameReady;
+        // BSEvents.gameSceneActive -= GameSceneActive;
+        // BSEvents.gameSceneLoaded -= GameSceneLoaded;
+        // BSEvents.songPaused -= PauseVideo;
+        // BSEvents.songUnpaused -= ResumeVideo;
+        BSEvents.lateMenuSceneLoadedFresh -= OnMenuSceneLoadedFresh;
+        BSEvents.menuSceneLoaded -= OnMenuSceneLoaded;
+        // VideoLoader.ConfigChanged -= OnConfigChanged;
+        _videoPlayer.Player.prepareCompleted -= OnPrepareComplete;
+        Events.DifficultySelected -= DifficultySelected;
     }
 
     public void StopPlayback()
@@ -320,6 +340,33 @@ public class PlaybackController : MonoBehaviour
         StartSongPreview();
     }
 
+    private void DifficultySelected(ExtraSongDataArgs extraSongDataArgs)
+    {
+        if (VideoConfig == null) return;
+
+        var difficultyData = extraSongDataArgs.SelectedDifficultyData;
+        var songData = extraSongDataArgs.SongData;
+
+        //If there is any difficulty that has a Theater suggestion but the current one doesn't, disable playback. The current difficulty most likely has the suggestion missing on purpose.
+        //If there are no difficulties that have the suggestion set, play the video. It might be a video added by the user.
+        //Otherwise, if the map is WIP, disable playback even when no difficulty has the suggestion, to convince the mapper to add it.
+        if (difficultyData?.HasTheater() == false && songData?.HasTheaterInAnyDifficulty() == true)
+            VideoConfig.PlaybackDisabledByMissingSuggestion = true;
+        else if (VideoConfig.IsWIPLevel && difficultyData?.HasTheater() == false)
+            VideoConfig.PlaybackDisabledByMissingSuggestion = true;
+        else
+            VideoConfig.PlaybackDisabledByMissingSuggestion = false;
+
+        if (VideoConfig.PlaybackDisabledByMissingSuggestion)
+        {
+            _videoPlayer.FadeOut(0.1f);
+        }
+        else
+        {
+            if (!_videoPlayer.IsPlaying) StartSongPreview();
+        }
+    }
+
     private float GetReferenceTime(float? referenceTime = null, float? playbackSpeed = null)
     {
         if (_activeAudioSource == null || VideoConfig == null) return 0;
@@ -331,6 +378,58 @@ public class PlaybackController : MonoBehaviour
             time = referenceTime ?? _activeAudioSource.time;
         var speed = playbackSpeed ?? VideoConfig.PlaybackSpeed;
         return time * speed + VideoConfig.offset / 1000f;
+    }
+
+    private void OnMenuSceneLoaded()
+    {
+        _loggingService.Info("MenuSceneLoaded");
+        _activeScene = Scene.Menu;
+        _videoPlayer.Hide();
+        StopAllCoroutines();
+        _previewWaitingForPreviewPlayer = true;
+        gameObject.SetActive(true);
+        SceneChanged();
+    }
+
+    private void OnMenuSceneLoadedFresh(ScenesTransitionSetupDataSO? scenesTransition)
+    {
+        OnMenuSceneLoaded();
+        if (_settingsManager == null)
+        {
+            StartCoroutine(OnMenuSceneLoadedFreshCoroutine());
+        }
+        else
+        {
+            _videoPlayer.VolumeScale = _settingsManager.settings.audio.volume;
+            _videoPlayer.ScreenManager.OnGameSceneLoadedFresh();
+        }
+    }
+
+    private IEnumerator OnMenuSceneLoadedFreshCoroutine()
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        yield return new WaitUntil(() => Plugin._menuContainer != null);
+        _settingsManager = Plugin._menuContainer.Resolve<SettingsManager>();
+        _videoPlayer.VolumeScale = _settingsManager.settings.audio.volume;
+        _videoPlayer.ScreenManager.OnGameSceneLoadedFresh();
+    }
+
+    private void OnPrepareComplete(VideoPlayer player)
+    {
+        if (_offsetAfterPrepare > 0)
+        {
+            var offset = (DateTime.Now - _audioSourceStartTime).TotalSeconds + _offsetAfterPrepare;
+            _loggingService.Info($"Adjusting offset after prepare to {offset}");
+            _videoPlayer.Player.time = offset;
+        }
+
+        _offsetAfterPrepare = 0;
+        _videoPlayer.ClearTexture();
+
+        if (_activeScene != Scene.Menu) return;
+
+        _previewWaitingForVideoPlayer = false;
+        StartSongPreview();
     }
 
     private void PlayVideo(float startTime)
@@ -567,6 +666,11 @@ public class PlaybackController : MonoBehaviour
 
         _videoPlayer.Url = videoPath;
         _videoPlayer.Prepare();
+    }
+
+    private void SceneChanged()
+    {
+        _videoPlayer.ScreenManager.SetShaderParameters(VideoConfig);
     }
 
     private void StartSongPreview()

@@ -2,6 +2,7 @@
 using BeatSaberTheater.Harmony.Patches;
 using BeatSaberTheater.Harmony.Signals;
 using BeatSaberTheater.Util;
+using SongCore;
 using UnityEngine;
 using Zenject;
 
@@ -33,6 +34,42 @@ public class SongPreviewPlayerUpdater : IInitializable, IDisposable
         _activeChannel = signal.ActiveChannel;
         _currentAudioClip = signal.AudioClip;
         UpdatePlaybackController(signal.StartTime, signal.TimeToDefault, signal.IsDefault);
+    }
+
+    public void UpdateMapRequirements(MapRequirementsUpdateSignal signal)
+    {
+        try
+        {
+            if (_playbackController.VideoConfig == null) return;
+
+            if (signal.StandardLevelDetailView._beatmapLevel.hasPrecalculatedData) return;
+
+            var songData =
+                Collections.GetCustomLevelSongData(
+                    Collections.GetCustomLevelHash(signal.StandardLevelDetailView._beatmapLevel.levelID));
+            if (songData == null) return;
+
+            var diffData = Collections.GetCustomLevelSongDifficultyData(signal.StandardLevelDetailView.beatmapKey);
+            Events.SetExtraSongData(songData, diffData);
+
+            if (diffData?.HasTheaterRequirement() != true) return;
+
+            if (_playbackController.VideoConfig?.IsPlayable == true ||
+                _playbackController.VideoConfig?.forceEnvironmentModifications == true)
+            {
+                _loggingService.Debug("Requirement fulfilled");
+                return;
+            }
+
+            _loggingService.Info("Theater requirement not met for " +
+                                 signal.StandardLevelDetailView._beatmapLevel.songName);
+            signal.StandardLevelDetailView._actionButton.interactable = false;
+            signal.StandardLevelDetailView._practiceButton.interactable = false;
+        }
+        catch (Exception e)
+        {
+            _loggingService.Error(e);
+        }
     }
 
     private void UpdatePlaybackController(float startTime, float timeToDefault, bool isDefault)
@@ -67,10 +104,12 @@ public class SongPreviewPlayerUpdater : IInitializable, IDisposable
     public void Initialize()
     {
         SongPreviewPatch.OnCrossfade = SetFields;
+        StandardLevelDetailViewRefreshContent.OnMapRequirementsUpdate = UpdateMapRequirements;
     }
 
     public void Dispose()
     {
         SongPreviewPatch.OnCrossfade = null;
+        StandardLevelDetailViewRefreshContent.OnMapRequirementsUpdate = null;
     }
 }
