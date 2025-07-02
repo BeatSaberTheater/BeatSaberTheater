@@ -45,6 +45,8 @@ public class PlaybackController : MonoBehaviour
     // [Inject] private readonly VideoMenuUI _videoMenu = null!;
     [Inject] [NonSerialized] internal CustomVideoPlayer _videoPlayer = null!;
 
+    #region Monobehaviour Functions
+
     private void Start()
     {
         _videoPlayer.Player.frameReady += FrameReady;
@@ -69,8 +71,41 @@ public class PlaybackController : MonoBehaviour
         Events.DifficultySelected -= DifficultySelected;
     }
 
+    #endregion
+
     public void StopPlayback()
     {
+        _videoPlayer.Stop();
+        StopAllCoroutines();
+    }
+
+    #region Event handlers
+
+    private void DifficultySelected(ExtraSongDataArgs extraSongDataArgs)
+    {
+        if (VideoConfig == null) return;
+
+        var difficultyData = extraSongDataArgs.SelectedDifficultyData;
+        var songData = extraSongDataArgs.SongData;
+
+        //If there is any difficulty that has a Theater suggestion but the current one doesn't, disable playback. The current difficulty most likely has the suggestion missing on purpose.
+        //If there are no difficulties that have the suggestion set, play the video. It might be a video added by the user.
+        //Otherwise, if the map is WIP, disable playback even when no difficulty has the suggestion, to convince the mapper to add it.
+        if (difficultyData?.HasTheater() == false && songData?.HasTheaterInAnyDifficulty() == true)
+            VideoConfig.PlaybackDisabledByMissingSuggestion = true;
+        else if (VideoConfig.IsWIPLevel && difficultyData?.HasTheater() == false)
+            VideoConfig.PlaybackDisabledByMissingSuggestion = true;
+        else
+            VideoConfig.PlaybackDisabledByMissingSuggestion = false;
+
+        if (VideoConfig.PlaybackDisabledByMissingSuggestion)
+        {
+            _videoPlayer.FadeOut(0.1f);
+        }
+        else
+        {
+            if (!_videoPlayer.IsPlaying) StartSongPreview();
+        }
     }
 
     public void FrameReady(VideoPlayer videoPlayer, long frame)
@@ -129,161 +164,66 @@ public class PlaybackController : MonoBehaviour
         if (audioSourceTime > 0) _lastKnownAudioSourceTime = audioSourceTime;
     }
 
-    public void PrepareVideo(VideoConfig video)
+    private void OnMenuSceneLoaded()
     {
-        _previewWaitingForVideoPlayer = true;
-
-        if (_prepareVideoCoroutine != null) StopCoroutine(_prepareVideoCoroutine);
-
-        _videoPlayer.ClearTexture();
-
-        _prepareVideoCoroutine = PrepareVideoCoroutine(video);
-        StartCoroutine(_prepareVideoCoroutine);
-    }
-
-    public void SetSelectedLevel(BeatmapLevel? level, VideoConfig? config)
-    {
+        _loggingService.Info("MenuSceneLoaded");
+        _activeScene = Scene.Menu;
+        _videoPlayer.Hide();
+        StopAllCoroutines();
         _previewWaitingForPreviewPlayer = true;
-        _previewWaitingForVideoPlayer = true;
-
-        _currentLevel = level;
-        VideoConfig = config;
-        _loggingService.Debug($"Selected Level: {level?.levelID ?? "null"}");
-
-        if (VideoConfig == null)
-        {
-            _videoPlayer.FadeOut();
-            StopAllCoroutines();
-            return;
-        }
-
-        _loggingService.Debug("Preparing video...");
-        PrepareVideo(VideoConfig);
-        if (level != null && VideoLoader.IsDlcSong(level)) _videoPlayer.FadeOut();
+        gameObject.SetActive(true);
+        SceneChanged();
     }
 
-    public async void StartPreview()
+    private void OnMenuSceneLoadedFresh(ScenesTransitionSetupDataSO? scenesTransition)
     {
-        if (VideoConfig == null || _currentLevel == null)
+        OnMenuSceneLoaded();
+        if (_settingsManager == null)
         {
-            _loggingService.Warn("No video or level selected in OnPreviewAction");
-            return;
-        }
-
-        if (IsPreviewPlaying)
-        {
-            _loggingService.Debug("Stopping preview");
-            StopPreview(true);
+            StartCoroutine(OnMenuSceneLoadedFreshCoroutine());
         }
         else
         {
-            _loggingService.Debug("Starting preview");
-            IsPreviewPlaying = true;
-
-            if (_videoPlayer.IsPlaying) StopPlayback();
-
-            if (!_videoPlayer.IsPrepared) _loggingService.Debug("Video not prepared yet");
-
-            //Start the preview at the point the video kicks in
-            var startTime = 0f;
-            if (VideoConfig.offset < 0) startTime = -VideoConfig.GetOffsetInSec();
-
-            if (_playbackLoader.SongPreviewPlayer == null)
-            {
-                _loggingService.Error("Failed to get reference to SongPreviewPlayer during preview");
-                return;
-            }
-
-            try
-            {
-                _loggingService.Debug($"Preview start time: {startTime}, offset: {VideoConfig.GetOffsetInSec()}");
-                var audioClip = await VideoLoader.GetAudioClipForLevel(_currentLevel);
-                if (audioClip != null)
-                    _playbackLoader.SongPreviewPlayer.CrossfadeTo(audioClip, -5f, startTime,
-                        _currentLevel.songDuration, null);
-                else
-                    _loggingService.Error("AudioClip for level failed to load");
-            }
-            catch (Exception e)
-            {
-                _loggingService.Error(e);
-                IsPreviewPlaying = false;
-                return;
-            }
-
-            //+1.0 is hard right. only pan "mostly" right, because for some reason the video player audio doesn't
-            //pan hard left either. Also, it sounds a bit more comfortable.
-            SetAudioSourcePanning(0.9f);
-            StartCoroutine(PlayVideoAfterAudioSourceCoroutine(true));
-            _videoPlayer.PanStereo = -1f; // -1 is hard left
-            _videoPlayer.Unmute();
+            _videoPlayer.VolumeScale = _settingsManager.settings.audio.volume;
+            _videoPlayer.ScreenManager.OnGameSceneLoadedFresh();
         }
     }
 
-    public void ResyncVideo(float? referenceTime = null, float? playbackSpeed = null)
+    private IEnumerator OnMenuSceneLoadedFreshCoroutine()
     {
-        if (_activeAudioSource == null || VideoConfig == null || !VideoConfig.IsPlayable) return;
-
-        var newTime = GetReferenceTime(referenceTime, playbackSpeed);
-
-        if (newTime < 0)
-        {
-            _videoPlayer.Hide();
-            StopAllCoroutines();
-            StartCoroutine(PlayVideoDelayedCoroutine(-newTime));
-        }
-        else if (newTime > _videoPlayer.VideoDuration && _videoPlayer.VideoDuration > 0)
-        {
-            newTime %= _videoPlayer.VideoDuration;
-        }
-
-        if (Math.Abs(_videoPlayer.Player.time - newTime) < 0.2f) return;
-
-        if (playbackSpeed.HasValue) _videoPlayer.PlaybackSpeed = playbackSpeed.Value;
-        _videoPlayer.Player.time = newTime;
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        yield return new WaitUntil(() => Plugin._menuContainer != null);
+        _settingsManager = Plugin._menuContainer.Resolve<SettingsManager>();
+        _videoPlayer.VolumeScale = _settingsManager.settings.audio.volume;
+        _videoPlayer.ScreenManager.OnGameSceneLoadedFresh();
     }
 
-    public void SetAudioSourcePanning(float pan)
+    private void OnPrepareComplete(VideoPlayer player)
     {
-        try
+        if (_offsetAfterPrepare > 0)
         {
-            if (_playbackLoader.AudioSourceControllers == null) return;
+            var offset = (DateTime.Now - _audioSourceStartTime).TotalSeconds + _offsetAfterPrepare;
+            _loggingService.Info($"Adjusting offset after prepare to {offset}");
+            _videoPlayer.Player.time = offset;
+        }
 
-            // If resetting the panning back to neutral (0f), set all audio sources.
-            // Otherwise only change the active channel.
-            if (pan == 0f || _activeAudioSource == null)
-                foreach (var sourceVolumeController in _playbackLoader.AudioSourceControllers)
-                    sourceVolumeController.audioSource.panStereo = pan;
-            else
-                _activeAudioSource.panStereo = pan;
-        }
-        catch (Exception e)
-        {
-            _loggingService.Warn(e);
-        }
+        _offsetAfterPrepare = 0;
+        _videoPlayer.ClearTexture();
+
+        if (_activeScene != Scene.Menu) return;
+
+        _previewWaitingForVideoPlayer = false;
+        StartSongPreview();
     }
 
-    public void StopPreview(bool stopPreviewMusic)
+    private void SceneChanged()
     {
-        if (!IsPreviewPlaying) return;
-        _loggingService.Debug($"Stopping preview (stop audio source: {stopPreviewMusic}");
-
-        _videoPlayer.FadeOut();
-        StopAllCoroutines();
-
-        if (stopPreviewMusic && _playbackLoader.SongPreviewPlayer != null)
-        {
-            _playbackLoader.SongPreviewPlayer.CrossfadeToDefault();
-            _videoPlayer.Mute();
-        }
-
-        IsPreviewPlaying = false;
-
-        SetAudioSourcePanning(0f); //0f is neutral
-        _videoPlayer.Mute();
-
-        // _videoMenu.SetButtonState(true);
+        _videoPlayer.ScreenManager.SetShaderParameters(VideoConfig);
     }
+
+    #endregion
+
+    #region Harmony Patch Hooks
 
     public void UpdateSongPreviewPlayer(AudioSource? activeAudioSource, float startTime, float timeRemaining,
         bool isDefault)
@@ -340,97 +280,9 @@ public class PlaybackController : MonoBehaviour
         StartSongPreview();
     }
 
-    private void DifficultySelected(ExtraSongDataArgs extraSongDataArgs)
-    {
-        if (VideoConfig == null) return;
+    #endregion
 
-        var difficultyData = extraSongDataArgs.SelectedDifficultyData;
-        var songData = extraSongDataArgs.SongData;
-
-        //If there is any difficulty that has a Theater suggestion but the current one doesn't, disable playback. The current difficulty most likely has the suggestion missing on purpose.
-        //If there are no difficulties that have the suggestion set, play the video. It might be a video added by the user.
-        //Otherwise, if the map is WIP, disable playback even when no difficulty has the suggestion, to convince the mapper to add it.
-        if (difficultyData?.HasTheater() == false && songData?.HasTheaterInAnyDifficulty() == true)
-            VideoConfig.PlaybackDisabledByMissingSuggestion = true;
-        else if (VideoConfig.IsWIPLevel && difficultyData?.HasTheater() == false)
-            VideoConfig.PlaybackDisabledByMissingSuggestion = true;
-        else
-            VideoConfig.PlaybackDisabledByMissingSuggestion = false;
-
-        if (VideoConfig.PlaybackDisabledByMissingSuggestion)
-        {
-            _videoPlayer.FadeOut(0.1f);
-        }
-        else
-        {
-            if (!_videoPlayer.IsPlaying) StartSongPreview();
-        }
-    }
-
-    private float GetReferenceTime(float? referenceTime = null, float? playbackSpeed = null)
-    {
-        if (_activeAudioSource == null || VideoConfig == null) return 0;
-
-        float time;
-        if (referenceTime == null && _activeAudioSource.time == 0)
-            time = _lastKnownAudioSourceTime;
-        else
-            time = referenceTime ?? _activeAudioSource.time;
-        var speed = playbackSpeed ?? VideoConfig.PlaybackSpeed;
-        return time * speed + VideoConfig.offset / 1000f;
-    }
-
-    private void OnMenuSceneLoaded()
-    {
-        _loggingService.Info("MenuSceneLoaded");
-        _activeScene = Scene.Menu;
-        _videoPlayer.Hide();
-        StopAllCoroutines();
-        _previewWaitingForPreviewPlayer = true;
-        gameObject.SetActive(true);
-        SceneChanged();
-    }
-
-    private void OnMenuSceneLoadedFresh(ScenesTransitionSetupDataSO? scenesTransition)
-    {
-        OnMenuSceneLoaded();
-        if (_settingsManager == null)
-        {
-            StartCoroutine(OnMenuSceneLoadedFreshCoroutine());
-        }
-        else
-        {
-            _videoPlayer.VolumeScale = _settingsManager.settings.audio.volume;
-            _videoPlayer.ScreenManager.OnGameSceneLoadedFresh();
-        }
-    }
-
-    private IEnumerator OnMenuSceneLoadedFreshCoroutine()
-    {
-        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        yield return new WaitUntil(() => Plugin._menuContainer != null);
-        _settingsManager = Plugin._menuContainer.Resolve<SettingsManager>();
-        _videoPlayer.VolumeScale = _settingsManager.settings.audio.volume;
-        _videoPlayer.ScreenManager.OnGameSceneLoadedFresh();
-    }
-
-    private void OnPrepareComplete(VideoPlayer player)
-    {
-        if (_offsetAfterPrepare > 0)
-        {
-            var offset = (DateTime.Now - _audioSourceStartTime).TotalSeconds + _offsetAfterPrepare;
-            _loggingService.Info($"Adjusting offset after prepare to {offset}");
-            _videoPlayer.Player.time = offset;
-        }
-
-        _offsetAfterPrepare = 0;
-        _videoPlayer.ClearTexture();
-
-        if (_activeScene != Scene.Menu) return;
-
-        _previewWaitingForVideoPlayer = false;
-        StartSongPreview();
-    }
+    #region Video Playback
 
     private void PlayVideo(float startTime)
     {
@@ -626,6 +478,22 @@ public class PlaybackController : MonoBehaviour
         PlayVideo(startTime);
     }
 
+    #endregion
+
+    #region Video Prepare
+
+    public void PrepareVideo(VideoConfig video)
+    {
+        _previewWaitingForVideoPlayer = true;
+
+        if (_prepareVideoCoroutine != null) StopCoroutine(_prepareVideoCoroutine);
+
+        _videoPlayer.ClearTexture();
+
+        _prepareVideoCoroutine = PrepareVideoCoroutine(video);
+        StartCoroutine(_prepareVideoCoroutine);
+    }
+
     private IEnumerator PrepareVideoCoroutine(VideoConfig video)
     {
         VideoConfig = video;
@@ -668,9 +536,86 @@ public class PlaybackController : MonoBehaviour
         _videoPlayer.Prepare();
     }
 
-    private void SceneChanged()
+    #endregion
+
+    #region Video Preview
+
+    public void SetAudioSourcePanning(float pan)
     {
-        _videoPlayer.ScreenManager.SetShaderParameters(VideoConfig);
+        try
+        {
+            if (_playbackLoader.AudioSourceControllers == null) return;
+
+            // If resetting the panning back to neutral (0f), set all audio sources.
+            // Otherwise only change the active channel.
+            if (pan == 0f || _activeAudioSource == null)
+                foreach (var sourceVolumeController in _playbackLoader.AudioSourceControllers)
+                    sourceVolumeController.audioSource.panStereo = pan;
+            else
+                _activeAudioSource.panStereo = pan;
+        }
+        catch (Exception e)
+        {
+            _loggingService.Warn(e);
+        }
+    }
+
+    public async void StartPreview()
+    {
+        if (VideoConfig == null || _currentLevel == null)
+        {
+            _loggingService.Warn("No video or level selected in OnPreviewAction");
+            return;
+        }
+
+        if (IsPreviewPlaying)
+        {
+            _loggingService.Debug("Stopping preview");
+            StopPreview(true);
+        }
+        else
+        {
+            _loggingService.Debug("Starting preview");
+            IsPreviewPlaying = true;
+
+            if (_videoPlayer.IsPlaying) StopPlayback();
+
+            if (!_videoPlayer.IsPrepared) _loggingService.Debug("Video not prepared yet");
+
+            //Start the preview at the point the video kicks in
+            var startTime = 0f;
+            if (VideoConfig.offset < 0) startTime = -VideoConfig.GetOffsetInSec();
+
+            if (_playbackLoader.SongPreviewPlayer == null)
+            {
+                _loggingService.Error("Failed to get reference to SongPreviewPlayer during preview");
+                return;
+            }
+
+            try
+            {
+                _loggingService.Debug($"Preview start time: {startTime}, offset: {VideoConfig.GetOffsetInSec()}");
+                var audioClip = await VideoLoader.GetAudioClipForLevel(_currentLevel);
+                if (audioClip != null)
+                    _playbackLoader.SongPreviewPlayer.CrossfadeTo(audioClip, -5f, startTime,
+                        _currentLevel.songDuration, null);
+                else
+                    _loggingService.Error("AudioClip for level failed to load");
+            }
+            catch (Exception e)
+            {
+                _loggingService.Error(e);
+                IsPreviewPlaying = false;
+                return;
+            }
+
+            //+1.0 is hard right. only pan "mostly" right, because for some reason the video player audio doesn't
+            //pan hard left either. Also, it sounds a bit more comfortable.
+            SetAudioSourcePanning(0.9f);
+            StartCoroutine(PlayVideoAfterAudioSourceCoroutine(true));
+            _videoPlayer.PanStereo = -1f; // -1 is hard left
+            _videoPlayer.Unmute();
+        }
     }
 
     private void StartSongPreview()
@@ -692,5 +637,85 @@ public class PlaybackController : MonoBehaviour
         else
             _loggingService.Debug(
                 $"Not playing song preview, because delay was too long. Remaining preview time: {_previewTimeRemaining}");
+    }
+
+    public void StopPreview(bool stopPreviewMusic)
+    {
+        if (!IsPreviewPlaying) return;
+        _loggingService.Debug($"Stopping preview (stop audio source: {stopPreviewMusic}");
+
+        _videoPlayer.FadeOut();
+        StopAllCoroutines();
+
+        if (stopPreviewMusic && _playbackLoader.SongPreviewPlayer != null)
+        {
+            _playbackLoader.SongPreviewPlayer.CrossfadeToDefault();
+            _videoPlayer.Mute();
+        }
+
+        IsPreviewPlaying = false;
+
+        SetAudioSourcePanning(0f); //0f is neutral
+        _videoPlayer.Mute();
+
+        // _videoMenu.SetButtonState(true);
+    }
+
+    #endregion
+
+    private float GetReferenceTime(float? referenceTime = null, float? playbackSpeed = null)
+    {
+        if (_activeAudioSource == null || VideoConfig == null) return 0;
+
+        float time;
+        if (referenceTime == null && _activeAudioSource.time == 0)
+            time = _lastKnownAudioSourceTime;
+        else
+            time = referenceTime ?? _activeAudioSource.time;
+        var speed = playbackSpeed ?? VideoConfig.PlaybackSpeed;
+        return time * speed + VideoConfig.offset / 1000f;
+    }
+
+    public void ResyncVideo(float? referenceTime = null, float? playbackSpeed = null)
+    {
+        if (_activeAudioSource == null || VideoConfig == null || !VideoConfig.IsPlayable) return;
+
+        var newTime = GetReferenceTime(referenceTime, playbackSpeed);
+
+        if (newTime < 0)
+        {
+            _videoPlayer.Hide();
+            StopAllCoroutines();
+            StartCoroutine(PlayVideoDelayedCoroutine(-newTime));
+        }
+        else if (newTime > _videoPlayer.VideoDuration && _videoPlayer.VideoDuration > 0)
+        {
+            newTime %= _videoPlayer.VideoDuration;
+        }
+
+        if (Math.Abs(_videoPlayer.Player.time - newTime) < 0.2f) return;
+
+        if (playbackSpeed.HasValue) _videoPlayer.PlaybackSpeed = playbackSpeed.Value;
+        _videoPlayer.Player.time = newTime;
+    }
+
+    public void SetSelectedLevel(BeatmapLevel? level, VideoConfig? config)
+    {
+        _previewWaitingForPreviewPlayer = true;
+        _previewWaitingForVideoPlayer = true;
+
+        _currentLevel = level;
+        VideoConfig = config;
+        _loggingService.Debug($"Selected Level: {level?.levelID ?? "null"}");
+
+        if (VideoConfig == null)
+        {
+            _videoPlayer.FadeOut();
+            StopAllCoroutines();
+            return;
+        }
+
+        PrepareVideo(VideoConfig);
+        if (level != null && VideoLoader.IsDlcSong(level)) _videoPlayer.FadeOut();
     }
 }
