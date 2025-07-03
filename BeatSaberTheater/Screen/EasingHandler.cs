@@ -35,9 +35,9 @@ public class EasingHandler : IInitializable
         }
     }
 
-    private readonly CoroutineStarter _coroutineStarter;
+    private readonly TheaterCoroutineStarter _coroutineStarter;
 
-    public EasingHandler(CoroutineStarter coroutineStarter, float initialValue = 0f)
+    public EasingHandler(TheaterCoroutineStarter coroutineStarter, float initialValue = 0f)
     {
         _coroutineStarter = coroutineStarter;
         _easingValue = initialValue;

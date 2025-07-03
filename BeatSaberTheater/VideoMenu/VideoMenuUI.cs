@@ -98,14 +98,14 @@ public class VideoMenuUI : IInitializable, IDisposable
 
     private string? _thumbnailURL;
 
-    private readonly CoroutineStarter _coroutineStarter;
+    private readonly TheaterCoroutineStarter _coroutineStarter;
     private readonly DownloadService _downloadService;
     private readonly SearchService _searchService;
     private readonly VideoLoader _videoLoader;
 
     private readonly List<YTResult> _searchResults = [];
 
-    internal VideoMenuUI(CoroutineStarter coroutineStarter, DownloadService downloadService,
+    internal VideoMenuUI(TheaterCoroutineStarter coroutineStarter, DownloadService downloadService,
         GameplaySetup gameplaySetup, LoggingService loggingService, PlaybackManager playbackManager,
         PluginConfig config, SearchService searchService, VideoLoader videoLoader)
     {

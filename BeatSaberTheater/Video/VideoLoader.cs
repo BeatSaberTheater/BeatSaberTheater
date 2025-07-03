@@ -20,7 +20,7 @@ using Zenject;
 
 namespace BeatSaberTheater.Video;
 
-public class VideoLoader(CoroutineStarter _coroutineStarter, LoggingService _loggingService)
+public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingService _loggingService)
     : IInitializable, IDisposable
 {
     private const string LEGACY_OST_DIRECTORY_NAME = "CinemaOSTVideos";

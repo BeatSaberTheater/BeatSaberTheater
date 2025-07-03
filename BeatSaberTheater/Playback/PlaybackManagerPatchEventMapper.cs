@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using BeatSaberTheater.Harmony.Patches;
 using BeatSaberTheater.Harmony.Signals;
 using BeatSaberTheater.Util;
@@ -8,8 +9,9 @@ using Zenject;
 
 namespace BeatSaberTheater.Playback;
 
-public class PlaybackControllerEventMapper : IInitializable, IDisposable
+public class PlaybackManagerPatchEventMapper : IInitializable, IDisposable
 {
+    private readonly TheaterCoroutineStarter _coroutineStarter;
     private readonly LoggingService _loggingService;
     private readonly PlaybackManager _playbackManager;
     private readonly SongPreviewPlayerLoader _playbackLoader;
@@ -19,24 +21,26 @@ public class PlaybackControllerEventMapper : IInitializable, IDisposable
     private int _activeChannel;
     private AudioClip? _currentAudioClip;
 
-    public PlaybackControllerEventMapper(LoggingService loggingService, PlaybackManager playbackManager,
+    public PlaybackManagerPatchEventMapper(TheaterCoroutineStarter coroutineStarter, LoggingService loggingService,
+        PlaybackManager playbackManager,
         SongPreviewPlayerLoader playbackLoader)
     {
+        _coroutineStarter = coroutineStarter;
         _loggingService = loggingService;
         _playbackManager = playbackManager;
         _playbackLoader = playbackLoader;
     }
 
-    public void SetFields(SongPreviewPlayerSignal signal)
+    private void SetFields(SongPreviewPlayerSignal signal)
     {
         _playbackLoader.AudioSourceControllers = signal.AudioSourceControllers;
         _channelCount = signal.ChannelCount;
         _activeChannel = signal.ActiveChannel;
         _currentAudioClip = signal.AudioClip;
-        UpdatePlaybackController(signal.StartTime, signal.TimeToDefault, signal.IsDefault);
+        UpdatePlaybackManager(signal.StartTime, signal.TimeToDefault, signal.IsDefault);
     }
 
-    public void UpdateMapRequirements(MapRequirementsUpdateSignal signal)
+    private void UpdateMapRequirements(MapRequirementsUpdateSignal signal)
     {
         try
         {
@@ -73,7 +77,7 @@ public class PlaybackControllerEventMapper : IInitializable, IDisposable
         }
     }
 
-    private void UpdatePlaybackController(float startTime, float timeToDefault, bool isDefault)
+    private void UpdatePlaybackManager(float startTime, float timeToDefault, bool isDefault)
     {
         if (_currentAudioClip == null)
         {
@@ -102,14 +106,37 @@ public class PlaybackControllerEventMapper : IInitializable, IDisposable
         _playbackManager.UpdateSongPreviewPlayer(_activeAudioSource, startTime, timeToDefault, isDefault);
     }
 
+    private IEnumerator WaitThenStartVideoPlaybackCoroutine()
+    {
+        //Have to wait two frames, since Chroma waits for one and we have to make sure we run after Chroma without directly interacting with it.
+        //Chroma probably waits a frame to make sure the lights are all registered before accessing the LightManager.
+        //If we run before Chroma, the prop groups will get different IDs than usual due to the changed z-positions.
+        yield return new WaitForEndOfFrame();
+        yield return new WaitForEndOfFrame();
+
+        //Turns out CustomPlatforms runs even later and undoes some of the scene modifications Cinema does. Waiting for a specific duration is more of a temporary fix.
+        //TODO Find a better way to implement this. The problematic coroutine in CustomPlatforms is CustomFloorPlugin.EnvironmentHider+<InternalHideObjectsForPlatform>
+        yield return new WaitForSeconds(InstalledMods.CustomPlatforms ? 0.75f : 0.05f);
+
+        // EnvironmentController.ModifyGameScene(PlaybackController.Instance.VideoConfig);
+    }
+
+    private void WaitThenStartVideoPlayback()
+    {
+        _loggingService.Debug("Starting video playback delay");
+        _coroutineStarter.StartCoroutine(WaitThenStartVideoPlaybackCoroutine());
+    }
+
     public void Initialize()
     {
+        LightSwitchEventEffectStart.DelayPlaybackStart = WaitThenStartVideoPlayback;
         SongPreviewPatch.OnCrossfade = SetFields;
         StandardLevelDetailViewRefreshContent.OnMapRequirementsUpdate = UpdateMapRequirements;
     }
 
     public void Dispose()
     {
+        LightSwitchEventEffectStart.DelayPlaybackStart = null;
         SongPreviewPatch.OnCrossfade = null;
         StandardLevelDetailViewRefreshContent.OnMapRequirementsUpdate = null;
     }

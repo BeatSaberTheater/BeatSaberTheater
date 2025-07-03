@@ -1,12 +1,8 @@
-﻿using BeatSaberTheater.Harmony.Patches;
-using BeatSaberTheater.Harmony.Signals;
-using BeatSaberTheater.Models;
-using BeatSaberTheater.Playback;
+﻿using BeatSaberTheater.Playback;
 using BeatSaberTheater.Screen;
 using BeatSaberTheater.Screen.Factories;
 using BeatSaberTheater.Screen.Interfaces;
 using BeatSaberTheater.Services;
-using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
 using BeatSaberTheater.VideoMenu;
 using Zenject;
@@ -18,10 +14,8 @@ public class VideoMenuInstaller : Installer
     public override void InstallBindings()
     {
         // System initialization
-        Container.BindInterfacesAndSelfTo<LoggingService>().AsSingle();
 
         // Video player and playback manager dependencies
-        Container.Bind<CoroutineStarter>().FromNewComponentOnNewGameObject().AsSingle();
         Container.BindInterfacesAndSelfTo<VideoLoader>().AsSingle();
         Container.BindInterfacesAndSelfTo<DownloadService>().AsSingle();
         Container.BindInterfacesAndSelfTo<SearchService>().AsSingle();
@@ -34,7 +28,7 @@ public class VideoMenuInstaller : Installer
 
         Container.Bind<CustomVideoPlayer>().FromNewComponentOnNewGameObject().AsSingle();
         Container.Bind<PlaybackManager>().FromNewComponentOnNewGameObject().AsSingle();
-        Container.BindInterfacesAndSelfTo<PlaybackControllerEventMapper>().AsSingle();
+        Container.BindInterfacesAndSelfTo<PlaybackManagerPatchEventMapper>().AsSingle();
         Container.BindInterfacesTo<VideoMenuUI>().AsSingle();
 
         Container.QueueForInject(this);

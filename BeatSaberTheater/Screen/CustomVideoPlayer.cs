@@ -29,8 +29,8 @@ public class CustomVideoPlayer : MonoBehaviour
     private RenderTexture _renderTexture = null!;
 
     private const string MAIN_TEXTURE_NAME = "_MainTex";
-    private const string THEATER_TEXTURE_NAME = "_TheaterVideoTexture";
-    private const string STATUS_PROPERTY_NAME = "_TheaterVideoIsPlaying";
+    private const string THEATER_TEXTURE_NAME = "_CinemaVideoTexture";
+    private const string STATUS_PROPERTY_NAME = "_CinemaVideoIsPlaying";
     private const float MAX_BRIGHTNESS = 0.92f;
     private readonly Color _screenColorOn = Color.white.ColorWithAlpha(0f) * MAX_BRIGHTNESS;
     private readonly Color _screenColorOff = Color.clear;
