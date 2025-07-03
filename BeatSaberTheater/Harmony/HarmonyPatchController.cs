@@ -9,7 +9,7 @@ public class HarmonyPatchController
 {
     private List<PatchClassProcessor>? _patchClassProcessorList;
     private HarmonyLib.Harmony _harmonyInstance = null!;
-    private const string HARMONY_ID = "com.github.kevga.cinema";
+    private const string HARMONY_ID = "com.github.neboman11.theater";
 
     private void InitPatches()
     {

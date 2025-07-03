@@ -494,7 +494,7 @@ public class PlaybackManager : MonoBehaviour
         if (_videoConfig == null) return;
 
         _videoConfig.UpdateDownloadState();
-        _videoConfig.ErrorMessage = "Cinema playback error.";
+        _videoConfig.ErrorMessage = "Theater playback error.";
         if (message.Contains("Unexpected error code (10)") && SystemInfo.graphicsDeviceVendor == "NVIDIA")
             _videoConfig.ErrorMessage += " Try disabling NVIDIA Fast Sync.";
         else if (message.Contains("It seems that the Microsoft Media Foundation is not installed on this machine"))

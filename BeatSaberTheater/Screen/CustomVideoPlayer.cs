@@ -29,14 +29,14 @@ public class CustomVideoPlayer : MonoBehaviour
     private RenderTexture _renderTexture = null!;
 
     private const string MAIN_TEXTURE_NAME = "_MainTex";
-    private const string CINEMA_TEXTURE_NAME = "_CinemaVideoTexture";
-    private const string STATUS_PROPERTY_NAME = "_CinemaVideoIsPlaying";
+    private const string THEATER_TEXTURE_NAME = "_TheaterVideoTexture";
+    private const string STATUS_PROPERTY_NAME = "_TheaterVideoIsPlaying";
     private const float MAX_BRIGHTNESS = 0.92f;
     private readonly Color _screenColorOn = Color.white.ColorWithAlpha(0f) * MAX_BRIGHTNESS;
     private readonly Color _screenColorOff = Color.clear;
     private static readonly int MainTex = Shader.PropertyToID(MAIN_TEXTURE_NAME);
-    private static readonly int CinemaVideoTexture = Shader.PropertyToID(CINEMA_TEXTURE_NAME);
-    private static readonly int CinemaStatusProperty = Shader.PropertyToID(STATUS_PROPERTY_NAME);
+    private static readonly int TheaterVideoTexture = Shader.PropertyToID(THEATER_TEXTURE_NAME);
+    private static readonly int TheaterStatusProperty = Shader.PropertyToID(STATUS_PROPERTY_NAME);
     private string _currentlyPlayingVideo = "";
     private readonly Stopwatch _firstFrameStopwatch = new();
 
@@ -329,7 +329,7 @@ public class CustomVideoPlayer : MonoBehaviour
         _player.frameReady -= FirstFrameReady;
         _player.frameReady += FirstFrameReady;
         _player.Play();
-        Shader.SetGlobalInt(CinemaStatusProperty, 1);
+        Shader.SetGlobalInt(TheaterStatusProperty, 1);
     }
 
     public void Pause()
@@ -344,7 +344,7 @@ public class CustomVideoPlayer : MonoBehaviour
         _player.Stop();
         stopped?.Invoke();
         SetStaticTexture(null);
-        Shader.SetGlobalInt(CinemaStatusProperty, 0);
+        Shader.SetGlobalInt(TheaterStatusProperty, 0);
         ScreenManager.SetScreensActive(false);
         _firstFrameStopwatch.Reset();
     }
@@ -369,7 +369,7 @@ public class CustomVideoPlayer : MonoBehaviour
 
     private void SetTexture(Texture? texture)
     {
-        Shader.SetGlobalTexture(CinemaVideoTexture, texture);
+        Shader.SetGlobalTexture(TheaterVideoTexture, texture);
     }
 
     public void SetCoverTexture(Texture? texture)
