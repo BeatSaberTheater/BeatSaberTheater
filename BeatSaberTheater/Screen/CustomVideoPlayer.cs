@@ -13,11 +13,11 @@ namespace BeatSaberTheater.Screen;
 
 public class CustomVideoPlayer : MonoBehaviour
 {
-    private PluginConfig _config = null!;
-    private ICurvedSurfaceFactory _curvedSurfaceFactory = null!;
-    private ICustomBloomPrePassFactory _customBloomPrePassFactory = null!;
-    private EasingHandler _easingHandler = null!;
-    private LoggingService _loggingService = null!;
+    [Inject] private PluginConfig _config = null!;
+    [Inject] private ICurvedSurfaceFactory _curvedSurfaceFactory = null!;
+    [Inject] private ICustomBloomPrePassFactory _customBloomPrePassFactory = null!;
+    [Inject] private EasingHandler _easingHandler = null!;
+    [Inject] private LoggingService _loggingService = null!;
 
     //Initialized by Awake()
     [NonSerialized] private VideoPlayer _player = null!;
@@ -94,17 +94,9 @@ public class CustomVideoPlayer : MonoBehaviour
     public bool IsPrepared => _player.isPrepared;
     [NonSerialized] public bool IsSyncing;
 
-    internal void Startup(PluginConfig config, ICurvedSurfaceFactory curvedSurfaceFactory,
-        ICustomBloomPrePassFactory customBloomPrePassFactory, EasingHandler easingHandler,
-        LoggingService loggingService, VideoPlayer.FrameReadyEventHandler frameReadyEventHandler,
+    internal void Startup(VideoPlayer.FrameReadyEventHandler frameReadyEventHandler,
         VideoPlayer.EventHandler preparedCompleteEventHandler, Action<string>? videoPlayerErrorReceivedEvent)
     {
-        _config = config;
-        _curvedSurfaceFactory = curvedSurfaceFactory;
-        _customBloomPrePassFactory = customBloomPrePassFactory;
-        _easingHandler = easingHandler;
-        _loggingService = loggingService;
-
         CreateScreen();
         _screenRenderer = _screenManager.GetRenderer();
         _screenRenderer.material = new Material(GetShader()) { color = _screenColorOff };

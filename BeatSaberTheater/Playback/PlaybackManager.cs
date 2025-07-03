@@ -43,9 +43,6 @@ public class PlaybackManager : MonoBehaviour
     private CustomVideoPlayer _videoPlayer = null!;
 
     [Inject] private readonly PluginConfig _config = null!;
-    [Inject] private readonly ICurvedSurfaceFactory _curvedSurfaceFactory = null!;
-    [Inject] private readonly ICustomBloomPrePassFactory _customBloomPrePassFactory = null!;
-    [Inject] private readonly EasingHandler _easingHandler = null!;
     [Inject] private readonly ILightManagerFactory _lightManagerFactory = null!;
     [Inject] private readonly LoggingService _loggingService = null!;
     [Inject] private readonly SongPreviewPlayerLoader _playbackLoader = null!;
@@ -340,9 +337,7 @@ public class PlaybackManager : MonoBehaviour
     private void OnMenuSceneLoadedFresh(ScenesTransitionSetupDataSO? scenesTransition)
     {
         _videoPlayer = _videoPlayerFactory.Create(gameObject);
-        _videoPlayer.Startup(_config, _curvedSurfaceFactory, _customBloomPrePassFactory, _easingHandler,
-            _loggingService, FrameReady,
-            OnPrepareComplete, VideoPlayerErrorReceived);
+        _videoPlayer.Startup(FrameReady, OnPrepareComplete, VideoPlayerErrorReceived);
         _lightManager = _lightManagerFactory.Create(gameObject);
         _lightManager.Startup(_videoPlayer);
         OnMenuSceneLoaded();
