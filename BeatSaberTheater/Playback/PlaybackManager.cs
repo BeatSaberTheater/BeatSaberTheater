@@ -25,6 +25,7 @@ public class PlaybackManager : MonoBehaviour
 
     private AudioSource? _activeAudioSource;
     private Scene _activeScene = Scene.Other;
+    private SongPreviewPlayer.AudioSourceVolumeController[]? _audioSourceControllers;
     private DateTime _audioSourceStartTime;
     private BeatmapLevel? _currentLevel;
     private float _lastKnownAudioSourceTime;
@@ -38,6 +39,7 @@ public class PlaybackManager : MonoBehaviour
     private bool _previewWaitingForPreviewPlayer;
     private bool _previewWaitingForVideoPlayer = true;
     private SettingsManager? _settingsManager;
+    private SongPreviewPlayer? _songPreviewPlayer;
     private AudioTimeSyncController? _timeSyncController;
     private VideoConfig? _videoConfig;
     private CustomVideoPlayer _videoPlayer = null!;
@@ -45,7 +47,6 @@ public class PlaybackManager : MonoBehaviour
     [Inject] private readonly PluginConfig _config = null!;
     [Inject] private readonly ILightManagerFactory _lightManagerFactory = null!;
     [Inject] private readonly LoggingService _loggingService = null!;
-    [Inject] private readonly SongPreviewPlayerLoader _playbackLoader = null!;
     [Inject] private readonly VideoLoader _videoLoader = null!;
 
     // [Inject] private readonly VideoMenuUI _videoMenu = null!;
@@ -336,6 +337,7 @@ public class PlaybackManager : MonoBehaviour
 
     private void OnMenuSceneLoadedFresh(ScenesTransitionSetupDataSO? scenesTransition)
     {
+        _songPreviewPlayer = Resources.FindObjectsOfTypeAll<SongPreviewPlayer>().LastOrDefault();
         _videoPlayer = _videoPlayerFactory.Create(gameObject);
         _videoPlayer.Startup(FrameReady, OnPrepareComplete, VideoPlayerErrorReceived);
         _lightManager = _lightManagerFactory.Create(gameObject);
@@ -388,9 +390,10 @@ public class PlaybackManager : MonoBehaviour
 
     #region Harmony Patch Hooks
 
-    public void UpdateSongPreviewPlayer(AudioSource? activeAudioSource, float startTime, float timeRemaining,
-        bool isDefault)
+    public void UpdateSongPreviewPlayer(SongPreviewPlayer.AudioSourceVolumeController[] audioSourceControllers,
+        AudioSource? activeAudioSource, float startTime, float timeRemaining, bool isDefault)
     {
+        _audioSourceControllers = audioSourceControllers;
         _activeAudioSource = activeAudioSource;
         _lastKnownAudioSourceTime = 0;
         if (_activeAudioSource == null) _loggingService.Debug("Active AudioSource null in SongPreviewPlayer update");
@@ -768,12 +771,12 @@ public class PlaybackManager : MonoBehaviour
     {
         try
         {
-            if (_playbackLoader.AudioSourceControllers == null) return;
+            if (_audioSourceControllers == null) return;
 
             // If resetting the panning back to neutral (0f), set all audio sources.
             // Otherwise only change the active channel.
             if (pan == 0f || _activeAudioSource == null)
-                foreach (var sourceVolumeController in _playbackLoader.AudioSourceControllers)
+                foreach (var sourceVolumeController in _audioSourceControllers)
                     sourceVolumeController.audioSource.panStereo = pan;
             else
                 _activeAudioSource.panStereo = pan;
@@ -810,7 +813,7 @@ public class PlaybackManager : MonoBehaviour
             var startTime = 0f;
             if (_videoConfig.offset < 0) startTime = -_videoConfig.GetOffsetInSec();
 
-            if (_playbackLoader.SongPreviewPlayer == null)
+            if (_songPreviewPlayer == null)
             {
                 _loggingService.Error("Failed to get reference to SongPreviewPlayer during preview");
                 return;
@@ -821,7 +824,7 @@ public class PlaybackManager : MonoBehaviour
                 _loggingService.Debug($"Preview start time: {startTime}, offset: {_videoConfig.GetOffsetInSec()}");
                 var audioClip = await VideoLoader.GetAudioClipForLevel(_currentLevel);
                 if (audioClip != null)
-                    _playbackLoader.SongPreviewPlayer.CrossfadeTo(audioClip, -5f, startTime,
+                    _songPreviewPlayer.CrossfadeTo(audioClip, -5f, startTime,
                         _currentLevel.songDuration, null);
                 else
                     _loggingService.Error("AudioClip for level failed to load");
@@ -871,9 +874,9 @@ public class PlaybackManager : MonoBehaviour
         _videoPlayer.FadeOut();
         StopAllCoroutines();
 
-        if (stopPreviewMusic && _playbackLoader.SongPreviewPlayer != null)
+        if (stopPreviewMusic && _songPreviewPlayer != null)
         {
-            _playbackLoader.SongPreviewPlayer.CrossfadeToDefault();
+            _songPreviewPlayer.CrossfadeToDefault();
             _videoPlayer.Mute();
         }
 

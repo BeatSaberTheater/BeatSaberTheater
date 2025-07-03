@@ -14,7 +14,6 @@ public class PlaybackManagerPatchEventMapper : IInitializable, IDisposable
     private readonly TheaterCoroutineStarter _coroutineStarter;
     private readonly LoggingService _loggingService;
     private readonly PlaybackManager _playbackManager;
-    private readonly SongPreviewPlayerLoader _playbackLoader;
 
     private AudioSource? _activeAudioSource;
     private int _channelCount;
@@ -22,22 +21,19 @@ public class PlaybackManagerPatchEventMapper : IInitializable, IDisposable
     private AudioClip? _currentAudioClip;
 
     public PlaybackManagerPatchEventMapper(TheaterCoroutineStarter coroutineStarter, LoggingService loggingService,
-        PlaybackManager playbackManager,
-        SongPreviewPlayerLoader playbackLoader)
+        PlaybackManager playbackManager)
     {
         _coroutineStarter = coroutineStarter;
         _loggingService = loggingService;
         _playbackManager = playbackManager;
-        _playbackLoader = playbackLoader;
     }
 
     private void SetFields(SongPreviewPlayerSignal signal)
     {
-        _playbackLoader.AudioSourceControllers = signal.AudioSourceControllers;
         _channelCount = signal.ChannelCount;
         _activeChannel = signal.ActiveChannel;
         _currentAudioClip = signal.AudioClip;
-        UpdatePlaybackManager(signal.StartTime, signal.TimeToDefault, signal.IsDefault);
+        UpdatePlaybackManager(signal.AudioSourceControllers, signal.StartTime, signal.TimeToDefault, signal.IsDefault);
     }
 
     private void UpdateMapRequirements(MapRequirementsUpdateSignal signal)
@@ -77,17 +73,12 @@ public class PlaybackManagerPatchEventMapper : IInitializable, IDisposable
         }
     }
 
-    private void UpdatePlaybackManager(float startTime, float timeToDefault, bool isDefault)
+    private void UpdatePlaybackManager(SongPreviewPlayer.AudioSourceVolumeController[] audioSourceControllers,
+        float startTime, float timeToDefault, bool isDefault)
     {
         if (_currentAudioClip == null)
         {
             _loggingService.Warn("SongPreviewPlayer AudioClip was null");
-            return;
-        }
-
-        if (_playbackLoader.AudioSourceControllers == null)
-        {
-            _loggingService.Warn("Audiosources null when updating playback controller");
             return;
         }
 
@@ -100,10 +91,11 @@ public class PlaybackManagerPatchEventMapper : IInitializable, IDisposable
         if (_currentAudioClip.name == "LevelCleared" || _currentAudioClip.name.EndsWith(".egg"))
             isDefault = true;
 
-        _activeAudioSource = _playbackLoader.AudioSourceControllers[_activeChannel].audioSource;
+        _activeAudioSource = audioSourceControllers[_activeChannel].audioSource;
         _loggingService.Debug(
             $"SongPreviewPatch -- channel {_activeChannel} -- startTime {startTime} -- timeRemaining {timeToDefault} -- audioclip {_currentAudioClip.name}");
-        _playbackManager.UpdateSongPreviewPlayer(_activeAudioSource, startTime, timeToDefault, isDefault);
+        _playbackManager.UpdateSongPreviewPlayer(audioSourceControllers, _activeAudioSource, startTime, timeToDefault,
+            isDefault);
     }
 
     private IEnumerator WaitThenStartVideoPlaybackCoroutine()

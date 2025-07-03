@@ -24,7 +24,6 @@ internal class VideoPlaybackInstaller : Installer
     {
         // Playback Dependencies
         Container.BindInterfacesAndSelfTo<VideoLoader>().AsSingle();
-        Container.BindInterfacesAndSelfTo<SongPreviewPlayerLoader>().AsSingle();
         Container.BindInterfacesAndSelfTo<EasingHandler>().AsSingle();
 
         // Component Factories
