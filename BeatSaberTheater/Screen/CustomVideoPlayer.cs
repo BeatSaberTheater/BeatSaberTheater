@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using BeatSaberTheater.Screen.Interfaces;
 using BeatSaberTheater.Util;
+using BeatSaberTheater.Video;
 using BS_Utils.Utilities;
 using UnityEngine;
 using UnityEngine.Video;
@@ -12,19 +13,16 @@ namespace BeatSaberTheater.Screen;
 
 public class CustomVideoPlayer : MonoBehaviour
 {
-    [Inject] private readonly PluginConfig _config = null!;
-    [Inject] private readonly ICurvedSurfaceFactory _curvedSurfaceFactory = null!;
-    [Inject] private readonly ICustomBloomPrePassFactory _customBloomPrePassFactory = null!;
-    [Inject] private readonly EasingHandler _easingHandler = null!;
-
-    [Inject] private readonly LoggingService _loggingService = null!;
-    // [Inject] private readonly PlaybackController _playbackController = null!;
-    // [Inject] private readonly VideoMenuUI _videoMenu = null!;
+    private PluginConfig _config = null!;
+    private ICurvedSurfaceFactory _curvedSurfaceFactory = null!;
+    private ICustomBloomPrePassFactory _customBloomPrePassFactory = null!;
+    private EasingHandler _easingHandler = null!;
+    private LoggingService _loggingService = null!;
 
     //Initialized by Awake()
     [NonSerialized] private VideoPlayer _player = null!;
     private AudioSource _videoPlayerAudioSource = null!;
-    internal ScreenManager ScreenManager = null!;
+    private ScreenManager _screenManager = null!;
     private Renderer _screenRenderer = null!;
     private RenderTexture _renderTexture = null!;
 
@@ -47,7 +45,7 @@ public class CustomVideoPlayer : MonoBehaviour
     private bool _waitingForFadeOut;
 
     internal event Action? stopped;
-    internal event Action<string>? VideoPlayerErrorReceivedEvent;
+    private event Action<string>? VideoPlayerErrorReceivedEvent;
 
     public float PanStereo
     {
@@ -96,55 +94,26 @@ public class CustomVideoPlayer : MonoBehaviour
     public bool IsPrepared => _player.isPrepared;
     [NonSerialized] public bool IsSyncing;
 
-    public void Startup(VideoPlayer.FrameReadyEventHandler frameReadyEventHandler,
-        VideoPlayer.EventHandler preparedCompleteEventHandler)
+    internal void Startup(PluginConfig config, ICurvedSurfaceFactory curvedSurfaceFactory,
+        ICustomBloomPrePassFactory customBloomPrePassFactory, EasingHandler easingHandler,
+        LoggingService loggingService, VideoPlayer.FrameReadyEventHandler frameReadyEventHandler,
+        VideoPlayer.EventHandler preparedCompleteEventHandler, Action<string>? videoPlayerErrorReceivedEvent)
     {
-        AddFrameReadyEventHandler(frameReadyEventHandler);
-        _player.sendFrameReadyEvents = true;
-        _player.prepareCompleted += preparedCompleteEventHandler;
-    }
+        _config = config;
+        _curvedSurfaceFactory = curvedSurfaceFactory;
+        _customBloomPrePassFactory = customBloomPrePassFactory;
+        _easingHandler = easingHandler;
+        _loggingService = loggingService;
 
-    public void Shutdown(VideoPlayer.FrameReadyEventHandler frameReadyEventHandler,
-        VideoPlayer.EventHandler preparedCompleteEventHandler)
-    {
-        RemoveFrameReadyEventHandler(frameReadyEventHandler);
-        _player.prepareCompleted -= preparedCompleteEventHandler;
-    }
-
-    public void AddFrameReadyEventHandler(VideoPlayer.FrameReadyEventHandler frameReadyEventHandler)
-    {
-        _player.frameReady += frameReadyEventHandler;
-    }
-
-    public void RemoveFrameReadyEventHandler(VideoPlayer.FrameReadyEventHandler frameReadyEventHandler)
-    {
-        _player.frameReady -= frameReadyEventHandler;
-    }
-
-    public void SetVolumeScale(float volume)
-    {
-        _volumeScale = volume;
-    }
-
-    public void UnloadVideo()
-    {
-        _player.url = null;
-        _player.Prepare();
-    }
-
-    #region Unity Event Functions
-
-    public void Awake()
-    {
         CreateScreen();
-        _screenRenderer = ScreenManager.GetRenderer();
+        _screenRenderer = _screenManager.GetRenderer();
         _screenRenderer.material = new Material(GetShader()) { color = _screenColorOff };
         _screenRenderer.material.enableInstancing = true;
 
         _player = gameObject.AddComponent<VideoPlayer>();
         _player.source = VideoSource.Url;
         _player.renderMode = VideoRenderMode.RenderTexture;
-        _renderTexture = ScreenManager.CreateRenderTexture();
+        _renderTexture = _screenManager.CreateRenderTexture();
         _renderTexture.wrapMode = TextureWrapMode.Mirror;
         _player.targetTexture = _renderTexture;
 
@@ -160,23 +129,79 @@ public class CustomVideoPlayer : MonoBehaviour
         _player.audioOutputMode = VideoAudioOutputMode.AudioSource;
         _player.SetTargetAudioSource(0, _videoPlayerAudioSource);
         Mute();
-        ScreenManager.SetScreensActive(false);
+        _screenManager.SetScreensActive(false);
         LoopVideo(false);
 
         _videoPlayerAudioSource.reverbZoneMix = 0f;
         _videoPlayerAudioSource.playOnAwake = false;
         _videoPlayerAudioSource.spatialize = false;
 
-        ScreenManager.EnableColorBlending(true);
+        _screenManager.EnableColorBlending(true);
         _easingHandler.EasingUpdate += FadeHandlerUpdate;
         Hide();
 
         BSEvents.menuSceneLoaded += OnMenuSceneLoaded;
         SetDefaultMenuPlacement();
+
+        AddFrameReadyEventHandler(frameReadyEventHandler);
+        _player.sendFrameReadyEvents = true;
+        _player.prepareCompleted += preparedCompleteEventHandler;
+        VideoPlayerErrorReceivedEvent += videoPlayerErrorReceivedEvent;
     }
+
+    public void Shutdown(VideoPlayer.FrameReadyEventHandler frameReadyEventHandler,
+        VideoPlayer.EventHandler preparedCompleteEventHandler, Action<string>? videoPlayerErrorReceivedEvent)
+    {
+        RemoveFrameReadyEventHandler(frameReadyEventHandler);
+        _player.prepareCompleted -= preparedCompleteEventHandler;
+        VideoPlayerErrorReceivedEvent -= videoPlayerErrorReceivedEvent;
+    }
+
+    #region Event Handler Binding
+
+    public void AddEasingUpdateEventHandler(Action<float>? eventHandler)
+    {
+        _easingHandler.EasingUpdate += eventHandler;
+    }
+
+    public void RemoveEasingUpdateEventHandler(Action<float>? eventHandler)
+    {
+        _easingHandler.EasingUpdate -= eventHandler;
+    }
+
+    public void AddFrameReadyEventHandler(VideoPlayer.FrameReadyEventHandler eventHandler)
+    {
+        _player.frameReady += eventHandler;
+    }
+
+    public void RemoveFrameReadyEventHandler(VideoPlayer.FrameReadyEventHandler eventHandler)
+    {
+        _player.frameReady -= eventHandler;
+    }
+
+    public void AddPrepareCompletedEventHandler(VideoPlayer.EventHandler eventHandler)
+    {
+        _player.prepareCompleted += eventHandler;
+    }
+
+    #endregion
+
+    public void SetVolumeScale(float volume)
+    {
+        _volumeScale = volume;
+    }
+
+    public void UnloadVideo()
+    {
+        _player.url = null;
+        _player.Prepare();
+    }
+
+    #region Unity Event Functions
 
     public void OnDestroy()
     {
+        BSEvents.lateMenuSceneLoadedFresh -= CreateScreenAndPlayer;
         BSEvents.menuSceneLoaded -= OnMenuSceneLoaded;
         _easingHandler.EasingUpdate -= FadeHandlerUpdate;
         _renderTexture.Release();
@@ -184,11 +209,15 @@ public class CustomVideoPlayer : MonoBehaviour
 
     #endregion
 
+    private void CreateScreenAndPlayer(ScenesTransitionSetupDataSO? scenesTransition)
+    {
+    }
+
     private void CreateScreen()
     {
-        ScreenManager = new ScreenManager(_config, _curvedSurfaceFactory, _customBloomPrePassFactory, _loggingService);
-        ScreenManager.CreateScreen(transform);
-        ScreenManager.SetScreensActive(true);
+        _screenManager = new ScreenManager(_config, _curvedSurfaceFactory, _customBloomPrePassFactory, _loggingService);
+        _screenManager.CreateScreen(transform);
+        _screenManager.SetScreensActive(true);
         SetDefaultMenuPlacement();
     }
 
@@ -229,9 +258,9 @@ public class CustomVideoPlayer : MonoBehaviour
         if (!_muted) Volume = MAX_VOLUME * _volumeScale * value;
 
         if (value >= 1 && _bodyVisible)
-            ScreenManager.SetScreenBodiesActive(true);
+            _screenManager.SetScreenBodiesActive(true);
         else
-            ScreenManager.SetScreenBodiesActive(false);
+            _screenManager.SetScreenBodiesActive(false);
 
         if (value == 0 && _player.url == _currentlyPlayingVideo && _waitingForFadeOut) Stop();
     }
@@ -250,7 +279,7 @@ public class CustomVideoPlayer : MonoBehaviour
 
     public void SetPlacement(Placement placement)
     {
-        ScreenManager.SetPlacement(placement);
+        _screenManager.SetPlacement(placement);
     }
 
     private void FirstFrameReady(VideoPlayer player, long frame)
@@ -263,7 +292,7 @@ public class CustomVideoPlayer : MonoBehaviour
         _firstFrameStopwatch.Stop();
         _loggingService.Debug("Delay from Play() to first frame: " + _firstFrameStopwatch.ElapsedMilliseconds + " ms");
         _firstFrameStopwatch.Reset();
-        ScreenManager.SetAspectRatio(GetVideoAspectRatio());
+        _screenManager.SetAspectRatio(GetVideoAspectRatio());
         _player.frameReady -= FirstFrameReady;
     }
 
@@ -274,7 +303,7 @@ public class CustomVideoPlayer : MonoBehaviour
 
     public void SetBloomIntensity(float? bloomIntensity)
     {
-        ScreenManager.SetBloomIntensity(bloomIntensity);
+        _screenManager.SetBloomIntensity(bloomIntensity);
     }
 
     internal void LoopVideo(bool loop)
@@ -291,7 +320,7 @@ public class CustomVideoPlayer : MonoBehaviour
     {
         // if (EnvironmentController.IsScreenHidden) return;
 
-        ScreenManager.SetScreensActive(true);
+        _screenManager.SetScreensActive(true);
         _waitingForFadeOut = false;
         _easingHandler.EaseIn(duration);
     }
@@ -310,13 +339,13 @@ public class CustomVideoPlayer : MonoBehaviour
     public void ShowScreenBody()
     {
         _bodyVisible = true;
-        if (!_easingHandler.IsFading && _easingHandler.IsOne) ScreenManager.SetScreenBodiesActive(true);
+        if (!_easingHandler.IsFading && _easingHandler.IsOne) _screenManager.SetScreenBodiesActive(true);
     }
 
     public void HideScreenBody()
     {
         _bodyVisible = false;
-        if (!_easingHandler.IsFading) ScreenManager.SetScreenBodiesActive(false);
+        if (!_easingHandler.IsFading) _screenManager.SetScreenBodiesActive(false);
     }
 
     public void Play()
@@ -345,7 +374,7 @@ public class CustomVideoPlayer : MonoBehaviour
         stopped?.Invoke();
         SetStaticTexture(null);
         Shader.SetGlobalInt(TheaterStatusProperty, 0);
-        ScreenManager.SetScreensActive(false);
+        _screenManager.SetScreensActive(false);
         _firstFrameStopwatch.Reset();
     }
 
@@ -396,7 +425,7 @@ public class CustomVideoPlayer : MonoBehaviour
         SetTexture(texture);
         var width = (float)texture.width / texture.height * Placement.MenuPlacement.Height;
         SetDefaultMenuPlacement(width);
-        ScreenManager.SetShaderParameters(null);
+        _screenManager.SetShaderParameters(null);
     }
 
     public void ClearTexture()
@@ -469,6 +498,21 @@ public class CustomVideoPlayer : MonoBehaviour
 
     public void SetSoftParent(Transform? parent)
     {
-        if (_config.Enable360Rotation) ScreenManager.SetSoftParent(parent);
+        if (_config.Enable360Rotation) _screenManager.SetSoftParent(parent);
+    }
+
+    public GameObject? GetFirstScreen()
+    {
+        return _screenManager?.Screens[0];
+    }
+
+    public void SetScreenShaderParameters(VideoConfig? config)
+    {
+        _screenManager.SetShaderParameters(config);
+    }
+
+    public void ScreenMenuLoadedFresh()
+    {
+        _screenManager.OnGameSceneLoadedFresh();
     }
 }

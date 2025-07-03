@@ -4,9 +4,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using BeatSaberTheater.Download;
+using BeatSaberTheater.Environment.Interfaces;
 using BeatSaberTheater.Screen;
+using BeatSaberTheater.Screen.Interfaces;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
+using BS_Utils.Gameplay;
 using BS_Utils.Utilities;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -25,6 +28,7 @@ public class PlaybackManager : MonoBehaviour
     private DateTime _audioSourceStartTime;
     private BeatmapLevel? _currentLevel;
     private float _lastKnownAudioSourceTime;
+    private Environment.LightManager _lightManager = null!;
     private float _offsetAfterPrepare;
     private Stopwatch? _playbackDelayStopwatch;
     private IEnumerator? _prepareVideoCoroutine;
@@ -36,37 +40,43 @@ public class PlaybackManager : MonoBehaviour
     private SettingsManager? _settingsManager;
     private AudioTimeSyncController? _timeSyncController;
     private VideoConfig? _videoConfig;
+    private CustomVideoPlayer _videoPlayer = null!;
 
     [Inject] private readonly PluginConfig _config = null!;
+    [Inject] private readonly ICurvedSurfaceFactory _curvedSurfaceFactory = null!;
+    [Inject] private readonly ICustomBloomPrePassFactory _customBloomPrePassFactory = null!;
+    [Inject] private readonly EasingHandler _easingHandler = null!;
+    [Inject] private readonly ILightManagerFactory _lightManagerFactory = null!;
     [Inject] private readonly LoggingService _loggingService = null!;
-
     [Inject] private readonly SongPreviewPlayerLoader _playbackLoader = null!;
+    [Inject] private readonly VideoLoader _videoLoader = null!;
 
     // [Inject] private readonly VideoMenuUI _videoMenu = null!;
-    [Inject] [NonSerialized] private CustomVideoPlayer _videoPlayer = null!;
+    [Inject] private readonly ICustomVideoPlayerFactory _videoPlayerFactory = null!;
 
     #region Unity Event Functions
 
     private void Start()
     {
-        _videoPlayer.VideoPlayerErrorReceivedEvent += VideoPlayerErrorReceived;
-        _videoPlayer.Startup(FrameReady, OnPrepareComplete);
+        BSEvents.gameSceneLoaded += GameSceneLoaded;
         BSEvents.lateMenuSceneLoadedFresh += OnMenuSceneLoadedFresh;
         BSEvents.menuSceneLoaded += OnMenuSceneLoaded;
+        BSEvents.songPaused += PauseVideo;
+        BSEvents.songUnpaused += ResumeVideo;
+        VideoLoader.ConfigChanged += OnConfigChanged;
         Events.DifficultySelected += DifficultySelected;
     }
 
     private void OnDestroy()
     {
-        _videoPlayer.Shutdown(FrameReady, OnPrepareComplete);
-        _videoPlayer.VideoPlayerErrorReceivedEvent -= VideoPlayerErrorReceived;
+        _videoPlayer.Shutdown(FrameReady, OnPrepareComplete, VideoPlayerErrorReceived);
         // BSEvents.gameSceneActive -= GameSceneActive;
-        // BSEvents.gameSceneLoaded -= GameSceneLoaded;
-        // BSEvents.songPaused -= PauseVideo;
-        // BSEvents.songUnpaused -= ResumeVideo;
+        BSEvents.gameSceneLoaded -= GameSceneLoaded;
         BSEvents.lateMenuSceneLoadedFresh -= OnMenuSceneLoadedFresh;
         BSEvents.menuSceneLoaded -= OnMenuSceneLoaded;
-        // VideoLoader.ConfigChanged -= OnConfigChanged;
+        BSEvents.songPaused -= PauseVideo;
+        BSEvents.songUnpaused -= ResumeVideo;
+        VideoLoader.ConfigChanged -= OnConfigChanged;
         Events.DifficultySelected -= DifficultySelected;
     }
 
@@ -90,6 +100,30 @@ public class PlaybackManager : MonoBehaviour
     }
 
     #region Event handlers
+
+    private void ConfigChangedFrameReadyHandler(VideoPlayer sender, long frameIdx)
+    {
+        _loggingService.Info("First frame after config change is ready");
+        sender.frameReady -= ConfigChangedFrameReadyHandler;
+        if (_activeAudioSource == null) return;
+
+        if (!_activeAudioSource.isPlaying)
+        {
+            _videoPlayer.Pause();
+            _videoPlayer.SetBrightness(1f);
+        }
+
+        _videoPlayer.UpdateScreenContent();
+    }
+
+    private void ConfigChangedPrepareHandler(VideoPlayer sender)
+    {
+        sender.prepareCompleted -= ConfigChangedPrepareHandler;
+        if (_activeScene == Scene.Menu || _activeAudioSource == null) return;
+
+        sender.frameReady += ConfigChangedFrameReadyHandler;
+        PlayVideo(_lastKnownAudioSourceTime);
+    }
 
     private void DifficultySelected(ExtraSongDataArgs extraSongDataArgs)
     {
@@ -174,6 +208,124 @@ public class PlaybackManager : MonoBehaviour
         if (audioSourceTime > 0) _lastKnownAudioSourceTime = audioSourceTime;
     }
 
+    public void GameSceneLoaded()
+    {
+        StopAllCoroutines();
+        _loggingService.Info("GameSceneLoaded");
+
+        _activeScene = Scene.SoloGameplay;
+
+        if (!_config.PluginEnabled)
+        {
+            _loggingService.Info("Plugin disabled");
+            _videoPlayer.Hide();
+            return;
+        }
+
+        _lightManager.OnGameSceneLoaded();
+
+        StopPlayback();
+        _videoPlayer.Hide();
+
+        if (!TheaterFileHelpers.IsInEditor())
+        {
+            if (BS_Utils.Plugin.LevelData.Mode == Mode.None)
+            {
+                _loggingService.Info("Level mode is None");
+                return;
+            }
+
+            var bsUtilsLevel = BS_Utils.Plugin.LevelData.GameplayCoreSceneSetupData.beatmapLevel;
+            if (_currentLevel?.levelID != bsUtilsLevel.levelID)
+            {
+                var video = _videoLoader.GetConfigForLevel(bsUtilsLevel);
+                SetSelectedLevel(bsUtilsLevel, video);
+            }
+        }
+
+        if (_videoConfig == null || !_videoConfig.IsPlayable)
+        {
+            _loggingService.Info("No video configured or video is not playable: " + _videoConfig?.VideoPath);
+
+            if (_config.CoverEnabled && (_videoConfig?.forceEnvironmentModifications == null ||
+                                         _videoConfig.forceEnvironmentModifications == false))
+                ShowSongCover();
+            return;
+        }
+
+        //Some mappers disable this accidentally
+        gameObject.SetActive(true);
+
+        if (_videoConfig.NeedsToSave) _videoLoader.SaveVideoConfig(_videoConfig);
+
+        _videoPlayer.SetPlacement(
+            Placement.CreatePlacementForConfig(_videoConfig, _activeScene, _videoPlayer.GetVideoAspectRatio()));
+
+        //Fixes rough pop-in at the start of the song when transparency is disabled
+        if (_videoConfig.TransparencyEnabled)
+        {
+            _videoPlayer.Show();
+            _videoPlayer.ScreenColor = Color.black;
+            _videoPlayer.ShowScreenBody();
+        }
+
+        SetAudioSourcePanning(0);
+        _videoPlayer.Mute();
+        _loggingService.Info("Playing video from GameSceneLoaded");
+        StartCoroutine(PlayVideoAfterAudioSourceCoroutine(false));
+        SceneChanged();
+    }
+
+    private void OnConfigChanged(VideoConfig? config)
+    {
+        OnConfigChanged(config, false);
+    }
+
+    private void OnConfigChanged(VideoConfig? config, bool? reloadVideo)
+    {
+        var previousVideoPath = _videoConfig?.VideoPath;
+        _videoConfig = config;
+
+        if (config == null)
+        {
+            _videoPlayer.Hide();
+            return;
+        }
+
+        if (!config.IsPlayable &&
+            (config.forceEnvironmentModifications == null || config.forceEnvironmentModifications == false)) return;
+
+        if (_activeScene == Scene.Menu)
+        {
+            StopPreview(true);
+        }
+        else
+        {
+            _videoPlayer.SetPlacement(
+                Placement.CreatePlacementForConfig(config, _activeScene, _videoPlayer.GetVideoAspectRatio()));
+            ResyncVideo();
+        }
+
+        if (previousVideoPath != config.VideoPath || reloadVideo == true)
+        {
+            _videoPlayer.AddPrepareCompletedEventHandler(ConfigChangedPrepareHandler);
+            PrepareVideo(config);
+        }
+        else
+        {
+            _videoPlayer.LoopVideo(config.loop == true);
+            _videoPlayer.SetScreenShaderParameters(config);
+            _videoPlayer.SetBloomIntensity(config.bloom);
+        }
+
+        if (config.TransparencyEnabled)
+            _videoPlayer.ShowScreenBody();
+        else
+            _videoPlayer.HideScreenBody();
+
+        // if (_activeScene == Scene.SoloGameplay) EnvironmentController.VideoConfigSceneModifications(_videoConfig);
+    }
+
     private void OnMenuSceneLoaded()
     {
         _loggingService.Info("MenuSceneLoaded");
@@ -187,6 +339,12 @@ public class PlaybackManager : MonoBehaviour
 
     private void OnMenuSceneLoadedFresh(ScenesTransitionSetupDataSO? scenesTransition)
     {
+        _videoPlayer = _videoPlayerFactory.Create(gameObject);
+        _videoPlayer.Startup(_config, _curvedSurfaceFactory, _customBloomPrePassFactory, _easingHandler,
+            _loggingService, FrameReady,
+            OnPrepareComplete, VideoPlayerErrorReceived);
+        _lightManager = _lightManagerFactory.Create(gameObject);
+        _lightManager.Startup(_videoPlayer);
         OnMenuSceneLoaded();
         if (_settingsManager == null)
         {
@@ -195,7 +353,7 @@ public class PlaybackManager : MonoBehaviour
         else
         {
             _videoPlayer.SetVolumeScale(_settingsManager.settings.audio.volume);
-            _videoPlayer.ScreenManager.OnGameSceneLoadedFresh();
+            _videoPlayer.ScreenMenuLoadedFresh();
         }
     }
 
@@ -205,7 +363,7 @@ public class PlaybackManager : MonoBehaviour
         yield return new WaitUntil(() => Plugin._menuContainer != null);
         _settingsManager = Plugin._menuContainer.Resolve<SettingsManager>();
         _videoPlayer.SetVolumeScale(_settingsManager.settings.audio.volume);
-        _videoPlayer.ScreenManager.OnGameSceneLoadedFresh();
+        _videoPlayer.ScreenMenuLoadedFresh();
     }
 
     private void OnPrepareComplete(VideoPlayer player)
@@ -214,7 +372,7 @@ public class PlaybackManager : MonoBehaviour
         {
             var offset = (DateTime.Now - _audioSourceStartTime).TotalSeconds + _offsetAfterPrepare;
             _loggingService.Info($"Adjusting offset after prepare to {offset}");
-            _videoPlayer.PlayerTime = offset;
+            player.time = offset;
         }
 
         _offsetAfterPrepare = 0;
@@ -228,7 +386,7 @@ public class PlaybackManager : MonoBehaviour
 
     private void SceneChanged()
     {
-        _videoPlayer.ScreenManager.SetShaderParameters(_videoConfig);
+        _videoPlayer.SetScreenShaderParameters(_videoConfig);
     }
 
     #endregion
@@ -488,6 +646,24 @@ public class PlaybackManager : MonoBehaviour
         PlayVideo(startTime);
     }
 
+    public void PauseVideo()
+    {
+        StopAllCoroutines();
+        if (_videoPlayer.IsPlaying && _videoConfig != null) _videoPlayer.Pause();
+    }
+
+    public void ResumeVideo()
+    {
+        if (!_config.PluginEnabled || _videoPlayer.IsPlaying || _videoConfig == null || !_videoConfig.IsPlayable ||
+            (_videoPlayer.VideoEnded && _videoConfig.loop != true)) return;
+
+        var referenceTime = GetReferenceTime();
+        if (referenceTime > 0)
+            _videoPlayer.Play();
+        else if (_playbackDelayStopwatch is { IsRunning: false })
+            StartCoroutine(PlayVideoDelayedCoroutine(-referenceTime));
+    }
+
     private void VideoPlayerErrorReceived(string message)
     {
         StopPlayback();
@@ -534,7 +710,7 @@ public class PlaybackManager : MonoBehaviour
         }
 
         _videoPlayer.LoopVideo(video.loop == true);
-        _videoPlayer.ScreenManager.SetShaderParameters(video);
+        _videoPlayer.SetScreenShaderParameters(video);
         _videoPlayer.SetBloomIntensity(video.bloom);
 
         if (video.VideoPath == null)
@@ -729,6 +905,11 @@ public class PlaybackManager : MonoBehaviour
         return time * speed + _videoConfig.offset / 1000f;
     }
 
+    public VideoConfig? GetVideoConfig()
+    {
+        return _videoConfig;
+    }
+
     public void ResyncVideo(float? referenceTime = null, float? playbackSpeed = null)
     {
         if (_activeAudioSource == null || _videoConfig == null || !_videoConfig.IsPlayable) return;
@@ -772,8 +953,19 @@ public class PlaybackManager : MonoBehaviour
         if (level != null && VideoLoader.IsDlcSong(level)) _videoPlayer.FadeOut();
     }
 
-    public VideoConfig? GetVideoConfig()
+    private async void ShowSongCover()
     {
-        return _videoConfig;
+        if (_currentLevel == null) return;
+
+        try
+        {
+            var coverSprite = await _currentLevel.previewMediaData.GetCoverSpriteAsync();
+            _videoPlayer.SetCoverTexture(coverSprite.texture);
+            _videoPlayer.FadeIn();
+        }
+        catch (Exception e)
+        {
+            _loggingService.Error(e);
+        }
     }
 }

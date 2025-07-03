@@ -42,6 +42,7 @@ internal class Plugin
         // Instructs SiraUtil to use this installer during Beat Saber's initialization
         // The PluginConfig is used as a constructor parameter for AppInstaller, so pass it to zenjector.Install()
         zenjector.Install<AppInstaller>(Location.App, _config);
+        zenjector.Install<VideoPlaybackInstaller>(Location.App);
 
         // Instructs SiraUtil to use this installer when the main menu initializes
         zenjector.Install<SettingsMenuInstaller>(Location.Menu);

@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -14,7 +13,6 @@ using BeatSaberTheater.Download;
 using BeatSaberTheater.Util;
 using IPA.Utilities.Async;
 using Newtonsoft.Json;
-using SongCore;
 using UnityEngine;
 using Zenject;
 
@@ -347,14 +345,14 @@ public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingServi
     {
         var songName = level.songName.Trim();
         songName = TheaterFileHelpers.ReplaceIllegalFilesystemChars(songName);
-        var levelPath = Path.Combine(Environment.CurrentDirectory, "Beat Saber_Data", "CustomLevels",
+        var levelPath = Path.Combine(System.Environment.CurrentDirectory, "Beat Saber_Data", "CustomLevels",
             OST_DIRECTORY_NAME,
             songName);
 
         // Check Cinema folder if Theater config doesn't exist
         if (!Directory.Exists(levelPath))
         {
-            var legacyLevelPath = Path.Combine(Environment.CurrentDirectory, "Beat Saber_Data", "CustomLevels",
+            var legacyLevelPath = Path.Combine(System.Environment.CurrentDirectory, "Beat Saber_Data", "CustomLevels",
                 LEGACY_OST_DIRECTORY_NAME,
                 songName);
             if (Directory.Exists(legacyLevelPath))
