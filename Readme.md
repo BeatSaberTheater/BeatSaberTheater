@@ -47,7 +47,10 @@ appear in a list as Theater finds them. Choose whichever video you want, and the
 
 ![Search Download Example](https://github.com/neboman11/BeatSaberTheater/blob/main/docs/images/search-download-example.png)
 
-After the song downloads, you will be given a menu to adjust the timing of the video with the song. This will
-allow you to sync them together and skip any non-music sections at the beginning of the video. Hitting the `Preview`
-button will play both the video and song from the beginning, with the Beat Saber song playing only in your right ear
-and the video audio playing in your left ear.
+After the song downloads, you will be given a menu to adjust the timing of the video with the song.
+
+![Timing Adjust Menu](https://github.com/neboman11/BeatSaberTheater/blob/main/docs/images/timing-adjust-menu.png)
+
+This will allow you to sync them together and skip any non-music sections at the beginning of the video.
+Hitting the `Preview`button will play both the video and song from the beginning, with the Beat Saber song
+playing only in your right ear and the video audio playing in your left ear.
