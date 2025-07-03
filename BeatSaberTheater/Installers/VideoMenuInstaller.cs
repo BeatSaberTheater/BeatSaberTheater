@@ -20,6 +20,7 @@ public class VideoMenuInstaller : Installer
         // System initialization
         Container.BindInterfacesAndSelfTo<LoggingService>().AsSingle();
 
+        // Video player and playback manager dependencies
         Container.Bind<CoroutineStarter>().FromNewComponentOnNewGameObject().AsSingle();
         Container.BindInterfacesAndSelfTo<VideoLoader>().AsSingle();
         Container.BindInterfacesAndSelfTo<DownloadService>().AsSingle();
@@ -32,8 +33,8 @@ public class VideoMenuInstaller : Installer
         Container.Bind<ICustomBloomPrePassFactory>().To<CustomBloomPrePassFactory>().AsTransient();
 
         Container.Bind<CustomVideoPlayer>().FromNewComponentOnNewGameObject().AsSingle();
-        Container.Bind<PlaybackController>().FromNewComponentOnNewGameObject().AsSingle();
-        Container.BindInterfacesAndSelfTo<SongPreviewPlayerUpdater>().AsSingle();
+        Container.Bind<PlaybackManager>().FromNewComponentOnNewGameObject().AsSingle();
+        Container.BindInterfacesAndSelfTo<PlaybackControllerEventMapper>().AsSingle();
         Container.BindInterfacesTo<VideoMenuUI>().AsSingle();
 
         Container.QueueForInject(this);

@@ -1,14 +1,9 @@
 using System;
-using System.Collections;
 using System.Diagnostics;
-using System.IO;
 using System.Reflection;
-using BeatSaberTheater.Download;
-using BeatSaberTheater.Models;
 using BeatSaberTheater.Screen.Interfaces;
 using BeatSaberTheater.Util;
 using BS_Utils.Utilities;
-using ModestTree;
 using UnityEngine;
 using UnityEngine.Video;
 using Zenject;
@@ -27,7 +22,7 @@ public class CustomVideoPlayer : MonoBehaviour
     // [Inject] private readonly VideoMenuUI _videoMenu = null!;
 
     //Initialized by Awake()
-    [NonSerialized] public VideoPlayer Player = null!;
+    [NonSerialized] private VideoPlayer _player = null!;
     private AudioSource _videoPlayerAudioSource = null!;
     internal ScreenManager ScreenManager = null!;
     private Renderer _screenRenderer = null!;
@@ -46,13 +41,36 @@ public class CustomVideoPlayer : MonoBehaviour
     private readonly Stopwatch _firstFrameStopwatch = new();
 
     private const float MAX_VOLUME = 0.28f; //Don't ask, I don't know either.
-    [NonSerialized] public float VolumeScale = 1.0f;
+    [NonSerialized] private float _volumeScale = 1.0f;
     private bool _muted = true;
     private bool _bodyVisible;
     private bool _waitingForFadeOut;
 
     internal event Action? stopped;
-    public bool VideoEnded { get; private set; }
+    internal event Action<string>? VideoPlayerErrorReceivedEvent;
+
+    public float PanStereo
+    {
+        set => _videoPlayerAudioSource.panStereo = value;
+    }
+
+    public float PlaybackSpeed
+    {
+        get => _player.playbackSpeed;
+        set => _player.playbackSpeed = value;
+    }
+
+    public bool PlayerIsPrepared => _player.isPrepared;
+
+    public double PlayerLength => _player.length;
+
+    public double PlayerTime
+    {
+        get => _player.time;
+        set => _player.time = value;
+    }
+
+    public float VideoDuration => (float)_player.length;
 
     public Color ScreenColor
     {
@@ -60,34 +78,61 @@ public class CustomVideoPlayer : MonoBehaviour
         set => _screenRenderer.material.color = value;
     }
 
-    public float PlaybackSpeed
-    {
-        get => Player.playbackSpeed;
-        set => Player.playbackSpeed = value;
-    }
-
-    public float VideoDuration => (float)Player.length;
+    public bool VideoEnded { get; private set; }
 
     public float Volume
     {
         set => _videoPlayerAudioSource.volume = value;
     }
 
-    public float PanStereo
-    {
-        set => _videoPlayerAudioSource.panStereo = value;
-    }
-
     public string Url
     {
-        get => Player.url;
-        set => Player.url = value;
+        get => _player.url;
+        set => _player.url = value;
     }
 
-    public bool IsPlaying => Player.isPlaying;
+    public bool IsPlaying => _player.isPlaying;
     public bool IsFading => _easingHandler.IsFading;
-    public bool IsPrepared => Player.isPrepared;
+    public bool IsPrepared => _player.isPrepared;
     [NonSerialized] public bool IsSyncing;
+
+    public void Startup(VideoPlayer.FrameReadyEventHandler frameReadyEventHandler,
+        VideoPlayer.EventHandler preparedCompleteEventHandler)
+    {
+        AddFrameReadyEventHandler(frameReadyEventHandler);
+        _player.sendFrameReadyEvents = true;
+        _player.prepareCompleted += preparedCompleteEventHandler;
+    }
+
+    public void Shutdown(VideoPlayer.FrameReadyEventHandler frameReadyEventHandler,
+        VideoPlayer.EventHandler preparedCompleteEventHandler)
+    {
+        RemoveFrameReadyEventHandler(frameReadyEventHandler);
+        _player.prepareCompleted -= preparedCompleteEventHandler;
+    }
+
+    public void AddFrameReadyEventHandler(VideoPlayer.FrameReadyEventHandler frameReadyEventHandler)
+    {
+        _player.frameReady += frameReadyEventHandler;
+    }
+
+    public void RemoveFrameReadyEventHandler(VideoPlayer.FrameReadyEventHandler frameReadyEventHandler)
+    {
+        _player.frameReady -= frameReadyEventHandler;
+    }
+
+    public void SetVolumeScale(float volume)
+    {
+        _volumeScale = volume;
+    }
+
+    public void UnloadVideo()
+    {
+        _player.url = null;
+        _player.Prepare();
+    }
+
+    #region Unity Event Functions
 
     public void Awake()
     {
@@ -96,24 +141,24 @@ public class CustomVideoPlayer : MonoBehaviour
         _screenRenderer.material = new Material(GetShader()) { color = _screenColorOff };
         _screenRenderer.material.enableInstancing = true;
 
-        Player = gameObject.AddComponent<VideoPlayer>();
-        Player.source = VideoSource.Url;
-        Player.renderMode = VideoRenderMode.RenderTexture;
+        _player = gameObject.AddComponent<VideoPlayer>();
+        _player.source = VideoSource.Url;
+        _player.renderMode = VideoRenderMode.RenderTexture;
         _renderTexture = ScreenManager.CreateRenderTexture();
         _renderTexture.wrapMode = TextureWrapMode.Mirror;
-        Player.targetTexture = _renderTexture;
+        _player.targetTexture = _renderTexture;
 
-        Player.playOnAwake = false;
-        Player.waitForFirstFrame = true;
-        Player.errorReceived += VideoPlayerErrorReceived;
-        Player.prepareCompleted += VideoPlayerPrepareComplete;
-        Player.started += VideoPlayerStarted;
-        Player.loopPointReached += VideoPlayerFinished;
+        _player.playOnAwake = false;
+        _player.waitForFirstFrame = true;
+        _player.errorReceived += VideoPlayerErrorReceived;
+        _player.prepareCompleted += VideoPlayerPrepareComplete;
+        _player.started += VideoPlayerStarted;
+        _player.loopPointReached += VideoPlayerFinished;
 
         //TODO PanStereo does not work as expected with this AudioSource. Panning fully to one side is still slightly audible in the other.
         _videoPlayerAudioSource = gameObject.AddComponent<AudioSource>();
-        Player.audioOutputMode = VideoAudioOutputMode.AudioSource;
-        Player.SetTargetAudioSource(0, _videoPlayerAudioSource);
+        _player.audioOutputMode = VideoAudioOutputMode.AudioSource;
+        _player.SetTargetAudioSource(0, _videoPlayerAudioSource);
         Mute();
         ScreenManager.SetScreensActive(false);
         LoopVideo(false);
@@ -128,18 +173,6 @@ public class CustomVideoPlayer : MonoBehaviour
 
         BSEvents.menuSceneLoaded += OnMenuSceneLoaded;
         SetDefaultMenuPlacement();
-
-#if DEBUG
-        var shaderWatcher = new FileSystemWatcher();
-        var projectDir = Environment.GetEnvironmentVariable("CinemaProjectDir");
-        if (projectDir == null) return;
-
-        var configPath = projectDir + "\\BeatSaberCinema\\Resources\\bscinema.bundle";
-        shaderWatcher.Path = Path.GetDirectoryName(configPath);
-        shaderWatcher.Filter = Path.GetFileName(configPath);
-        shaderWatcher.EnableRaisingEvents = true;
-        shaderWatcher.Changed += ReloadShader;
-#endif
     }
 
     public void OnDestroy()
@@ -149,23 +182,7 @@ public class CustomVideoPlayer : MonoBehaviour
         _renderTexture.Release();
     }
 
-#if DEBUG
-    private void ReloadShader(object sender, FileSystemEventArgs fileSystemEventArgs)
-    {
-        StartCoroutine(ReloadShaderCoroutine(fileSystemEventArgs.FullPath));
-    }
-
-    private IEnumerator ReloadShaderCoroutine(string path)
-    {
-        var shaderFileInfo = new FileInfo(path);
-        var timeout = new DownloadTimeout(3f);
-        yield return new WaitUntil(() =>
-            !TheaterFileHelpers.IsFileLocked(shaderFileInfo) || timeout.HasTimedOut);
-        _screenRenderer.material = new Material(GetShader(path));
-        var timeout2 = new DownloadTimeout(1f);
-        yield return new WaitUntil(() => timeout2.HasTimedOut);
-    }
-#endif
+    #endregion
 
     private void CreateScreen()
     {
@@ -209,14 +226,14 @@ public class CustomVideoPlayer : MonoBehaviour
     public void FadeHandlerUpdate(float value)
     {
         ScreenColor = _screenColorOn * value;
-        if (!_muted) Volume = MAX_VOLUME * VolumeScale * value;
+        if (!_muted) Volume = MAX_VOLUME * _volumeScale * value;
 
         if (value >= 1 && _bodyVisible)
             ScreenManager.SetScreenBodiesActive(true);
         else
             ScreenManager.SetScreenBodiesActive(false);
 
-        if (value == 0 && Player.url == _currentlyPlayingVideo && _waitingForFadeOut) Stop();
+        if (value == 0 && _player.url == _currentlyPlayingVideo && _waitingForFadeOut) Stop();
     }
 
     public void OnMenuSceneLoaded()
@@ -247,7 +264,7 @@ public class CustomVideoPlayer : MonoBehaviour
         _loggingService.Debug("Delay from Play() to first frame: " + _firstFrameStopwatch.ElapsedMilliseconds + " ms");
         _firstFrameStopwatch.Reset();
         ScreenManager.SetAspectRatio(GetVideoAspectRatio());
-        Player.frameReady -= FirstFrameReady;
+        _player.frameReady -= FirstFrameReady;
     }
 
     public void SetBrightness(float brightness)
@@ -262,7 +279,7 @@ public class CustomVideoPlayer : MonoBehaviour
 
     internal void LoopVideo(bool loop)
     {
-        Player.isLooping = loop;
+        _player.isLooping = loop;
     }
 
     public void Show()
@@ -309,22 +326,22 @@ public class CustomVideoPlayer : MonoBehaviour
         _loggingService.Debug("Starting playback, waiting for first frame...");
         _waitingForFadeOut = false;
         _firstFrameStopwatch.Start();
-        Player.frameReady -= FirstFrameReady;
-        Player.frameReady += FirstFrameReady;
-        Player.Play();
+        _player.frameReady -= FirstFrameReady;
+        _player.frameReady += FirstFrameReady;
+        _player.Play();
         Shader.SetGlobalInt(CinemaStatusProperty, 1);
     }
 
     public void Pause()
     {
-        Player.Pause();
+        _player.Pause();
         _firstFrameStopwatch.Reset();
     }
 
     public void Stop()
     {
         _loggingService.Debug("Stopping playback");
-        Player.Stop();
+        _player.Stop();
         stopped?.Invoke();
         SetStaticTexture(null);
         Shader.SetGlobalInt(CinemaStatusProperty, 0);
@@ -336,18 +353,18 @@ public class CustomVideoPlayer : MonoBehaviour
     {
         stopped?.Invoke();
         _waitingForFadeOut = false;
-        Player.Prepare();
+        _player.Prepare();
     }
 
     private void Update()
     {
-        if (Player.isPlaying || (Player.isPrepared && Player.isPaused)) SetTexture(Player.texture);
+        if (_player.isPlaying || (_player.isPrepared && _player.isPaused)) SetTexture(_player.texture);
     }
 
     //For manual invocation instead of the event function
     public void UpdateScreenContent()
     {
-        SetTexture(Player.texture);
+        SetTexture(_player.texture);
     }
 
     private void SetTexture(Texture? texture)
@@ -409,7 +426,7 @@ public class CustomVideoPlayer : MonoBehaviour
     private void VideoPlayerFinished(VideoPlayer source)
     {
         _loggingService.Debug("Video player loop point event");
-        if (!Player.isLooping)
+        if (!_player.isLooping)
         {
             VideoEnded = true;
             SetBrightness(0f);
@@ -423,25 +440,12 @@ public class CustomVideoPlayer : MonoBehaviour
             return;
 
         _loggingService.Error("Video player error: " + message);
-        // _playbackController.StopPlayback();
-        // var config = _playbackController.VideoConfig;
-        // if (config == null) return;
-        //
-        // config.UpdateDownloadState();
-        // config.ErrorMessage = "Cinema playback error.";
-        // if (message.Contains("Unexpected error code (10)") && SystemInfo.graphicsDeviceVendor == "NVIDIA")
-        //     config.ErrorMessage += " Try disabling NVIDIA Fast Sync.";
-        // else if (message.Contains("It seems that the Microsoft Media Foundation is not installed on this machine"))
-        //     config.ErrorMessage += " Install Microsoft Media Foundation.";
-        // else
-        //     config.ErrorMessage += " See logs for details.";
-        //
-        // _videoMenu.SetupLevelDetailView(config);
+        VideoPlayerErrorReceivedEvent?.Invoke(message);
     }
 
     public float GetVideoAspectRatio()
     {
-        var texture = Player.texture;
+        var texture = _player.texture;
         if (texture != null && texture.width != 0 && texture.height != 0)
         {
             var aspectRatio = (float)texture.width / texture.height;

@@ -8,10 +8,10 @@ using Zenject;
 
 namespace BeatSaberTheater.Playback;
 
-public class SongPreviewPlayerUpdater : IInitializable, IDisposable
+public class PlaybackControllerEventMapper : IInitializable, IDisposable
 {
     private readonly LoggingService _loggingService;
-    private readonly PlaybackController _playbackController;
+    private readonly PlaybackManager _playbackManager;
     private readonly SongPreviewPlayerLoader _playbackLoader;
 
     private AudioSource? _activeAudioSource;
@@ -19,11 +19,11 @@ public class SongPreviewPlayerUpdater : IInitializable, IDisposable
     private int _activeChannel;
     private AudioClip? _currentAudioClip;
 
-    public SongPreviewPlayerUpdater(LoggingService loggingService, PlaybackController playbackController,
+    public PlaybackControllerEventMapper(LoggingService loggingService, PlaybackManager playbackManager,
         SongPreviewPlayerLoader playbackLoader)
     {
         _loggingService = loggingService;
-        _playbackController = playbackController;
+        _playbackManager = playbackManager;
         _playbackLoader = playbackLoader;
     }
 
@@ -40,7 +40,8 @@ public class SongPreviewPlayerUpdater : IInitializable, IDisposable
     {
         try
         {
-            if (_playbackController.VideoConfig == null) return;
+            var videoConfig = _playbackManager.GetVideoConfig();
+            if (videoConfig == null) return;
 
             if (signal.StandardLevelDetailView._beatmapLevel.hasPrecalculatedData) return;
 
@@ -54,8 +55,8 @@ public class SongPreviewPlayerUpdater : IInitializable, IDisposable
 
             if (diffData?.HasTheaterRequirement() != true) return;
 
-            if (_playbackController.VideoConfig?.IsPlayable == true ||
-                _playbackController.VideoConfig?.forceEnvironmentModifications == true)
+            if (videoConfig?.IsPlayable == true ||
+                videoConfig?.forceEnvironmentModifications == true)
             {
                 _loggingService.Debug("Requirement fulfilled");
                 return;
@@ -98,7 +99,7 @@ public class SongPreviewPlayerUpdater : IInitializable, IDisposable
         _activeAudioSource = _playbackLoader.AudioSourceControllers[_activeChannel].audioSource;
         _loggingService.Debug(
             $"SongPreviewPatch -- channel {_activeChannel} -- startTime {startTime} -- timeRemaining {timeToDefault} -- audioclip {_currentAudioClip.name}");
-        _playbackController.UpdateSongPreviewPlayer(_activeAudioSource, startTime, timeToDefault, isDefault);
+        _playbackManager.UpdateSongPreviewPlayer(_activeAudioSource, startTime, timeToDefault, isDefault);
     }
 
     public void Initialize()
