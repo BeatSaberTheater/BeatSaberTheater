@@ -52,30 +52,30 @@ public class LoggingService(SiraLog siraLogger) : IInitializable
         _Log(message, Logger.Level.Error, filePath, member, line);
     }
 #else
-		private  void _Log(string message, Logger.Level logLevel)
-		{
-			IpaLogger.Log(logLevel, message);
-		}
+    private void _Log(string message, Logger.Level logLevel)
+    {
+        SiraLogger.Logger?.Log(logLevel, message);
+    }
 
-		public  void Debug(string message, bool evenInReleaseBuild)
-		{
-			_Log(message, Logger.Level.Debug);
-		}
+    public void Debug(string message, bool evenInReleaseBuild)
+    {
+        _Log(message, Logger.Level.Debug);
+    }
 
-		public  void Info(string message)
-		{
-			_Log(message, Logger.Level.Info);
-		}
+    public void Info(string message)
+    {
+        _Log(message, Logger.Level.Info);
+    }
 
-		public  void Warn(string message)
-		{
-			_Log(message, Logger.Level.Warning);
-		}
+    public void Warn(string message)
+    {
+        _Log(message, Logger.Level.Warning);
+    }
 
-		public  void Error(string message)
-		{
-			_Log(message, Logger.Level.Error);
-		}
+    public void Error(string message)
+    {
+        _Log(message, Logger.Level.Error);
+    }
 #endif
     [Conditional("DEBUG")]
     public void Debug(Exception exception)
