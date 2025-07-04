@@ -116,7 +116,7 @@ public class CustomVideoPlayer : MonoBehaviour
         _player.started += VideoPlayerStarted;
         _player.loopPointReached += VideoPlayerFinished;
 
-        //TODO PanStereo does not work as expected with this AudioSource. Panning fully to one side is still slightly audible in the other.
+        // TODO: PanStereo does not work as expected with this AudioSource. Panning fully to one side is still slightly audible in the other.
         _videoPlayerAudioSource = gameObject.AddComponent<AudioSource>();
         _player.audioOutputMode = VideoAudioOutputMode.AudioSource;
         _player.SetTargetAudioSource(0, _videoPlayerAudioSource);

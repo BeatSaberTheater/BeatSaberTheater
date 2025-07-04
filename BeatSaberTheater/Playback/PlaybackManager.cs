@@ -662,6 +662,32 @@ public class PlaybackManager : MonoBehaviour
             StartCoroutine(PlayVideoDelayedCoroutine(-referenceTime));
     }
 
+    public void ResyncVideo(float? referenceTime = null)
+    {
+        if (_activeAudioSource == null || _videoConfig == null || !_videoConfig.IsPlayable) return;
+
+        float newTime;
+        if (referenceTime != null)
+            newTime = referenceTime.Value;
+        else
+            newTime = GetReferenceTime();
+
+        if (newTime < 0)
+        {
+            _videoPlayer.Hide();
+            StopAllCoroutines();
+            StartCoroutine(PlayVideoDelayedCoroutine(-newTime));
+        }
+        else if (newTime > _videoPlayer.VideoDuration && _videoPlayer.VideoDuration > 0)
+        {
+            newTime %= _videoPlayer.VideoDuration;
+        }
+
+        if (Math.Abs(_videoPlayer.PlayerTime - newTime) < 0.2f) return;
+
+        _videoPlayer.PlayerTime = newTime;
+    }
+
     private void VideoPlayerErrorReceived(string message)
     {
         StopPlayback();
@@ -749,9 +775,29 @@ public class PlaybackManager : MonoBehaviour
         _videoPlayer.IsSyncing = true;
         _activeAudioSource.Pause();
 
-        ResyncVideo();
+        ApplyOffsetToVideo(offset);
         _videoPlayer.AddFrameReadyEventHandler(PlayerStartedAfterResync);
         _loggingService.Info("Applying offset: " + offset);
+    }
+
+    public void ApplyOffsetToVideo(float offset)
+    {
+        if (_activeAudioSource == null || _videoConfig == null || !_videoConfig.IsPlayable) return;
+
+        var newTime = _videoPlayer.PlayerTime + offset / 1000f;
+
+        if (newTime < 0)
+        {
+            _videoPlayer.Hide();
+            StopAllCoroutines();
+            StartCoroutine(PlayVideoDelayedCoroutine((float)-newTime));
+        }
+        else if (newTime > _videoPlayer.VideoDuration && _videoPlayer.VideoDuration > 0)
+        {
+            newTime %= _videoPlayer.VideoDuration;
+        }
+
+        _videoPlayer.PlayerTime = newTime;
     }
 
     private void PlayerStartedAfterResync(VideoPlayer player, long frame)
@@ -884,51 +930,27 @@ public class PlaybackManager : MonoBehaviour
 
         SetAudioSourcePanning(0f); //0f is neutral
         _videoPlayer.Mute();
-
-        // _videoMenu.SetButtonState(true);
     }
 
     #endregion
 
-    private float GetReferenceTime(float? referenceTime = null, float? playbackSpeed = null)
+    private float GetReferenceTime()
     {
         if (_activeAudioSource == null || _videoConfig == null) return 0;
 
         float time;
-        if (referenceTime == null && _activeAudioSource.time == 0)
+        if (_activeAudioSource.time == 0)
             time = _lastKnownAudioSourceTime;
         else
-            time = referenceTime ?? _activeAudioSource.time;
-        var speed = playbackSpeed ?? _videoConfig.PlaybackSpeed;
+            time = _activeAudioSource.time;
+
+        var speed = _videoConfig.PlaybackSpeed;
         return time * speed + _videoConfig.offset / 1000f;
     }
 
     public VideoConfig? GetVideoConfig()
     {
         return _videoConfig;
-    }
-
-    public void ResyncVideo(float? referenceTime = null, float? playbackSpeed = null)
-    {
-        if (_activeAudioSource == null || _videoConfig == null || !_videoConfig.IsPlayable) return;
-
-        var newTime = GetReferenceTime(referenceTime, playbackSpeed);
-
-        if (newTime < 0)
-        {
-            _videoPlayer.Hide();
-            StopAllCoroutines();
-            StartCoroutine(PlayVideoDelayedCoroutine(-newTime));
-        }
-        else if (newTime > _videoPlayer.VideoDuration && _videoPlayer.VideoDuration > 0)
-        {
-            newTime %= _videoPlayer.VideoDuration;
-        }
-
-        if (Math.Abs(_videoPlayer.PlayerTime - newTime) < 0.2f) return;
-
-        if (playbackSpeed.HasValue) _videoPlayer.PlaybackSpeed = playbackSpeed.Value;
-        _videoPlayer.PlayerTime = newTime;
     }
 
     public void SetSelectedLevel(BeatmapLevel? level, VideoConfig? config)
