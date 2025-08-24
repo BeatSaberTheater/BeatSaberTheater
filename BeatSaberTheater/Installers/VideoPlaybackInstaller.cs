@@ -1,4 +1,5 @@
-﻿using BeatSaberTheater.Environment.Factories;
+﻿using BeatSaberTheater.Environment;
+using BeatSaberTheater.Environment.Factories;
 using BeatSaberTheater.Environment.Interfaces;
 using BeatSaberTheater.Playback;
 using BeatSaberTheater.Screen;
@@ -35,5 +36,6 @@ internal class VideoPlaybackInstaller : Installer
         Container.BindInterfacesAndSelfTo<PlaybackManagerPatchEventMapper>().AsSingle();
 
         Container.Bind<PlaybackManager>().FromNewComponentOnNewGameObject().AsSingle();
+        Container.BindInterfacesAndSelfTo<EnvironmentManipulator>().AsSingle();
     }
 }

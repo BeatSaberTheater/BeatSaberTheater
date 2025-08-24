@@ -1,5 +1,6 @@
 ﻿using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
+using BeatSaberTheater.Video.Config;
 using UnityEngine;
 
 namespace BeatSaberTheater.Screen;

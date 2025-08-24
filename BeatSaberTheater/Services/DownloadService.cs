@@ -10,6 +10,7 @@ using BeatSaberTheater.Download;
 using BeatSaberTheater.Settings;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
+using BeatSaberTheater.Video.Config;
 using IPA.Utilities.Async;
 using UnityEngine;
 

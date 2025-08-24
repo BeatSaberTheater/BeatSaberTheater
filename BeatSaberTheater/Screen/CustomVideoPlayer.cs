@@ -4,6 +4,7 @@ using System.Reflection;
 using BeatSaberTheater.Screen.Interfaces;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
+using BeatSaberTheater.Video.Config;
 using BS_Utils.Utilities;
 using UnityEngine;
 using UnityEngine.Video;
@@ -498,6 +499,16 @@ public class CustomVideoPlayer : MonoBehaviour
         return _screenManager?.Screens[0];
     }
 
+    public GameObject? FindScreen(Predicate<GameObject> predicate)
+    {
+        return _screenManager?.Screens.Find(predicate);
+    }
+
+    public void AddScreen(GameObject screen)
+    {
+        _screenManager.Screens.Add(screen);
+    }
+
     public void SetScreenShaderParameters(VideoConfig? config)
     {
         _screenManager.SetShaderParameters(config);
@@ -506,5 +517,10 @@ public class CustomVideoPlayer : MonoBehaviour
     public void ScreenMenuLoadedFresh()
     {
         _screenManager.OnGameSceneLoadedFresh();
+    }
+
+    public void DisableScreen()
+    {
+        _screenManager.SetScreensActive(false);
     }
 }
