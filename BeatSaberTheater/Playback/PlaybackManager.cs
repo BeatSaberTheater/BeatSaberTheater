@@ -3,6 +3,7 @@ using System.Collections;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Environment.Interfaces;
 using BeatSaberTheater.Screen;
@@ -56,6 +57,7 @@ public class PlaybackManager : MonoBehaviour
 
     private void Start()
     {
+        BSEvents.gameSceneActive += GameSceneActive;
         BSEvents.gameSceneLoaded += GameSceneLoaded;
         BSEvents.lateMenuSceneLoadedFresh += OnMenuSceneLoadedFresh;
         BSEvents.menuSceneLoaded += OnMenuSceneLoaded;
@@ -68,7 +70,7 @@ public class PlaybackManager : MonoBehaviour
     private void OnDestroy()
     {
         _videoPlayer.Shutdown(FrameReady, OnPrepareComplete, VideoPlayerErrorReceived);
-        // BSEvents.gameSceneActive -= GameSceneActive;
+        BSEvents.gameSceneActive -= GameSceneActive;
         BSEvents.gameSceneLoaded -= GameSceneLoaded;
         BSEvents.lateMenuSceneLoadedFresh -= OnMenuSceneLoadedFresh;
         BSEvents.menuSceneLoaded -= OnMenuSceneLoaded;
@@ -130,9 +132,9 @@ public class PlaybackManager : MonoBehaviour
         var difficultyData = extraSongDataArgs.SelectedDifficultyData;
         var songData = extraSongDataArgs.SongData;
 
-        //If there is any difficulty that has a Theater suggestion but the current one doesn't, disable playback. The current difficulty most likely has the suggestion missing on purpose.
-        //If there are no difficulties that have the suggestion set, play the video. It might be a video added by the user.
-        //Otherwise, if the map is WIP, disable playback even when no difficulty has the suggestion, to convince the mapper to add it.
+        // If there is any difficulty that has a Theater suggestion but the current one doesn't, disable playback. The current difficulty most likely has the suggestion missing on purpose.
+        // If there are no difficulties that have the suggestion set, play the video. It might be a video added by the user.
+        // Otherwise, if the map is WIP, disable playback even when no difficulty has the suggestion, to convince the mapper to add it.
         if (difficultyData?.HasTheater() == false && songData?.HasTheaterInAnyDifficulty() == true)
             _videoConfig.PlaybackDisabledByMissingSuggestion = true;
         else if (_videoConfig.IsWIPLevel && difficultyData?.HasTheater() == false)
@@ -206,6 +208,21 @@ public class PlaybackManager : MonoBehaviour
         if (audioSourceTime > 0) _lastKnownAudioSourceTime = audioSourceTime;
     }
 
+    private void GameSceneActive()
+    {
+        // If BSUtils has no level data, we're probably in the tutorial
+        if (BS_Utils.Plugin.LevelData.IsSet)
+        {
+            // Move to the environment scene to be picked up by Chroma
+            var sceneName = BS_Utils.Plugin.LevelData.GameplayCoreSceneSetupData.targetEnvironmentInfo.sceneInfo
+                .sceneName;
+            var scene = SceneManager.GetSceneByName(sceneName);
+            SceneManager.MoveGameObjectToScene(gameObject, scene);
+        }
+
+        _loggingService.Info("Moving to game scene");
+    }
+
     public void GameSceneLoaded()
     {
         StopAllCoroutines();
@@ -247,11 +264,11 @@ public class PlaybackManager : MonoBehaviour
 
             if (_config.CoverEnabled && (_videoConfig?.forceEnvironmentModifications == null ||
                                          _videoConfig.forceEnvironmentModifications == false))
-                ShowSongCover();
+                ShowSongCover().Start();
             return;
         }
 
-        //Some mappers disable this accidentally
+        // Some mappers disable this accidentally
         gameObject.SetActive(true);
 
         if (_videoConfig.NeedsToSave) _videoLoader.SaveVideoConfig(_videoConfig);
@@ -259,7 +276,7 @@ public class PlaybackManager : MonoBehaviour
         _videoPlayer.SetPlacement(
             Placement.CreatePlacementForConfig(_videoConfig, _activeScene, _videoPlayer.GetVideoAspectRatio()));
 
-        //Fixes rough pop-in at the start of the song when transparency is disabled
+        // Fixes rough pop-in at the start of the song when transparency is disabled
         if (_videoConfig.TransparencyEnabled)
         {
             _videoPlayer.Show();
@@ -421,7 +438,7 @@ public class PlaybackManager : MonoBehaviour
             return;
         }
 
-        //This allows the short preview for the practice offset to play
+        // This allows the short preview for the practice offset to play
         if (!_previewWaitingForPreviewPlayer && Math.Abs(timeRemaining - 2.5f) > 0.001f)
         {
             StopPreview(true);
@@ -480,11 +497,11 @@ public class PlaybackManager : MonoBehaviour
         }
 
         _videoPlayer.PlaybackSpeed = songSpeed * _videoConfig.PlaybackSpeed;
-        totalOffset += startTime; //This must happen after song speed adjustment
+        totalOffset += startTime; // This must happen after song speed adjustment
 
         if (songSpeed * _videoConfig.PlaybackSpeed < 1f && totalOffset > 0f)
         {
-            //Unity crashes if the playback speed is less than 1 and the video time at the start of playback is greater than 0
+            // Unity crashes if the playback speed is less than 1 and the video time at the start of playback is greater than 0
             _loggingService.Warn("Video playback disabled to prevent Unity crash");
             _videoPlayer.Hide();
             StopPlayback();
@@ -492,16 +509,16 @@ public class PlaybackManager : MonoBehaviour
             return;
         }
 
-        //Video seemingly always lags behind. A fixed offset seems to work well enough
+        // Video seemingly always lags behind. A fixed offset seems to work well enough
         if (!IsPreviewPlaying) totalOffset += 0.0667f;
 
         if (_videoConfig.endVideoAt != null && totalOffset > _videoConfig.endVideoAt)
             totalOffset = _videoConfig.endVideoAt.Value;
 
-        //This will fail if the video is not prepared yet
+        // This will fail if the video is not prepared yet
         if (_videoPlayer.VideoDuration > 0) totalOffset %= _videoPlayer.VideoDuration;
 
-        //This fixes an issue where the Unity video player sometimes ignores a change in the .time property if the time is very small and the player is currently playing
+        // This fixes an issue where the Unity video player sometimes ignores a change in the .time property if the time is very small and the player is currently playing
         if (Math.Abs(totalOffset) < 0.001f)
         {
             totalOffset = 0;
@@ -519,10 +536,10 @@ public class PlaybackManager : MonoBehaviour
         if (totalOffset < 0)
         {
             if (!IsPreviewPlaying)
-                //Negate the offset to turn it into a positive delay
+                // Negate the offset to turn it into a positive delay
                 StartCoroutine(PlayVideoDelayedCoroutine(-totalOffset));
             else
-                //In menus we don't need to wait, instead the preview player starts earlier
+                // In menus we don't need to wait, instead the preview player starts earlier
                 _videoPlayer.Play();
         }
         else
@@ -540,7 +557,7 @@ public class PlaybackManager : MonoBehaviour
         }
     }
 
-    //TODO Using a stopwatch will not work properly when seeking in the map (e.g. IntroSkip, PracticePlugin)
+    // TODO: Using a stopwatch will not work properly when seeking in the map (e.g. IntroSkip, PracticePlugin)
     private IEnumerator PlayVideoDelayedCoroutine(float delayStartTime)
     {
         _loggingService.Debug("Waiting for " + delayStartTime + " seconds before playing video");
@@ -607,7 +624,7 @@ public class PlaybackManager : MonoBehaviour
                 {
                     yield return new WaitUntil(() => Resources.FindObjectsOfTypeAll<AudioTimeSyncController>().Any());
 
-                    //Hierarchy: Wrapper/StandardGameplay/GameplayCore/SongController
+                    // Hierarchy: Wrapper/StandardGameplay/GameplayCore/SongController
                     _timeSyncController = Resources.FindObjectsOfTypeAll<AudioTimeSyncController>()
                         .FirstOrDefault(atsc => atsc.transform.parent.parent.name.Contains("StandardGameplay"));
 
@@ -617,7 +634,7 @@ public class PlaybackManager : MonoBehaviour
                             "Could not find ATSC the usual way. Did the object hierarchy change? Current scene name is " +
                             SceneManager.GetActiveScene().name);
 
-                        //This throws an exception if we still don't find the ATSC
+                        // This throws an exception if we still don't find the ATSC
                         _timeSyncController = Resources.FindObjectsOfTypeAll<AudioTimeSyncController>().Last();
                         _loggingService.Warn("Selected ATSC: " + _timeSyncController.name);
                     }
@@ -771,7 +788,7 @@ public class PlaybackManager : MonoBehaviour
     {
         if (!_videoPlayer.IsPlaying || _activeAudioSource == null) return;
 
-        //Pause the preview audio source and start seeking. Audio Source will be re-enabled after video player draws its next frame
+        // Pause the preview audio source and start seeking. Audio Source will be re-enabled after video player draws its next frame
         _videoPlayer.IsSyncing = true;
         _activeAudioSource.Pause();
 
@@ -833,7 +850,7 @@ public class PlaybackManager : MonoBehaviour
         }
     }
 
-    public async void StartPreview()
+    public async Task StartPreview()
     {
         if (_videoConfig == null || _currentLevel == null)
         {
@@ -855,7 +872,7 @@ public class PlaybackManager : MonoBehaviour
 
             if (!_videoPlayer.IsPrepared) _loggingService.Debug("Video not prepared yet");
 
-            //Start the preview at the point the video kicks in
+            // Start the preview at the point the video kicks in
             var startTime = 0f;
             if (_videoConfig.offset < 0) startTime = -_videoConfig.GetOffsetInSec();
 
@@ -882,8 +899,8 @@ public class PlaybackManager : MonoBehaviour
                 return;
             }
 
-            //+1.0 is hard right. only pan "mostly" right, because for some reason the video player audio doesn't
-            //pan hard left either. Also, it sounds a bit more comfortable.
+            // +1.0 is hard right. only pan "mostly" right, because for some reason the video player audio doesn't
+            // pan hard left either. Also, it sounds a bit more comfortable.
             SetAudioSourcePanning(0.9f);
             StartCoroutine(PlayVideoAfterAudioSourceCoroutine(true));
             _videoPlayer.PanStereo = -1f; // -1 is hard left
@@ -928,7 +945,7 @@ public class PlaybackManager : MonoBehaviour
 
         IsPreviewPlaying = false;
 
-        SetAudioSourcePanning(0f); //0f is neutral
+        SetAudioSourcePanning(0f); // 0f is neutral
         _videoPlayer.Mute();
     }
 
@@ -973,7 +990,7 @@ public class PlaybackManager : MonoBehaviour
         if (level != null && VideoLoader.IsDlcSong(level)) _videoPlayer.FadeOut();
     }
 
-    private async void ShowSongCover()
+    private async Task ShowSongCover()
     {
         if (_currentLevel == null) return;
 

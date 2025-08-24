@@ -351,7 +351,7 @@ public class VideoMenuUI : IInitializable, IDisposable
     {
         if (videoConfig != _currentVideo) return;
 
-        //This is the case if the map only uses environment modifications
+        // This is the case if the map only uses environment modifications
         if ((_currentVideo.videoID == null && _currentVideo.videoUrl == null) || _levelDetailMenu == null) return;
 
         switch (videoConfig.DownloadState)
@@ -420,7 +420,7 @@ public class VideoMenuUI : IInitializable, IDisposable
         }
     }
 
-    public void UpdateStatusText(VideoConfig videoConfig)
+    private void UpdateStatusText(VideoConfig videoConfig)
     {
         if (videoConfig != _currentVideo || !_videoMenuActive) return;
 
@@ -481,14 +481,14 @@ public class VideoMenuUI : IInitializable, IDisposable
 
         if (url == null)
         {
-            SetThumbnailFromCover(_currentLevel);
+            SetThumbnailFromCover(_currentLevel).Start();
             return;
         }
 
         _videoThumnnail.SetImageAsync(url);
     }
 
-    private async void SetThumbnailFromCover(BeatmapLevel? level)
+    private async Task SetThumbnailFromCover(BeatmapLevel? level)
     {
         if (level == null) return;
 
@@ -834,7 +834,7 @@ public class VideoMenuUI : IInitializable, IDisposable
         _downloadButton.interactable = false;
         _downloadButton.transform.Find("Underline").gameObject.GetComponent<Image>().color = Color.grey;
         _selectedCell = -1;
-        // _searchResults.Clear();
+        _searchResults.Clear();
         _bsmlParserParams.EmitEvent("hide-keyboard");
     }
 
@@ -902,7 +902,7 @@ public class VideoMenuUI : IInitializable, IDisposable
     [UsedImplicitly]
     private void OnPreviewAction()
     {
-        _playbackManager.StartPreview();
+        _playbackManager.StartPreview().Start();
         SetButtonState(true);
     }
 

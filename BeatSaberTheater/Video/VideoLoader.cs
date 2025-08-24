@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -13,6 +14,7 @@ using BeatSaberTheater.Download;
 using BeatSaberTheater.Util;
 using IPA.Utilities.Async;
 using Newtonsoft.Json;
+using SongCore;
 using UnityEngine;
 using Zenject;
 
@@ -36,7 +38,7 @@ public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingServi
     private static string? _ignoreNextEventForPath;
 
     //This should ideally be a HashSet, but there is no concurrent version of it. We also don't need the value, so use the smallest possible type.
-    internal static readonly ConcurrentDictionary<string, byte> MapsWithVideo = new();
+    private static readonly ConcurrentDictionary<string, byte> MapsWithVideo = new();
     private static readonly ConcurrentDictionary<string, VideoConfig> CachedConfigs = new();
     private static readonly ConcurrentDictionary<string, VideoConfig> BundledConfigs = new();
 
@@ -78,32 +80,38 @@ public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingServi
 
     private static AudioClipAsyncLoader? _audioClipAsyncLoader;
 
-    // internal async void IndexMaps(Loader? loader = null,
-    //     ConcurrentDictionary<string, BeatmapLevel>? beatmapLevels = null)
-    // {
-    //     _loggingService.Debug("Indexing maps...");
-    //     var stopwatch = new Stopwatch();
-    //     stopwatch.Start();
-    //
-    //     var officialMaps = GetOfficialMaps();
-    //
-    //     void Action()
-    //     {
-    //         var options = new ParallelOptions
-    //             { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2 - 1) };
-    //         Parallel.ForEach(Loader.CustomLevels, options, IndexMap);
-    //         if (officialMaps.Count > 0) Parallel.ForEach(officialMaps, options, IndexMap);
-    //     }
-    //
-    //     var loadingTask = new Task((Action)Action, CancellationToken.None);
-    //     var loadingAwaiter = loadingTask.ConfigureAwait(false);
-    //     loadingTask.Start();
-    //     await loadingAwaiter;
-    //
-    //     _loggingService.Debug($"Indexing took {stopwatch.ElapsedMilliseconds} ms");
-    // }
+    internal static void IndexMaps(Loader? loader = null,
+        ConcurrentDictionary<string, BeatmapLevel>? beatmapLevels = null)
+    {
+        IndexMapsAsync(loader, beatmapLevels).RunSynchronously();
+    }
 
-    private List<BeatmapLevel> GetOfficialMaps()
+    private static async Task IndexMapsAsync(Loader? loader = null,
+        ConcurrentDictionary<string, BeatmapLevel>? beatmapLevels = null)
+    {
+        Plugin._log.Debug("Indexing maps...");
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
+
+        var officialMaps = GetOfficialMaps();
+
+        void Action()
+        {
+            var options = new ParallelOptions
+                { MaxDegreeOfParallelism = Math.Max(1, System.Environment.ProcessorCount / 2 - 1) };
+            Parallel.ForEach(Loader.CustomLevels, options, IndexMap);
+            if (officialMaps.Count > 0) Parallel.ForEach(officialMaps, options, IndexMap);
+        }
+
+        var loadingTask = new Task((Action)Action, CancellationToken.None);
+        var loadingAwaiter = loadingTask.ConfigureAwait(false);
+        loadingTask.Start();
+        await loadingAwaiter;
+
+        Plugin._log.Debug($"Indexing took {stopwatch.ElapsedMilliseconds} ms");
+    }
+
+    private static List<BeatmapLevel> GetOfficialMaps()
     {
         var officialMaps = new List<BeatmapLevel>();
 
@@ -118,22 +126,17 @@ public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingServi
         return officialMaps;
     }
 
-    // private static void IndexMap(KeyValuePair<string, BeatmapLevel> levelKeyValuePair)
-    // {
-    //     IndexMap(levelKeyValuePair.Value);
-    // }
+    private static void IndexMap(KeyValuePair<string, BeatmapLevel> levelKeyValuePair)
+    {
+        IndexMap(levelKeyValuePair.Value);
+    }
 
-    // private static void IndexMap(BeatmapLevel level)
-    // {
-    //     var configPath = GetConfigPath(level);
-    //     if (File.Exists(configPath)) MapsWithVideo.TryAdd(level.levelID, 0);
-    // }
-
-    // public static string GetConfigPath(BeatmapLevel level)
-    // {
-    //     var levelPath = GetLevelPath(level);
-    //     return Path.Combine(levelPath, CONFIG_FILENAME);
-    // }
+    private static void IndexMap(BeatmapLevel level)
+    {
+        var levelPath = GetLevelPath(level);
+        var configPath = GetConfigPath(levelPath);
+        if (File.Exists(configPath)) MapsWithVideo.TryAdd(level.levelID, 0);
+    }
 
     public static string GetConfigPath(string levelPath)
     {
@@ -181,9 +184,9 @@ public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingServi
         return config;
     }
 
-    public void StopFileSystemWatcher()
+    public static void StopFileSystemWatcher()
     {
-        _loggingService.Debug("Disposing FileSystemWatcher");
+        Plugin._log.Debug("Disposing FileSystemWatcher");
         _fileSystemWatcher?.Dispose();
     }
 
@@ -340,7 +343,6 @@ public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingServi
         return videoConfig ?? GetConfigFromBundledConfigs(level);
     }
 
-    // [Obsolete("Obsolete")]
     public static string GetLevelPath(BeatmapLevel level)
     {
         var songName = level.songName.Trim();
@@ -376,7 +378,7 @@ public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingServi
         SaveVideoConfigToPath(videoConfig, configPath);
     }
 
-    public void SaveVideoConfigToPath(VideoConfig config, string configPath)
+    private void SaveVideoConfigToPath(VideoConfig config, string configPath)
     {
         _ignoreNextEventForPath = configPath;
         _loggingService.Info($"Saving video config to {configPath}");
