@@ -6,9 +6,8 @@ using BeatSaberTheater.Models;
 using BeatSaberTheater.Util;
 using Newtonsoft.Json;
 using SongCore.Data;
-using Zenject;
 
-namespace BeatSaberTheater.Video;
+namespace BeatSaberTheater.Video.Config;
 
 public class VideoConfig
 {
@@ -19,10 +18,12 @@ public class VideoConfig
     public bool? colorBlending;
     public bool? configByMapper;
     public bool? curveYAxis;
+    public bool? disableDefaultModifications;
     public int duration; //s
     public float? endVideoAt;
     public bool? forceEnvironmentModifications;
     public bool? loop;
+    public bool? mergePropGroups;
     public int offset; //ms
     public float? playbackSpeed; //percent
     public float? screenHeight;
@@ -37,7 +38,9 @@ public class VideoConfig
     public string? videoID;
     public string? videoUrl;
 
+    public ScreenConfig[]? additionalScreens;
     public ColorCorrection? colorCorrection;
+    public EnvironmentModification[]? environment;
     public Vignette? vignette;
 
     [JsonIgnore] [NonSerialized] public float DownloadProgress;

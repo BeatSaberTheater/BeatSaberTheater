@@ -168,7 +168,7 @@ public class LightManager : MonoBehaviour
         var screen = _videoPlayer.GetFirstScreen();
         if (screen != null)
         {
-            _lightGameObject = new GameObject("CinemaDirectionalLight");
+            _lightGameObject = new GameObject("TheaterDirectionalLight");
             _lightGameObject.transform.parent = screen.transform;
             _lightGameObject.transform.forward = -screen.transform.forward;
             var euler = _lightGameObject.transform.eulerAngles;

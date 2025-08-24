@@ -5,6 +5,7 @@ using BeatSaberTheater.Models;
 using BeatSaberTheater.Screen.Interfaces;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
+using BeatSaberTheater.Video.Config;
 using ModestTree;
 using UnityEngine;
 using Zenject;

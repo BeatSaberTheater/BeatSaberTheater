@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using BeatmapEditor3D.DataModels;
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Util;
+using BeatSaberTheater.Video.Config;
 using IPA.Utilities.Async;
 using Newtonsoft.Json;
 using SongCore;

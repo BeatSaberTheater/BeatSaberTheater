@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using BeatSaberTheater.Video;
+using BeatSaberTheater.Video.Config;
 
 namespace BeatSaberTheater.Settings;
 

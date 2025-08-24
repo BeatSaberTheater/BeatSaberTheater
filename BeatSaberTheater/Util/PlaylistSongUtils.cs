@@ -1,6 +1,7 @@
 using System;
 using BeatSaberPlaylistsLib.Types;
 using BeatSaberTheater.Video;
+using BeatSaberTheater.Video.Config;
 using Newtonsoft.Json;
 
 namespace BeatSaberTheater.Util;

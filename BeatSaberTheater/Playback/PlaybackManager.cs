@@ -10,6 +10,7 @@ using BeatSaberTheater.Screen;
 using BeatSaberTheater.Screen.Interfaces;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
+using BeatSaberTheater.Video.Config;
 using BS_Utils.Gameplay;
 using BS_Utils.Utilities;
 using UnityEngine;
@@ -273,8 +274,7 @@ public class PlaybackManager : MonoBehaviour
 
         if (_videoConfig.NeedsToSave) _videoLoader.SaveVideoConfig(_videoConfig);
 
-        _videoPlayer.SetPlacement(
-            Placement.CreatePlacementForConfig(_videoConfig, _activeScene, _videoPlayer.GetVideoAspectRatio()));
+        UpdateVideoPlayerPlacement(_videoConfig, _activeScene);
 
         // Fixes rough pop-in at the start of the song when transparency is disabled
         if (_videoConfig.TransparencyEnabled)
@@ -316,8 +316,7 @@ public class PlaybackManager : MonoBehaviour
         }
         else
         {
-            _videoPlayer.SetPlacement(
-                Placement.CreatePlacementForConfig(config, _activeScene, _videoPlayer.GetVideoAspectRatio()));
+            UpdateVideoPlayerPlacement(config, _activeScene);
             ResyncVideo();
         }
 
@@ -951,6 +950,21 @@ public class PlaybackManager : MonoBehaviour
 
     #endregion
 
+    public void AddScreenToVideoPlayer(GameObject screen)
+    {
+        _videoPlayer.AddScreen(screen);
+    }
+
+    public void DisableVideoPlayerScreens()
+    {
+        _videoPlayer.DisableScreen();
+    }
+
+    public GameObject? FindVideoPlayerScreen(Predicate<GameObject> predicate)
+    {
+        return _videoPlayer.FindScreen(predicate);
+    }
+
     private float GetReferenceTime()
     {
         if (_activeAudioSource == null || _videoConfig == null) return 0;
@@ -968,6 +982,11 @@ public class PlaybackManager : MonoBehaviour
     public VideoConfig? GetVideoConfig()
     {
         return _videoConfig;
+    }
+
+    public GameObject? GetVideoPlayerFirstScreen()
+    {
+        return _videoPlayer.GetFirstScreen();
     }
 
     public void SetSelectedLevel(BeatmapLevel? level, VideoConfig? config)
@@ -990,6 +1009,11 @@ public class PlaybackManager : MonoBehaviour
         if (level != null && VideoLoader.IsDlcSong(level)) _videoPlayer.FadeOut();
     }
 
+    public void SetVideoPlayerScreenShaderParameters(VideoConfig? config)
+    {
+        _videoPlayer.SetScreenShaderParameters(config);
+    }
+
     private async Task ShowSongCover()
     {
         if (_currentLevel == null) return;
@@ -1004,5 +1028,11 @@ public class PlaybackManager : MonoBehaviour
         {
             _loggingService.Error(e);
         }
+    }
+
+    public void UpdateVideoPlayerPlacement(VideoConfig config, Scene scene)
+    {
+        _videoPlayer.SetPlacement(
+            Placement.CreatePlacementForConfig(config, scene, _videoPlayer.GetVideoAspectRatio()));
     }
 }
