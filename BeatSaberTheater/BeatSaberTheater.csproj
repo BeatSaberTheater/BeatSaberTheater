@@ -41,6 +41,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <Content Include="Resources\cinema.bplist" CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <None Include="BeatSaberTheater.csproj.user" Condition="Exists('BeatSaberTheater.csproj.user')"/>
     </ItemGroup>
 
@@ -221,5 +225,11 @@
             <Private>false</Private>
         </Reference>
     </ItemGroup>
+
+    <Target Name="FlattenForRelease" AfterTargets="Build">
+        <Copy SourceFiles="Resources\cinema.bplist"
+              DestinationFolder="$(OutputPath)/Artifact/Playlists"
+              SkipUnchangedFiles="true"/>
+    </Target>
 
 </Project>
