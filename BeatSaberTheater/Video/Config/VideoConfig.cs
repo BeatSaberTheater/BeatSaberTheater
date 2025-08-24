@@ -21,6 +21,7 @@ public class VideoConfig
     public bool? disableDefaultModifications;
     public int duration; //s
     public float? endVideoAt;
+    public string? environmentName;
     public bool? forceEnvironmentModifications;
     public bool? loop;
     public bool? mergePropGroups;
@@ -51,6 +52,10 @@ public class VideoConfig
     [JsonIgnore] [NonSerialized] public bool PlaybackDisabledByMissingSuggestion;
 
     [JsonIgnore] public string? ConfigPath => LevelDir != null ? VideoLoader.GetConfigPath(LevelDir) : null;
+
+    [JsonIgnore]
+    public bool EnvironmentModified => (environment != null && environment.Length > 0) || screenPosition != null ||
+                                       screenHeight != null;
 
     [JsonIgnore]
     public bool IsDownloading => DownloadState == DownloadState.Preparing ||

@@ -90,6 +90,41 @@ public class EnvironmentManipulator
         };
     }
 
+    public void Init()
+    {
+        SceneManager.activeSceneChanged += SceneChanged;
+    }
+
+    public void Disable()
+    {
+        SceneManager.activeSceneChanged -= SceneChanged;
+        _environmentObjectList?.Clear();
+    }
+
+    private void SceneChanged(UnityEngine.SceneManagement.Scene arg0, UnityEngine.SceneManagement.Scene arg1)
+    {
+        _loggingService.Debug($"Scene changed from {arg0.name} to {arg1.name}");
+        var sceneName = arg1.name;
+        switch (sceneName)
+        {
+            case "BeatmapLevelEditorWorldUi":
+                Reset();
+                _playbackManager.GameSceneLoaded();
+                break;
+            case "MainMenu" or "PCInit" or "EmptyTransition":
+                Reset();
+                break;
+        }
+    }
+
+    private void Reset()
+    {
+        IsScreenHidden = false;
+
+        _environmentModified = false;
+        _environmentObjectList?.Clear();
+    }
+
     public void ModifyGameScene(VideoConfig? videoConfig)
     {
         // Move back to the DontDestroyOnLoad scene
@@ -428,6 +463,7 @@ public class EnvironmentManipulator
     {
         ApplyGlobalFixes();
 
+        _loggingService.Debug($"Applying scene modifications for {_currentEnvironmentName}");
         if (_environmentHandlers.TryGetValue(_currentEnvironmentName, out var handler)) handler(videoConfig);
     }
 
