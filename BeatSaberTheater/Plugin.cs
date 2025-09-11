@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 using BeatSaberTheater.Harmony;
 using IPA;
 using IPA.Config.Stores;
@@ -22,7 +23,7 @@ namespace BeatSaberTheater;
 [NoEnableDisable]
 internal class Plugin
 {
-    internal const string Capability = "Theater";
+    internal static readonly List<string> Capability = ["Theater", "Cinema"];
     private static bool _filterAdded;
 
     private PluginConfig _config { get; set; }
@@ -63,13 +64,14 @@ internal class Plugin
         BSEvents.lateMenuSceneLoadedFresh += OnMenuSceneLoadedFresh;
         _harmonyPatchController = new HarmonyPatchController();
         ApplyHarmonyPatches();
-        // EnvironmentController.Init();
-        Collections.RegisterCapability(Capability);
+        _log.Debug("Registering capabilities");
+        foreach (var capability in Capability) Collections.RegisterCapability(capability);
+
         if (File.Exists(Path.Combine(UnityGame.InstallPath, "dxgi.dll")))
             _log.Warn(
                 "dxgi.dll is present, video may fail to play. To fix this, delete the file dxgi.dll from your main Beat Saber folder (not in Plugins).");
 
-        //No need to index maps if the filter isn't going to be applied anyway
+        // No need to index maps if the filter isn't going to be applied anyway
         if (InstalledMods.BetterSongList) Loader.SongsLoadedEvent += VideoLoader.IndexMaps;
     }
 
@@ -81,12 +83,8 @@ internal class Plugin
         BSEvents.lateMenuSceneLoadedFresh -= OnMenuSceneLoadedFresh;
         Loader.SongsLoadedEvent -= VideoLoader.IndexMaps;
 
-        // TODO: Destroying and re-creating the PlaybackController messes up the VideoMenu without any exceptions in the log. Investigate.
-        //PlaybackController.Destroy();
-
-        // EnvironmentController.Disable();
         VideoLoader.StopFileSystemWatcher();
-        Collections.DeregisterCapability(Capability);
+        foreach (var capability in Capability) Collections.DeregisterCapability(capability);
     }
 
     private void ApplyHarmonyPatches()
