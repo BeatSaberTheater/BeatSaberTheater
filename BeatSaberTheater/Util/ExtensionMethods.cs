@@ -8,13 +8,14 @@ public static class ExtensionMethods
 {
     public static bool HasTheaterSuggestion(this SongData.DifficultyData difficultyData)
     {
-        return difficultyData.additionalDifficultyData._suggestions.Any(suggestion => suggestion == Plugin.Capability);
+        return difficultyData.additionalDifficultyData._suggestions.Any(suggestion =>
+            Plugin.Capability.Any(x => x.Equals(suggestion, StringComparison.InvariantCultureIgnoreCase)));
     }
 
     public static bool HasTheaterRequirement(this SongData.DifficultyData difficultyData)
     {
         return difficultyData.additionalDifficultyData._requirements.Any(requirement =>
-            requirement == Plugin.Capability);
+            Plugin.Capability.Any(x => x.Equals(requirement, StringComparison.InvariantCultureIgnoreCase)));
     }
 
     public static bool HasTheater(this SongData.DifficultyData difficultyData)

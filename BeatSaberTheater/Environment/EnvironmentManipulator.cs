@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.RegularExpressions;
 using BeatSaberTheater.Playback;
 using BeatSaberTheater.Screen;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video.Config;
+using IPA.Utilities;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Zenject;
@@ -25,7 +27,7 @@ public class EnvironmentManipulator
     private static string _currentEnvironmentName = "MainMenu";
     internal static bool IsScreenHidden { get; private set; }
 
-    private readonly Dictionary<string, Action<VideoConfig?>> _environmentHandlers;
+    private readonly Dictionary<string, Action<VideoConfig>> _environmentModifiers;
     private List<EnvironmentObject>? _environmentObjectList;
 
     private IEnumerable<EnvironmentObject> EnvironmentObjects
@@ -66,27 +68,27 @@ public class EnvironmentManipulator
 
     public EnvironmentManipulator()
     {
-        _environmentHandlers = new Dictionary<string, Action<VideoConfig?>>
+        _environmentModifiers = new Dictionary<string, Action<VideoConfig>>
         {
-            ["NiceEnvironment"] = HandleNiceEnvironment,
-            ["BigMirrorEnvironment"] = HandleNiceEnvironment,
-            ["BTSEnvironment"] = HandleBtsEnvironment,
-            ["OriginsEnvironment"] = HandleOriginsEnvironment,
-            ["KDAEnvironment"] = HandleKdaEnvironment,
-            ["RocketEnvironment"] = HandleRocketEnvironment,
-            ["DragonsEnvironment"] = HandleDragonsEnvironment,
-            ["Dragons2Environment"] = HandleDragons2Environment,
-            ["LinkinParkEnvironment"] = HandleLinkinParkEnvironment,
-            ["KaleidoscopeEnvironment"] = HandleKaleidoscopeEnvironment,
-            ["GlassDesertEnvironment"] = HandleGlassDesertEnvironment,
-            ["InterscopeEnvironment"] = HandleInterscopeEnvironment,
-            ["CrabRaveEnvironment"] = HandleCrabRaveEnvironment,
-            ["MonstercatEnvironment"] = HandleCrabRaveEnvironment,
-            ["SkrillexEnvironment"] = HandleSkrillexEnvironment,
-            ["PyroEnvironment"] = HandlePyroEnvironment,
-            ["LizzoEnvironment"] = HandleLizzoEnvironment,
-            ["WeaveEnvironment"] = HandleWeaveEnvironment,
-            ["EDMEnvironment"] = HandleEdmEnvironment
+            ["NiceEnvironment"] = ModifyNiceEnvironment,
+            ["BigMirrorEnvironment"] = ModifyBigMirrorEnvironment,
+            ["BTSEnvironment"] = ModifyBtsEnvironment,
+            ["OriginsEnvironment"] = ModifyOriginsEnvironment,
+            ["KDAEnvironment"] = ModifyKDAEnvironment,
+            ["RocketEnvironment"] = ModifyRocketEnvironment,
+            ["DragonsEnvironment"] = ModifyDragonsEnvironment,
+            ["Dragons2Environment"] = ModifyDragons2Environment,
+            ["LinkinParkEnvironment"] = ModifyLinkinParkEnvironment,
+            ["KaleidoscopeEnvironment"] = ModifyKaleidoscopeEnvironment,
+            ["GlassDesertEnvironment"] = ModifyGlassDesertEnvironment,
+            ["InterscopeEnvironment"] = ModifyInterscopeEnvironment,
+            ["CrabRaveEnvironment"] = ModifyCrabRaveEnvironment,
+            ["MonstercatEnvironment"] = ModifyMonstercatEnvironment,
+            ["SkrillexEnvironment"] = ModifySkrillexEnvironment,
+            ["PyroEnvironment"] = ModifyPyroEnvironment,
+            ["LizzoEnvironment"] = ModifyLizzoEnvironment,
+            ["WeaveEnvironment"] = ModifyWeaveEnvironment,
+            ["EDMEnvironment"] = ModifyEDMEnvironment
         };
     }
 
@@ -459,12 +461,16 @@ public class EnvironmentManipulator
 
     #region Scene Modification
 
-    private void DefaultSceneModifications(VideoConfig? videoConfig)
+    private void DefaultSceneModifications(VideoConfig config)
     {
+        _loggingService.Debug($"Modifying environment: {_currentEnvironmentName}");
+
         ApplyGlobalFixes();
 
-        _loggingService.Debug($"Applying scene modifications for {_currentEnvironmentName}");
-        if (_environmentHandlers.TryGetValue(_currentEnvironmentName, out var handler)) handler(videoConfig);
+        if (_environmentModifiers.TryGetValue(_currentEnvironmentName, out var modifier))
+            modifier(config);
+        else
+            _loggingService.Warn($"Unhandled environment: {_currentEnvironmentName}");
     }
 
     private void ApplyGlobalFixes()
@@ -478,169 +484,662 @@ public class EnvironmentManipulator
             _loggingService.Info("Hiding video screen due to custom platform");
         }
 
-        // Remove front lights
+        // FrontLights appear in many environments and need to be removed in all of them
         var frontLights = EnvironmentObjects.LastOrDefault(x =>
             (x.name == "FrontLights" || x.name == "FrontLight") && x.activeInHierarchy);
         frontLights?.SetActive(false);
 
-        // Disable extra directional light
+        // To make the screen's directional lighting work, we have to disable on of the base game lights. The last one is the least noticable from my testing.
         var directionalLight =
             EnvironmentObjects.LastOrDefault(x => x.name == "DirectionalLight" && x.parentName == "CoreLighting");
         directionalLight?.SetActive(false);
     }
 
-    #region Environment Handlers
+    #region Environment Cases
 
-    private void HandleNiceEnvironment(VideoConfig? videoConfig)
+    private void ModifyNiceEnvironment(VideoConfig config)
     {
-        MoveDoubleColorLasers();
-        MoveRotatingLasers(20f);
-    }
-
-    private void HandleBtsEnvironment(VideoConfig? videoConfig)
-    {
-        HideObject("MagicDoorSprite");
-        AdjustPillars(videoConfig);
-        UpdateMovementEffect();
-    }
-
-    private void HandleOriginsEnvironment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 12f);
-    }
-
-    private void HandleKdaEnvironment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 18f);
-    }
-
-    private void HandleRocketEnvironment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 16f);
-    }
-
-    private void HandleDragonsEnvironment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 25f);
-    }
-
-    private void HandleDragons2Environment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 25f);
-    }
-
-    private void HandleLinkinParkEnvironment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 16f);
-    }
-
-    private void HandleKaleidoscopeEnvironment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 25f);
-    }
-
-    private void HandleGlassDesertEnvironment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 20f);
-    }
-
-    private void HandleInterscopeEnvironment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 20f);
-    }
-
-    private void HandleCrabRaveEnvironment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 16f);
-    }
-
-    private void HandleSkrillexEnvironment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 16f);
-    }
-
-    private void HandlePyroEnvironment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 16f);
-    }
-
-    private void HandleLizzoEnvironment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 16f);
-    }
-
-    private void HandleWeaveEnvironment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 25f);
-    }
-
-    private void HandleEdmEnvironment(VideoConfig? videoConfig)
-    {
-        RepositionSymmetricObjects("Spectrogram", 25f);
-    }
-
-    #endregion
-
-    #region Shared Helpers
-
-    private void HideObject(string name)
-    {
-        var obj = EnvironmentObjects.LastOrDefault(x => x.name == name && x.activeInHierarchy);
-        obj?.SetActive(false);
-    }
-
-    private void RepositionSymmetricObjects(string name, float offsetX)
-    {
-        var objs = EnvironmentObjects.Where(x => x.name == name && x.activeInHierarchy);
-        foreach (var obj in objs)
+        var doubleColorLasers =
+            EnvironmentObjects.Where(x => x.name.Contains("DoubleColorLaser") && x.activeInHierarchy);
+        foreach (var doubleColorLaser in doubleColorLasers)
         {
-            var pos = obj.transform.position;
-            obj.transform.position = new Vector3(pos.x < 0 ? -offsetX : offsetX, pos.y, pos.z);
-        }
-    }
+            var laserName = doubleColorLaser.name;
+            if (laserName == "DoubleColorLaser") laserName = "DoubleColorLaser (0)";
 
-    private void MoveRotatingLasers(float newX)
-    {
+            var match = Regex.Match(laserName, "^DoubleColorLaser \\(([0-9])\\)$");
+            if (!match.Success)
+            {
+                _loggingService.Debug($"Could not find index of: {laserName}");
+                continue;
+            }
+
+            var i = int.Parse(match.Groups[1].Value);
+
+            var sign = 1;
+            if (i % 2 == 0) sign = -sign;
+
+            var shiftXBy = 18f * sign;
+            var shiftZBy = -28.5f;
+            var pos = doubleColorLaser.transform.position;
+            doubleColorLaser.transform.position = new Vector3(pos.x + shiftXBy, pos.y, pos.z + shiftZBy);
+        }
+
+        // Move rotating lasers BaseL and BaseR from x = -8/+8 to something farther away
         var rotatingLaserPairs =
             EnvironmentObjects.Where(x => x.name.Contains("RotatingLasersPair") && x.activeInHierarchy);
         foreach (var laser in rotatingLaserPairs)
         foreach (Transform child in laser.transform)
         {
             var pos = child.transform.position;
-            child.transform.position = new Vector3(pos.x < 0 ? -newX : newX, pos.y, pos.z);
+            var newX = 20;
+            if (pos.x < 0) newX *= -1;
+            child.transform.position = new Vector3(newX, pos.y, pos.z);
         }
     }
 
-    private void MoveDoubleColorLasers()
+    private void ModifyBigMirrorEnvironment(VideoConfig config)
     {
-        var doubleColorLasers =
-            EnvironmentObjects.Where(x => x.name.Contains("DoubleColorLaser") && x.activeInHierarchy);
-        foreach (var laser in doubleColorLasers)
+        // Same as NiceEnvironment
+        ModifyNiceEnvironment(config);
+    }
+
+    private void ModifyBtsEnvironment(VideoConfig config)
+    {
+        var centerLight = EnvironmentObjects.LastOrDefault(x => x.name == "MagicDoorSprite" && x.activeInHierarchy);
+        if (centerLight != null) centerLight.SetActive(false);
+
+        var pillarPairs = EnvironmentObjects.Where(x => x.name.Contains("PillarPair") && x.activeInHierarchy);
+        var movementEffectStartPositions = new List<Vector3>();
+        foreach (var pillarPair in pillarPairs)
         {
-            var pos = laser.transform.position;
-            laser.transform.position = new Vector3(pos.x < 0 ? -20f : 20f, pos.y, pos.z);
-        }
-    }
+            var pillarPairName = pillarPair.name;
+            if (pillarPairName == "PillarPair" || pillarPairName == "SmallPillarPair") pillarPairName += " (0)";
 
-    private void AdjustPillars(VideoConfig? videoConfig)
-    {
-        var pillarPair = EnvironmentObjects.LastOrDefault(x => x.name == "PillarPair" && x.activeInHierarchy);
-        if (pillarPair != null)
-        {
-            var pos = pillarPair.transform.position;
-            pillarPair.transform.position = new Vector3(pos.x, pos.y, -90f);
-            pillarPair.transform.localScale = new Vector3(1.0f, 1.0f, 0.5f);
-        }
-    }
+            var match = Regex.Match(pillarPairName, "PillarPair \\(([0-9])\\)$");
+            if (!match.Success)
+            {
+                _loggingService.Debug($"Could not find index of: {pillarPairName}");
+                continue;
+            }
 
-    private void UpdateMovementEffect()
-    {
-        var movementEffect = EnvironmentObjects.LastOrDefault(x => x.name == "Movement" && x.activeInHierarchy);
+            var i = int.Parse(match.Groups[1].Value);
+
+            var children = EnvironmentObjects.Where(x =>
+            {
+                Transform parent;
+                return x.name.Contains("Pillar") &&
+                       (parent = x.transform.parent) != null &&
+                       parent.name == pillarPair.name &&
+                       x.activeInHierarchy;
+            });
+
+            foreach (var child in children)
+            {
+                var childPos = child.transform.position;
+                var sign = 1;
+
+                if (child.name == "PillarL") sign *= -1;
+                var newX = 16f;
+                newX = (newX + i * 2.3f) * sign;
+                child.transform.position = new Vector3(newX, childPos.y, childPos.z);
+                if (pillarPairName.Contains("SmallPillarPair"))
+                    movementEffectStartPositions.Add(new Vector3(newX, 0, 0));
+            }
+
+            var pairPos = pillarPair.transform.position;
+            var newPos = new Vector3(pairPos.x, pairPos.y - 2f, pairPos.z);
+            pillarPair.transform.position = newPos;
+        }
+
+        var movementEffect = Resources.FindObjectsOfTypeAll<MovementBeatmapEventEffect>()
+            .LastOrDefault(x => x.name == "PillarsMovementEffect");
         if (movementEffect != null)
         {
-            var pos = movementEffect.transform.position;
-            movementEffect.transform.position = new Vector3(pos.x, pos.y, -100f);
+            movementEffectStartPositions.Reverse();
+            movementEffect.SetField("_startLocalPositions", movementEffectStartPositions.ToArray());
         }
+        else
+        {
+            _loggingService.Warn("BTS movement effect not found");
+        }
+    }
+
+    private void ModifyOriginsEnvironment(VideoConfig config)
+    {
+        var spectrograms = EnvironmentObjects.Where(x => x.name == "Spectrogram" && x.activeInHierarchy);
+        foreach (var spectrogram in spectrograms)
+        {
+            var pos = spectrogram.transform.position;
+            var newX = 12;
+            if (pos.x < 0) newX *= -1;
+            spectrogram.transform.position = new Vector3(newX, pos.y, pos.z);
+        }
+    }
+
+    private void ModifyKDAEnvironment(VideoConfig config)
+    {
+        var construction = EnvironmentObjects.LastOrDefault(x =>
+            x.name == "Construction" && x.transform.parent.name != "PlayersPlace" && x.activeInHierarchy);
+        if (construction != null)
+            //Stretch it in the y-axis to get rid of the beam above
+            construction.transform.localScale = new Vector3(1, 2, 1);
+
+        var tentacles = EnvironmentObjects.Where(x => x.name.Contains("Tentacle") && x.activeInHierarchy);
+        foreach (var tentacle in tentacles)
+        {
+            var pos = tentacle.transform.position;
+            var rot = tentacle.transform.eulerAngles;
+            const int newPosX = 15;
+            const int newRotY = -135;
+            var sign = 1;
+            if (pos.x < 0) sign = -1;
+
+            tentacle.transform.position = new Vector3(newPosX * sign, pos.y, pos.z);
+            tentacle.transform.eulerAngles = new Vector3(rot.x, newRotY * sign, rot.z);
+        }
+
+        var verticalLasers = EnvironmentObjects.Where(x =>
+            x.name.Contains("Laser") && !x.name.Contains("RotatingLasersPair") && x.activeInHierarchy);
+        foreach (var laser in verticalLasers)
+        {
+            var pos = laser.transform.position;
+            var newX = 10;
+            if (pos.x < 0) newX *= -1;
+
+            var newZ = pos.z;
+            laser.transform.position = new Vector3(newX, pos.y, newZ);
+        }
+
+        var glowLines = EnvironmentObjects.Where(x => x.name.Contains("GlowTopLine") && x.activeInHierarchy);
+        foreach (var glowLine in glowLines)
+        {
+            var pos = glowLine.transform.position;
+            glowLine.transform.position = new Vector3(pos.x, 20f, pos.z);
+        }
+
+        //Move rotating lasers BaseL and BaseR farther away
+        var rotatingLaserPairs =
+            EnvironmentObjects.Where(x => x.name.Contains("RotatingLasersPair") && x.activeInHierarchy);
+        foreach (var laser in rotatingLaserPairs)
+        foreach (Transform child in laser.transform)
+        {
+            var pos = child.transform.position;
+            var newX = 18;
+            if (pos.x < 0) newX *= -1;
+            child.transform.position = new Vector3(newX, pos.y, pos.z);
+        }
+    }
+
+    private void ModifyRocketEnvironment(VideoConfig config)
+    {
+        var cars = EnvironmentObjects.Where(x => x.name.Contains("RocketCar") && x.activeInHierarchy);
+        foreach (var car in cars)
+        {
+            var pos = car.transform.position;
+            var newX = 16;
+            if (pos.x < 0) newX *= -1;
+            car.transform.position = new Vector3(newX, pos.y, pos.z);
+        }
+
+        var arena = EnvironmentObjects.LastOrDefault(x => x.name == "RocketArena" && x.activeInHierarchy);
+        if (arena != null) arena.transform.localScale = new Vector3(2.38f, 2, 1);
+
+        var arenaLight = EnvironmentObjects.LastOrDefault(x => x.name == "RocketArenaLight" && x.activeInHierarchy);
+        if (arenaLight != null)
+        {
+            arenaLight.transform.position = new Vector3(0, 5.8f, 42.4f);
+            arenaLight.transform.localScale = new Vector3(2.38f, 1, 1);
+            arenaLight.transform.eulerAngles = new Vector3(90, 180, 0);
+        }
+
+        var gateLight = EnvironmentObjects.LastOrDefault(x => x.name == "RocketGateLight" && x.activeInHierarchy);
+        if (gateLight != null)
+        {
+            gateLight.transform.position = new Vector3(0, -3, 64);
+            gateLight.transform.localScale = new Vector3(2.6f, 1, 4.5f);
+        }
+    }
+
+    private void ModifyDragonsEnvironment(VideoConfig config)
+    {
+        var spectrograms = EnvironmentObjects.Where(x => x.name == "Spectrogram" && x.activeInHierarchy);
+        foreach (var spectrogram in spectrograms)
+        {
+            var pos = spectrogram.transform.position;
+            var newX = 16;
+            if (pos.x < 0) newX *= -1;
+            spectrogram.transform.position = new Vector3(newX, pos.y, pos.z);
+        }
+
+        //Move rotating lasers BaseL and BaseR from x = -8/+8 to something farther away
+        var rotatingLaserPairs =
+            EnvironmentObjects.Where(x => x.name.Contains("RotatingLasersPair") && x.activeInHierarchy);
+        foreach (var laser in rotatingLaserPairs)
+        foreach (Transform child in laser.transform)
+        {
+            var pos = child.transform.position;
+            var newX = 20;
+            if (pos.x < 0) newX *= -1;
+            child.transform.position = new Vector3(newX, pos.y, pos.z);
+        }
+
+        var topConstructionParts =
+            EnvironmentObjects.Where(x => x.name.Contains("TopConstruction") && x.activeInHierarchy);
+        foreach (var topConstruction in topConstructionParts)
+        {
+            var pos = topConstruction.transform.position;
+            topConstruction.transform.position = new Vector3(pos.x, 27.0f, pos.z);
+        }
+
+        var hallConstruction =
+            EnvironmentObjects.LastOrDefault(x => x.name == "HallConstruction" && x.activeInHierarchy);
+        if (hallConstruction != null)
+        {
+            var pos = hallConstruction.transform.position;
+            hallConstruction.transform.position = new Vector3(pos.x, 22.0f, pos.z);
+        }
+
+        var trackLaneRings =
+            EnvironmentObjects.Where(x => x.name.Contains("PanelsTrackLaneRing") && x.activeInHierarchy);
+        foreach (var ring in trackLaneRings) ring.SetActive(false);
+    }
+
+    private void ModifyDragons2Environment(VideoConfig config)
+    {
+        var directionalLightLeft =
+            EnvironmentObjects.LastOrDefault(x => x.name == "Left" && x.parentName == "CoreLighting");
+        directionalLightLeft?.SetActive(false);
+        var directionalLightRight =
+            EnvironmentObjects.LastOrDefault(x => x.name == "Right" && x.parentName == "CoreLighting");
+        directionalLightRight?.SetActive(false);
+
+        var spectrograms = EnvironmentObjects.Where(x => x.name == "Spectrogram" && x.activeInHierarchy);
+        foreach (var spectrogram in spectrograms)
+        {
+            var pos = spectrogram.transform.position;
+            var newX = 18;
+            var newYRotation = 10;
+            if (pos.x < 0)
+            {
+                newX *= -1;
+                newYRotation = 180 - newYRotation;
+            }
+
+            spectrogram.transform.position = new Vector3(newX, pos.y, pos.z);
+            spectrogram.transform.eulerAngles = new Vector3(0, newYRotation, 0);
+        }
+
+        var hallConstruction =
+            EnvironmentObjects.LastOrDefault(x => x.name == "HallConstruction" && x.activeInHierarchy);
+        if (hallConstruction != null)
+        {
+            var pos = hallConstruction.transform.position;
+            hallConstruction.transform.position = new Vector3(pos.x, 17.2f, pos.z);
+            hallConstruction.transform.localScale = new Vector3(1f, 0.7f, 1f);
+        }
+
+        var trackLaneRings =
+            EnvironmentObjects.Where(x => x.name.Contains("PanelsTrackLaneRing") && x.activeInHierarchy);
+        foreach (var ring in trackLaneRings) ring.SetActive(false);
+    }
+
+    private void ModifyLinkinParkEnvironment(VideoConfig config)
+    {
+        var logo = EnvironmentObjects.LastOrDefault(x =>
+        {
+            Transform parent;
+            return x.name == "Logo" &&
+                   (parent = x.transform.parent) != null &&
+                   parent.name == "Environment" &&
+                   x.activeInHierarchy;
+        });
+        if (logo != null) logo.SetActive(false);
+
+        var environmentScale = new Vector3(4f, 3f, 3f);
+        var invertedScale = new Vector3(1 / environmentScale.x, 1 / environmentScale.y, 1 / environmentScale.z);
+
+        var environment = EnvironmentObjects.LastOrDefault(x => x.name == "Environment" && x.activeInHierarchy);
+        if (environment != null) environment.transform.localScale = environmentScale;
+
+        var trackConstruction =
+            EnvironmentObjects.LastOrDefault(x => x.name == "TrackConstruction" && x.activeInHierarchy);
+        if (trackConstruction != null)
+        {
+            trackConstruction.transform.position = new Vector3(0.9f, 0f, 106.5f);
+            trackConstruction.transform.localScale = invertedScale;
+        }
+
+        var trackMirror = EnvironmentObjects.LastOrDefault(x => x.name == "TrackMirror" && x.activeInHierarchy);
+        if (trackMirror != null)
+        {
+            trackMirror.transform.position = new Vector3(0.3f, 0f, 6.55f);
+            trackMirror.transform.localScale = invertedScale;
+        }
+
+        var trackShadow = EnvironmentObjects.LastOrDefault(x => x.name == "TrackShadow" && x.activeInHierarchy);
+        if (trackShadow != null)
+        {
+            trackShadow.transform.position = new Vector3(0f, -0.3f, 126.1f);
+            trackShadow.transform.localScale = invertedScale;
+        }
+
+        var playersPlace = EnvironmentObjects.LastOrDefault(x => x.name == "PlayersPlace" && x.activeInHierarchy);
+        if (playersPlace != null) playersPlace.transform.localScale = invertedScale;
+
+        var playersPlaceShadow =
+            EnvironmentObjects.LastOrDefault(x => x.name == "PlayersPlaceShadow" && x.activeInHierarchy);
+        if (playersPlaceShadow != null) playersPlaceShadow.transform.localScale = invertedScale;
+
+        var hud = EnvironmentObjects.LastOrDefault(x => x.name == "NarrowGameHUD" && x.activeInHierarchy);
+        if (hud != null) hud.transform.localScale = invertedScale;
+    }
+
+    private void ModifyKaleidoscopeEnvironment(VideoConfig config)
+    {
+        var construction = EnvironmentObjects.LastOrDefault(x =>
+            x.name == "Construction" && x.transform.parent.name != "PlayersPlace" && x.activeInHierarchy);
+        construction?.SetActive(false);
+        var trackMirror = EnvironmentObjects.LastOrDefault(x => x.name == "TrackMirror" && x.activeInHierarchy);
+        trackMirror?.SetActive(false);
+        const float coneOffset = 2.5f;
+        var evenCones = EnvironmentObjects.Where(x =>
+            x.name == "Cone" && x.transform.parent.name == "ConeRing(Clone)" && x.activeInHierarchy);
+        foreach (var glowLine in evenCones)
+        {
+            var localPos = glowLine.transform.localPosition;
+            glowLine.transform.localPosition = new Vector3(localPos.x, localPos.y + coneOffset, localPos.z);
+        }
+
+        var oddCones = EnvironmentObjects.Where(x =>
+            x.name == "Cone (1)" && x.transform.parent.name == "ConeRing(Clone)" && x.activeInHierarchy);
+        foreach (var glowLine in oddCones)
+        {
+            var localPos = glowLine.transform.localPosition;
+            glowLine.transform.localPosition = new Vector3(localPos.x, localPos.y - coneOffset, localPos.z);
+        }
+    }
+
+    private void ModifyGlassDesertEnvironment(VideoConfig config)
+    {
+        var coreHUDController = Resources.FindObjectsOfTypeAll<CoreGameHUDController>()
+            .LastOrDefault(x => x.isActiveAndEnabled);
+
+        if (coreHUDController != null)
+            _playbackManager.SetVideoPlayerSoftParent(coreHUDController.transform);
+    }
+
+    private void ModifyInterscopeEnvironment(VideoConfig config)
+    {
+        // Not full support for this environment (not whitelisted)
+        // These changes just make it look passable when using environment overrides.
+
+        var ceilingFront = EnvironmentObjects.LastOrDefault(x => x.name == "Plane (1)" && x.activeInHierarchy);
+        ceilingFront?.SetActive(false);
+
+        var ceilingBack = EnvironmentObjects.LastOrDefault(x => x.name == "Plane (4)" && x.activeInHierarchy);
+        ceilingBack?.SetActive(false);
+
+        var topLights = EnvironmentObjects.Where(x => x.name.Contains("NeonTop") && x.activeInHierarchy);
+        foreach (var light in topLights) light.SetActive(false);
+    }
+
+    private void ModifyCrabRaveEnvironment(VideoConfig config)
+    {
+        ModifySharedCrabMonstercat(config);
+    }
+
+    private void ModifyMonstercatEnvironment(VideoConfig config)
+    {
+        ModifySharedCrabMonstercat(config);
+    }
+
+    private void ModifySharedCrabMonstercat(VideoConfig config)
+    {
+        var smallRings = EnvironmentObjects.Where(x => x.name == "SmallTrackLaneRing(Clone)" && x.activeInHierarchy);
+        foreach (var ring in smallRings) ring.transform.localScale = new Vector3(3f, 3f, 1f);
+
+        var glowLineL = EnvironmentObjects.LastOrDefault(x => x.name == "GlowLineL" && x.activeInHierarchy);
+        if (glowLineL != null) glowLineL.transform.position = new Vector3(-10f, -1.5f, 9.5f);
+
+        var glowLineR = EnvironmentObjects.LastOrDefault(x => x.name == "GlowLineR" && x.activeInHierarchy);
+        if (glowLineR != null) glowLineR.transform.position = new Vector3(10f, -1.5f, 9.5f);
+
+        var glowLineL2 = EnvironmentObjects.LastOrDefault(x => x.name == "GlowLineL (1)" && x.activeInHierarchy);
+        if (glowLineL2 != null) glowLineL2.transform.position = new Vector3(-12f, 1.5f, -20f);
+
+        var glowLineR2 = EnvironmentObjects.LastOrDefault(x => x.name == "GlowLineR (1)" && x.activeInHierarchy);
+        if (glowLineR2 != null) glowLineR2.transform.position = new Vector3(12f, 1.5f, -20f);
+
+        var monstercatLogo = EnvironmentObjects.Where(x => x.name.Contains("MonstercatLogo") && x.activeInHierarchy);
+        foreach (var logo in monstercatLogo) logo.SetActive(false);
+
+        var glowTopLines = EnvironmentObjects.Where(x => x.name.Contains("GlowTopLine") && x.activeInHierarchy);
+        foreach (var glowTopLine in glowTopLines) glowTopLine.transform.localScale = new Vector3(2, 2, 2);
+
+        var glowTopLine5 = EnvironmentObjects.LastOrDefault(x => x.name == "GlowTopLine (5)" && x.activeInHierarchy);
+        if (glowTopLine5 != null) glowTopLine5.transform.position = new Vector3(0f, 12f, 0f);
+
+        var glowTopLine6 = EnvironmentObjects.LastOrDefault(x => x.name == "GlowTopLine (6)" && x.activeInHierarchy);
+        if (glowTopLine6 != null) glowTopLine6.transform.position = new Vector3(-3f, 12f, 0f);
+
+        var glowTopLine7 = EnvironmentObjects.LastOrDefault(x => x.name == "GlowTopLine (7)" && x.activeInHierarchy);
+        if (glowTopLine7 != null) glowTopLine7.transform.position = new Vector3(3f, 12f, 0f);
+
+        var glowTopLine8 = EnvironmentObjects.LastOrDefault(x => x.name == "GlowTopLine (8)" && x.activeInHierarchy);
+        if (glowTopLine8 != null) glowTopLine8.transform.position = new Vector3(-6f, 12f, 0f);
+
+        var glowTopLine9 = EnvironmentObjects.LastOrDefault(x => x.name == "GlowTopLine (9)" && x.activeInHierarchy);
+        if (glowTopLine9 != null) glowTopLine9.transform.position = new Vector3(6f, 12f, 0f);
+
+        var glowTopLine10 = EnvironmentObjects.LastOrDefault(x => x.name == "GlowTopLine (10)" && x.activeInHierarchy);
+        if (glowTopLine10 != null) glowTopLine10.transform.position = new Vector3(-9f, 12f, 1f);
+
+        var glowTopLine11 = EnvironmentObjects.LastOrDefault(x => x.name == "GlowTopLine (11)" && x.activeInHierarchy);
+        if (glowTopLine11 != null) glowTopLine11.transform.position = new Vector3(9f, 12f, 1f);
+
+        var rotatingLasers =
+            EnvironmentObjects.Where(x => x.name.Contains("RotatingLasersPair") && x.activeInHierarchy);
+        foreach (var rotatingLaser in rotatingLasers) rotatingLaser.transform.eulerAngles = new Vector3(-15, 0, 180);
+
+        var farBuildings = EnvironmentObjects.LastOrDefault(x => x.name == "FarBuildings" && x.activeInHierarchy);
+        if (farBuildings != null)
+        {
+            farBuildings.transform.localScale = new Vector3(1.1f, 1f, 1f);
+            farBuildings.transform.position = new Vector3(0f, -5f, -30f);
+        }
+
+        var construction = EnvironmentObjects.LastOrDefault(x =>
+            x.name == "Construction" && x.transform.parent.name != "PlayersPlace" && x.activeInHierarchy);
+        if (construction != null)
+        {
+            construction.transform.position = new Vector3(0f, -1f, 2f);
+            construction.transform.localScale = new Vector3(1.5f, 1, 1);
+        }
+
+        var vConstruction = EnvironmentObjects.LastOrDefault(x => x.name == "VConstruction" && x.activeInHierarchy);
+        if (vConstruction != null)
+        {
+            vConstruction.transform.position = new Vector3(0f, 2f, -1f);
+            vConstruction.transform.localScale = new Vector3(1f, 1, 0.7f);
+        }
+
+        var trackMirror = EnvironmentObjects.LastOrDefault(x => x.name == "TrackMirror" && x.activeInHierarchy);
+        if (trackMirror != null)
+        {
+            trackMirror.transform.position = new Vector3(0f, -1f, 9.75f);
+            trackMirror.transform.localScale = new Vector3(1.8f, 1, 1);
+        }
+
+        var laser4 = EnvironmentObjects.LastOrDefault(x => x.name == "Laser (4)" && x.activeInHierarchy);
+        if (laser4 != null)
+        {
+            laser4.transform.position = new Vector3(12.4f, 10f, 9.9f);
+            laser4.transform.eulerAngles = new Vector3(0f, 0, -30);
+        }
+
+        var laser5 = EnvironmentObjects.LastOrDefault(x => x.name == "Laser (5)" && x.activeInHierarchy);
+        if (laser5 != null)
+        {
+            laser5.transform.position = new Vector3(-12.4f, 10f, 9.9f);
+            laser5.transform.eulerAngles = new Vector3(0f, 0, 30);
+        }
+
+        // Not a typo, Beat Games apparently just skipped Laser (6)
+        var laser6 = EnvironmentObjects.LastOrDefault(x => x.name == "Laser (7)" && x.activeInHierarchy);
+        if (laser6 != null)
+        {
+            laser6.transform.position = new Vector3(12.4f, 10f, 9.7f);
+            laser6.transform.eulerAngles = new Vector3(0f, 0, -30);
+        }
+
+        var laser7 = EnvironmentObjects.LastOrDefault(x => x.name == "Laser (8)" && x.activeInHierarchy);
+        if (laser7 != null)
+        {
+            laser7.transform.position = new Vector3(-12.4f, 10f, 9.7f);
+            laser7.transform.eulerAngles = new Vector3(0f, 0, 30);
+        }
+
+        var laser8 = EnvironmentObjects.LastOrDefault(x => x.name == "Laser (9)" && x.activeInHierarchy);
+        if (laser8 != null)
+        {
+            laser8.transform.position = new Vector3(12.4f, 10f, 9.5f);
+            laser8.transform.eulerAngles = new Vector3(0f, 0, -30);
+        }
+
+        var laser9 = EnvironmentObjects.LastOrDefault(x => x.name == "Laser (10)" && x.activeInHierarchy);
+        if (laser9 != null)
+        {
+            laser9.transform.position = new Vector3(-12.4f, 10f, 9.5f);
+            laser9.transform.eulerAngles = new Vector3(0f, 0, 30);
+        }
+
+        var laser10 = EnvironmentObjects.LastOrDefault(x => x.name == "Laser (11)" && x.activeInHierarchy);
+        if (laser10 != null)
+        {
+            laser10.transform.position = new Vector3(12.4f, 10f, 9.3f);
+            laser10.transform.eulerAngles = new Vector3(0f, 0, -30);
+        }
+
+        var laser11 = EnvironmentObjects.LastOrDefault(x => x.name == "Laser (12)" && x.activeInHierarchy);
+        if (laser11 != null)
+        {
+            laser11.transform.position = new Vector3(-12.4f, 10f, 9.3f);
+            laser11.transform.eulerAngles = new Vector3(0f, 0, 30);
+        }
+    }
+
+    private void ModifySkrillexEnvironment(VideoConfig config)
+    {
+        var skrillexLogoTop = EnvironmentObjects.LastOrDefault(x => x.name == "SkrillexLogo" && x.activeInHierarchy);
+        if (skrillexLogoTop != null) skrillexLogoTop.transform.position = new Vector3(-0.23f, 15.5f, 60f);
+
+        var skrillexLogoBottom =
+            EnvironmentObjects.LastOrDefault(x => x.name == "SkrillexLogo (1)" && x.activeInHierarchy);
+        if (skrillexLogoBottom != null) skrillexLogoBottom.transform.position = new Vector3(-0.23f, -15.5f, 60f);
+    }
+
+    private void ModifyPyroEnvironment(VideoConfig config)
+    {
+        var logo = EnvironmentObjects.LastOrDefault(x => x.name == "PyroLogo" && x.activeInHierarchy);
+        if (logo != null) logo.SetActive(false);
+
+        //Pull light groups in front of the screen
+        var leftLightGroup = EnvironmentObjects.LastOrDefault(x => x.name == "LightGroupLeft" && x.activeInHierarchy);
+        if (leftLightGroup != null)
+        {
+            leftLightGroup.transform.position = new Vector3(-11.1f, 0.99f, 59f);
+            leftLightGroup.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
+        }
+
+        var rightLightGroup = EnvironmentObjects.LastOrDefault(x => x.name == "LightGroupRight" && x.activeInHierarchy);
+        if (rightLightGroup != null)
+        {
+            rightLightGroup.transform.position = new Vector3(11.1f, 0.99f, 59f);
+            rightLightGroup.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
+        }
+
+        var video = EnvironmentObjects.LastOrDefault(x => x.name == "Video" && x.activeInHierarchy);
+        if (video != null) video.SetActive(false);
+
+        var screens = EnvironmentObjects.Where(x => x.name.Contains("ScreenSetup") && x.activeInHierarchy);
+        foreach (var screen in screens) screen.SetActive(false);
+
+        var lightboxLeft =
+            EnvironmentObjects.LastOrDefault(x => x.name == "LightBoxesScaffoldingLeft" && x.activeInHierarchy);
+        if (lightboxLeft != null) lightboxLeft.transform.position = new Vector3(-37.65f, -2.92f, 50.54f);
+
+        var lightboxRight =
+            EnvironmentObjects.LastOrDefault(x => x.name == "LightBoxesScaffoldingRight" && x.activeInHierarchy);
+        if (lightboxRight != null) lightboxRight.transform.position = new Vector3(37.65f, -2.92f, 50.54f);
+
+        var mainLasersLeft =
+            EnvironmentObjects.LastOrDefault(x => x.name == "LightGroupCloserLeft" && x.activeInHierarchy);
+        if (mainLasersLeft != null) mainLasersLeft.transform.position = new Vector3(-35.13f, -0.02f, 66.74f);
+
+        var mainLasersRight =
+            EnvironmentObjects.LastOrDefault(x => x.name == "LightGroupCloserRight" && x.activeInHierarchy);
+        if (mainLasersRight != null) mainLasersRight.transform.position = new Vector3(35.13f, -0.02f, 66.74f);
+
+        var stairs = EnvironmentObjects.LastOrDefault(x => x.name == "Stairs" && x.activeInHierarchy);
+        if (stairs != null) stairs.transform.position = new Vector3(0f, -1f, 51.31f);
+
+        var crowd = EnvironmentObjects.LastOrDefault(x => x.name == "CrowdFlipbookGroup" && x.activeInHierarchy);
+        if (crowd != null) crowd.transform.position = new Vector3(-4.83f, -0.40f, -1.80f);
+
+        var cloneConfigLeft = new EnvironmentModification { cloneFrom = "ScafoldTriangularLeft" };
+        var leftScaffoldingList = SelectObjectsFromScene(cloneConfigLeft, true);
+        if (leftScaffoldingList.Any())
+        {
+            var original = leftScaffoldingList.First();
+            var clone = CloneObject(original.gameObject, cloneConfigLeft, config, true);
+            clone.gameObject.transform.position = new Vector3(original.position.x, 0.97f, original.position.z);
+            clone.gameObject.transform.localScale = new Vector3(original.scale.x, 4f, original.scale.z);
+        }
+
+        var cloneConfigRight = new EnvironmentModification { cloneFrom = "ScafoldTriangularRight" };
+        var rightScaffoldingList = SelectObjectsFromScene(cloneConfigRight, true);
+        if (rightScaffoldingList.Any())
+        {
+            var original = rightScaffoldingList.First();
+            var clone = CloneObject(original.gameObject, cloneConfigRight, config, true);
+            clone.gameObject.transform.position = new Vector3(original.position.x, 0.97f, original.position.z);
+            clone.gameObject.transform.localScale = new Vector3(original.scale.x, 4f, original.scale.z);
+        }
+    }
+
+    private void ModifyLizzoEnvironment(VideoConfig config)
+    {
+        var rainbow = EnvironmentObjects.LastOrDefault(x => x.name == "Rainbow" && x.activeInHierarchy);
+        if (rainbow != null)
+        {
+            rainbow.transform.position = new Vector3(0f, 2.1f, 65.51f);
+            rainbow.transform.localScale = new Vector3(2f, 2f, 2f);
+        }
+
+        var rainbowLights =
+            EnvironmentObjects.LastOrDefault(x => x.name == "BehindRainbowSpotlights" && x.activeInHierarchy);
+        if (rainbowLights != null)
+        {
+            rainbowLights.transform.position = new Vector3(0f, 2.1f, 62.24f);
+            rainbowLights.transform.localScale = new Vector3(2f, 2f, 2f);
+        }
+    }
+
+    private void ModifyWeaveEnvironment(VideoConfig config)
+    {
+        var lightGroupLeft = EnvironmentObjects.LastOrDefault(x => x.name == "LightGroup14" && x.activeInHierarchy);
+        if (lightGroupLeft != null)
+            lightGroupLeft.transform.position = new Vector3(-3.85f, 1.50f, 20.90f);
+
+        var lightGroupRight = EnvironmentObjects.LastOrDefault(x => x.name == "LightGroup15" && x.activeInHierarchy);
+        if (lightGroupRight != null)
+            lightGroupRight.transform.position = new Vector3(3.85f, 1.50f, 20.90f);
+    }
+
+    private void ModifyEDMEnvironment(VideoConfig config)
+    {
+        var spectrograms = EnvironmentObjects.LastOrDefault(x => x.name == "Spectrograms" && x.activeInHierarchy);
+        if (spectrograms != null) spectrograms.transform.position = new Vector3(0f, -2f, 1.2f);
     }
 
     #endregion

@@ -1035,4 +1035,9 @@ public class PlaybackManager : MonoBehaviour
         _videoPlayer.SetPlacement(
             Placement.CreatePlacementForConfig(config, scene, _videoPlayer.GetVideoAspectRatio()));
     }
+
+    public void SetVideoPlayerSoftParent(Transform transform)
+    {
+        _videoPlayer.SetSoftParent(transform);
+    }
 }
