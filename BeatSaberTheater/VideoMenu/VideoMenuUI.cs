@@ -890,7 +890,7 @@ public class VideoMenuUI : IInitializable, IDisposable
 
         _downloadButton.interactable = false;
         var config =
-            new VideoConfig(_searchService.SearchResults[_selectedCell], VideoLoader.GetLevelPath(_currentLevel))
+            new VideoConfig(_searchService.SearchResults[_selectedCell], VideoLoader.GetTheaterLevelPath(_currentLevel))
                 { NeedsToSave = true };
         _videoLoader.AddConfigToCache(config, _currentLevel);
         _searchService.StopSearch();

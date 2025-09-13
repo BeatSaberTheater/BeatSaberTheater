@@ -13,6 +13,7 @@ using BeatmapEditor3D.DataModels;
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video.Config;
+using IPA.Utilities;
 using IPA.Utilities.Async;
 using Newtonsoft.Json;
 using SongCore;
@@ -21,7 +22,10 @@ using Zenject;
 
 namespace BeatSaberTheater.Video;
 
-public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingService _loggingService)
+public class VideoLoader(
+    TheaterCoroutineStarter _coroutineStarter,
+    LoggingService _loggingService,
+    CustomLevelLoader _customLevelLoader)
     : IInitializable, IDisposable
 {
     private const string LEGACY_OST_DIRECTORY_NAME = "CinemaOSTVideos";
@@ -134,14 +138,15 @@ public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingServi
 
     private static void IndexMap(BeatmapLevel level)
     {
-        var levelPath = GetLevelPath(level);
+        var levelPath = GetTheaterLevelPath(level);
         var configPath = GetConfigPath(levelPath);
         if (File.Exists(configPath)) MapsWithVideo.TryAdd(level.levelID, 0);
     }
 
     public static string GetConfigPath(string levelPath)
     {
-        if (levelPath.Contains(LEGACY_OST_DIRECTORY_NAME)) return Path.Combine(levelPath, LEGACY_CONFIG_FILENAME);
+        var legacyConfigPath = Path.Combine(levelPath, LEGACY_CONFIG_FILENAME);
+        if (File.Exists(legacyConfigPath)) return legacyConfigPath;
 
         return Path.Combine(levelPath, CONFIG_FILENAME);
     }
@@ -179,7 +184,7 @@ public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingServi
             return null;
         }
 
-        config.LevelDir = GetLevelPath(level);
+        config.LevelDir = GetTheaterLevelPath(level);
         config.bundledConfig = true;
         _loggingService.Debug("Loaded from bundled configs");
         return config;
@@ -193,7 +198,7 @@ public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingServi
 
     public void SetupFileSystemWatcher(BeatmapLevel level)
     {
-        var levelPath = GetLevelPath(level);
+        var levelPath = GetTheaterLevelPath(level);
         ListenForConfigChanges(levelPath);
     }
 
@@ -332,11 +337,18 @@ public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingServi
         }
 
         VideoConfig? videoConfig = null;
-        var levelPath = GetLevelPath(level);
+        var levelPath = GetTheaterLevelPath(level);
         if (Directory.Exists(levelPath))
             videoConfig = LoadConfig(GetConfigPath(levelPath));
         else
             _loggingService.Debug($"Path does not exist: {levelPath}");
+
+        // Check the song folder for the video config
+        if (videoConfig == null)
+        {
+            var mapPath = GetMapPath(level);
+            videoConfig = LoadConfig(GetConfigPath(mapPath));
+        }
 
         if (InstalledMods.BeatSaberPlaylistsLib && videoConfig == null &&
             level.TryGetPlaylistLevelConfig(levelPath, out var playlistConfig)) videoConfig = playlistConfig;
@@ -344,18 +356,27 @@ public class VideoLoader(TheaterCoroutineStarter _coroutineStarter, LoggingServi
         return videoConfig ?? GetConfigFromBundledConfigs(level);
     }
 
-    public static string GetLevelPath(BeatmapLevel level)
+    private string GetMapPath(BeatmapLevel level)
+    {
+        _customLevelLoader._loadedBeatmapSaveData.TryGetValue(level.levelID, out var loadedSaveData);
+        var mapPath = loadedSaveData.customLevelFolderInfo.folderPath;
+        _loggingService.Debug($"Found map: {mapPath}");
+
+        return mapPath;
+    }
+
+    public static string GetTheaterLevelPath(BeatmapLevel level)
     {
         var songName = level.songName.Trim();
         songName = TheaterFileHelpers.ReplaceIllegalFilesystemChars(songName);
-        var levelPath = Path.Combine(System.Environment.CurrentDirectory, "Beat Saber_Data", "CustomLevels",
+        var levelPath = Path.Combine(UnityGame.InstallPath, "Beat Saber_Data", "CustomLevels",
             OST_DIRECTORY_NAME,
             songName);
 
         // Check Cinema folder if Theater config doesn't exist
         if (!Directory.Exists(levelPath))
         {
-            var legacyLevelPath = Path.Combine(System.Environment.CurrentDirectory, "Beat Saber_Data", "CustomLevels",
+            var legacyLevelPath = Path.Combine(UnityGame.InstallPath, "Beat Saber_Data", "CustomLevels",
                 LEGACY_OST_DIRECTORY_NAME,
                 songName);
             if (Directory.Exists(legacyLevelPath))

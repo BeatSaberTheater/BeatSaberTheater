@@ -39,11 +39,11 @@ public static class PlaylistSongUtils
     /// <summary>
     /// Do not call this method without checking if BeatSaberPlaylistsLib is installed with <see cref="InstalledMods"/>
     /// </summary>
-    public static VideoConfig? TryLoadConfig(this PlaylistLevel playlistLevel, string levelPath,
-        bool useLegacyPath = false)
+    private static VideoConfig? TryLoadConfig(this PlaylistLevel playlistLevel, string levelPath)
     {
         var playlistSong = playlistLevel.playlistSong;
-        if (playlistSong.TryGetCustomData("theater", out var theaterData))
+        if (playlistSong.TryGetCustomData("theater", out var theaterData) ||
+            playlistSong.TryGetCustomData("cinema", out theaterData))
         {
             VideoConfig? videoConfig;
             try
