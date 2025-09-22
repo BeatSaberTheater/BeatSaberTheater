@@ -59,11 +59,6 @@ public static class Events
         LevelSelected?.InvokeSafe(new LevelSelectedArgs(level), nameof(LevelSelected));
     }
 
-    internal static void SetSelectedLevel(BeatmapDataModel? beatmapData, string originalPath)
-    {
-        LevelSelected?.InvokeSafe(new LevelSelectedArgs(null, beatmapData, originalPath), nameof(LevelSelected));
-    }
-
     internal static void SetExtraSongData(SongCore.Data.SongData? songData,
         SongCore.Data.SongData.DifficultyData? selectedDifficultyData)
     {
