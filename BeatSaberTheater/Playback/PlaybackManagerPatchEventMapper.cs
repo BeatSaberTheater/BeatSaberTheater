@@ -124,6 +124,7 @@ internal class PlaybackManagerPatchEventMapper : IInitializable, IDisposable
         yield return new WaitForSeconds(InstalledMods.CustomPlatforms ? 0.75f : 0.05f);
 
         _environmentManipulator.ModifyGameScene(_playbackManager.GetVideoConfig());
+        _loggingService.Debug("GameScene modification finished");
     }
 
     private void WaitThenStartVideoPlayback()

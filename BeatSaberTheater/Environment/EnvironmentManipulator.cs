@@ -16,7 +16,7 @@ using Scene = BeatSaberTheater.Util.Scene;
 
 namespace BeatSaberTheater.Environment;
 
-public class EnvironmentManipulator
+public class EnvironmentManipulator : IInitializable
 {
     private const float CLONED_OBJECT_Z_OFFSET = 200f;
     private const string CLONED_OBJECT_NAME_SUFFIX = " (TheaterClone)";
@@ -92,7 +92,7 @@ public class EnvironmentManipulator
         };
     }
 
-    public void Init()
+    public void Initialize()
     {
         SceneManager.activeSceneChanged += SceneChanged;
     }
@@ -135,10 +135,17 @@ public class EnvironmentManipulator
         if (!_config.PluginEnabled || videoConfig == null ||
             (!videoConfig.IsPlayable && (videoConfig.forceEnvironmentModifications == null ||
                                          videoConfig.forceEnvironmentModifications == false)))
+        {
+            _loggingService.Debug("Exiting without modifying the game scene");
             return;
+        }
 
-        // Make sure the environment is only modified once, since the trigger for this functions runs multiple times
-        if (_environmentModified) return;
+        // Make sure the environment is only modified once, since the trigger for these functions runs multiple times
+        if (_environmentModified)
+        {
+            _loggingService.Debug("GameScene already modified, skipping modifications");
+            return;
+        }
 
         _environmentModified = true;
         _currentEnvironmentName = TheaterFileHelpers.GetEnvironmentName();
