@@ -273,8 +273,7 @@ public class DownloadService : YoutubeDLServiceBase
         if (format == VideoFormats.Format.Webm)
         {
             var threadsToUse = Math.Max(1, Math.Round(System.Environment.ProcessorCount / 2f));
-            downloadProcessArguments +=
-                $" --ppa \"ffmpeg:-c:v libvpx -crf 10 -b:v 4M -c:a libvorbis -quality good -threads {threadsToUse} -cpu-used 5 '{Path.GetFileNameWithoutExtension(video.VideoPath)}.webm'\"";
+            downloadProcessArguments += $" --ppa \"ffmpeg:-c:v libvpx -crf 10 -b:v 4M -quality realtime -cpu-used 8 -c:a libvorbis '{Path.GetFileNameWithoutExtension(video.VideoPath)}.webm'\"";
             video.videoFile = Path.GetFileNameWithoutExtension(video.videoFile) + ".webm";
         }
         else
