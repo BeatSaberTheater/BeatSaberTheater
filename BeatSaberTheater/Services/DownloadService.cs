@@ -259,11 +259,12 @@ public class DownloadService : YoutubeDLServiceBase
 
         var videoFormat = VideoQuality.ToYoutubeDLFormat(video, quality);
         videoFormat = videoFormat.Length > 0 ? $" -f \"{videoFormat}\"" : "";
-
+        var outputPath = video.VideoPath;
+        
         var downloadProcessArguments = videoUrl +
                                        videoFormat +
                                        " --no-cache-dir" + // Don't use temp storage
-                                       $" -o \"{video.VideoPath}\"" +
+                                       $" -o \"{outputPath}\"" +
                                        " --no-playlist" + // Don't download playlists, only the first video
                                        " --no-part" + // Don't store download in parts, write directly to file
                                        " --no-mtime" + //Video last modified will be when it was downloaded, not when it was uploaded to youtube
@@ -282,6 +283,24 @@ public class DownloadService : YoutubeDLServiceBase
         }
 
         var process = CreateProcess(downloadProcessArguments, video.LevelDir);
+        if (format == VideoFormats.Format.Webm)
+        {
+            // Clean up download .mp4 file when using Webm. It is not used, and nearly doubles the size on disk of the video files
+            process.Disposed += ((_, _) =>
+            {
+                Plugin._log.Info("Cleaning up present mp4 file. Reason: WebM is requested as output format");
+                if (File.Exists(outputPath))
+                {
+                    File.Delete(outputPath);
+                    Plugin._log.Info("Removed: " + outputPath);
+                }
+                else
+                {
+                    Plugin._log.Warn("Video file doesn't exist - cannot remove: " + outputPath);
+                }
+            });
+        }
+        
         _downloadProcesses.TryAdd(video, process);
         return process;
     }
