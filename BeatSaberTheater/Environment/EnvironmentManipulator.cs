@@ -275,7 +275,8 @@ public class EnvironmentManipulator : IInitializable
             var i = 0;
             foreach (var screenConfig in config.additionalScreens)
             {
-                var clone = _playbackManager.FindVideoPlayerScreen(screen => screen.name.EndsWith("(" + i + ")"));
+                var clone = _playbackManager.FindVideoPlayerScreen(screen =>
+                    screen.Screen.name.EndsWith("(" + i + ")"));
                 if (clone is null)
                 {
                     _loggingService.Error($"Couldn't find a screen ending with {"(" + i + ")"}");
@@ -339,10 +340,11 @@ public class EnvironmentManipulator : IInitializable
         _loggingService.Debug($"Screens found: {screenCount}");
         foreach (Transform screen in _playbackManager.gameObject.transform)
         {
-            if (!screen.name.StartsWith("TheaterScreen")) return;
+            if (!screen.name.StartsWith("CinemaScreen")) return;
 
             if (screen.name.Contains("Clone"))
             {
+                // This may need to get reworked to ensure the CurvedSurface and CustomBloomPrePass get removed properly
                 _playbackManager.AddScreenToVideoPlayer(screen.gameObject);
                 screen.GetComponent<Renderer>().material =
                     _playbackManager.GetVideoPlayerFirstScreen()?.GetComponent<Renderer>().material;

@@ -481,7 +481,9 @@ public class VideoLoader(
         VideoConfig? videoConfig;
         try
         {
+            _loggingService.Debug($"Config path: {configPath}");
             var json = File.ReadAllText(configPath);
+            _loggingService.Debug($"Config json: {json}");
             videoConfig = JsonConvert.DeserializeObject<VideoConfig>(json);
         }
         catch (Exception e)

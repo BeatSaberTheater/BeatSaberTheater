@@ -70,7 +70,9 @@ public class PlaybackManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        _videoPlayer.Shutdown(FrameReady, OnPrepareComplete, VideoPlayerErrorReceived);
+        if (_videoPlayer != null)
+            _videoPlayer.Shutdown(FrameReady, OnPrepareComplete, VideoPlayerErrorReceived);
+
         BSEvents.gameSceneActive -= GameSceneActive;
         BSEvents.gameSceneLoaded -= GameSceneLoaded;
         BSEvents.lateMenuSceneLoadedFresh -= OnMenuSceneLoadedFresh;
@@ -345,6 +347,7 @@ public class PlaybackManager : MonoBehaviour
         _loggingService.Info("MenuSceneLoaded");
         _activeScene = Scene.Menu;
         _videoPlayer.Hide();
+        _videoPlayer.ResetScreens();
         StopAllCoroutines();
         _previewWaitingForPreviewPlayer = true;
         gameObject.SetActive(true);
@@ -960,7 +963,7 @@ public class PlaybackManager : MonoBehaviour
         _videoPlayer.DisableScreen();
     }
 
-    public GameObject? FindVideoPlayerScreen(Predicate<GameObject> predicate)
+    public GameObject? FindVideoPlayerScreen(Predicate<ScreenObjectGroup> predicate)
     {
         return _videoPlayer.FindScreen(predicate);
     }

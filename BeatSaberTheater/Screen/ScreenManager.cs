@@ -4,17 +4,16 @@ using System.Linq;
 using BeatSaberTheater.Models;
 using BeatSaberTheater.Screen.Interfaces;
 using BeatSaberTheater.Util;
-using BeatSaberTheater.Video;
 using BeatSaberTheater.Video.Config;
-using ModestTree;
 using UnityEngine;
 using Zenject;
+using Object = UnityEngine.Object;
 
 namespace BeatSaberTheater.Screen;
 
 public class ScreenManager : IInitializable
 {
-    internal readonly List<GameObject> Screens = new();
+    internal readonly List<ScreenObjectGroup> ScreenGroups = new();
 
     private readonly MaterialPropertyBlock _materialPropertyBlock;
     private static readonly int Brightness = Shader.PropertyToID("_Brightness");
@@ -50,20 +49,38 @@ public class ScreenManager : IInitializable
 
     internal void CreateScreen(Transform parent)
     {
-        var newScreen = new GameObject("TheaterScreen")
+        var newScreen = new GameObject("CinemaScreen")
         {
             transform =
             {
                 parent = parent.transform
             }
         };
-        _curvedSurfaceFactory.Create(newScreen);
+        var curvedSurface = _curvedSurfaceFactory.Create(newScreen);
         newScreen.layer = LayerMask.NameToLayer("Environment");
         newScreen.GetComponent<Renderer>();
         CreateScreenBody(newScreen.transform);
-        _customBloomPrePassFactory.Create(newScreen);
+        var customBloomPrePass = _customBloomPrePassFactory.Create(newScreen);
         newScreen.AddComponent<SoftParent>();
-        Screens.Add(newScreen);
+        ScreenGroups.Add(
+            new ScreenObjectGroup(newScreen, curvedSurface, customBloomPrePass));
+    }
+
+    internal void ResetScreens()
+    {
+        // Remove all but the first
+        for (var i = 1; i < ScreenGroups.Count; i++)
+        {
+            var group = ScreenGroups[i];
+            Object.Destroy(group.Screen);
+            if (group.CurvedSurface != null)
+                Object.Destroy(group.CurvedSurface);
+            if (group.CustomBloomPrePass != null)
+                Object.Destroy(group.CustomBloomPrePass);
+        }
+
+        if (ScreenGroups.Count > 1)
+            ScreenGroups.RemoveRange(1, ScreenGroups.Count - 1);
     }
 
     private void CreateScreenBody(Component parent)
@@ -80,9 +97,9 @@ public class ScreenManager : IInitializable
 
     internal void OnGameSceneLoadedFresh()
     {
-        Screens.ForEach(s =>
+        ScreenGroups.ForEach(screenGroup =>
         {
-            var body = s.transform.Find("Body");
+            var body = screenGroup.Screen.transform.Find("Body");
             var bodyRenderer = body.GetComponent<Renderer>();
             if (bodyRenderer == null)
             {
@@ -122,17 +139,17 @@ public class ScreenManager : IInitializable
 
     public void SetScreensActive(bool active)
     {
-        foreach (var screen in Screens) screen.SetActive(active);
+        foreach (var screen in ScreenGroups) screen.Screen.SetActive(active);
     }
 
     public void SetScreenBodiesActive(bool active)
     {
-        foreach (var screen in Screens) screen.transform.GetChild(0).gameObject.SetActive(active);
+        foreach (var screen in ScreenGroups) screen.Screen.transform.GetChild(0).gameObject.SetActive(active);
     }
 
     public Renderer GetRenderer()
     {
-        return Screens[0].GetComponent<Renderer>();
+        return ScreenGroups[0].Screen.GetComponent<Renderer>();
     }
 
     public RenderTexture CreateRenderTexture()
@@ -151,7 +168,7 @@ public class ScreenManager : IInitializable
     private void SetPlacement(Vector3 pos, Vector3 rot, float width, float height, float? curvatureDegrees = null,
         int? subsurfaces = null, bool? curveYAxis = false)
     {
-        var screen = Screens[0];
+        var screen = ScreenGroups[0].Screen;
         screen.transform.position = pos;
         screen.transform.eulerAngles = rot;
         screen.transform.localScale = Vector3.one;
@@ -168,8 +185,9 @@ public class ScreenManager : IInitializable
     private void InitializeSurfaces(float width, float height, float distance, float? curvatureDegrees,
         int? subsurfaces, bool? curveYAxis)
     {
-        foreach (var screen in Screens)
+        foreach (var screenGroup in ScreenGroups)
         {
+            var screen = screenGroup.Screen;
             var screenSurface = screen.GetComponent<CurvedSurface>();
             var screenBodySurface = screen.transform.GetChild(0).GetComponent<CurvedSurface>();
             var screenBloomPrePass = screen.GetComponent<CustomBloomPrePass>();
@@ -182,8 +200,9 @@ public class ScreenManager : IInitializable
 
     private void RegenerateScreenSurfaces()
     {
-        foreach (var screen in Screens)
+        foreach (var screenGroup in ScreenGroups)
         {
+            var screen = screenGroup.Screen;
             screen.GetComponent<CurvedSurface>().Generate();
             screen.transform.GetChild(0).GetComponent<CurvedSurface>().Generate(); //screen body
             screen.GetComponent<CustomBloomPrePass>().UpdateMesh();
@@ -192,14 +211,15 @@ public class ScreenManager : IInitializable
 
     public void SetBloomIntensity(float? bloomIntensity)
     {
-        foreach (var screen in Screens)
-            screen.GetComponent<CustomBloomPrePass>().SetBloomIntensityConfigSetting(bloomIntensity);
+        foreach (var screenGroup in ScreenGroups)
+            screenGroup.Screen.GetComponent<CustomBloomPrePass>().SetBloomIntensityConfigSetting(bloomIntensity);
     }
 
     public void SetAspectRatio(float ratio)
     {
-        foreach (var screen in Screens)
+        foreach (var screenGroup in ScreenGroups)
         {
+            var screen = screenGroup.Screen;
             var screenSurface = screen.GetComponent<CurvedSurface>();
             var screenBodySurface = screen.transform.GetChild(0).GetComponent<CurvedSurface>();
             var screenBloomPrePass = screen.GetComponent<CustomBloomPrePass>();
@@ -214,16 +234,16 @@ public class ScreenManager : IInitializable
 
     public void SetSoftParent(Transform? parent)
     {
-        var softParent = Screens[0].GetComponent<SoftParent>();
+        var softParent = ScreenGroups[0].Screen.GetComponent<SoftParent>();
         softParent.enabled = parent != null;
         softParent.AssignParent(parent);
     }
 
     public void SetShaderParameters(VideoConfig? config)
     {
-        foreach (var screen in Screens)
+        foreach (var screenGroup in ScreenGroups)
         {
-            var screenRenderer = screen.GetComponent<Renderer>();
+            var screenRenderer = screenGroup.Screen.GetComponent<Renderer>();
 
             var colorCorrection = config?.colorCorrection;
             var vignette = config?.vignette;
@@ -248,9 +268,9 @@ public class ScreenManager : IInitializable
 
     public void SetVignette(Vignette? vignette = null, MaterialPropertyBlock? materialPropertyBlock = null)
     {
-        foreach (var screen in Screens)
+        foreach (var screenGroup in ScreenGroups)
         {
-            var screenRenderer = screen.GetComponent<Renderer>();
+            var screenRenderer = screenGroup.Screen.GetComponent<Renderer>();
             var setPropertyBlock = materialPropertyBlock == null;
             if (setPropertyBlock)
             {
@@ -280,7 +300,7 @@ public class ScreenManager : IInitializable
     public void EnableColorBlending(bool enable)
     {
         _loggingService.Debug("Enabling color blending: " + enable);
-        var screenRenderer = Screens[0].GetComponent<Renderer>();
+        var screenRenderer = ScreenGroups[0].Screen.GetComponent<Renderer>();
         SetBlendMode(enable ? BlendMode.SoftAdditive : BlendMode.PerfectVisibility, screenRenderer.material);
     }
 
