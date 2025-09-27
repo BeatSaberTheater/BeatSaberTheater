@@ -19,5 +19,6 @@ internal class PluginConfig
     public virtual int BloomIntensity { get; set; } = 100;
     public virtual float CornerRoundness { get; set; }
     public virtual VideoQuality.Mode QualityMode { get; set; } = VideoQuality.Mode.Q720P;
+    public virtual VideoFormats.Format Format { get; set; } = VideoFormats.Format.Mp4;
     public virtual bool ForceDisableEnvironmentOverrides { get; set; } = false;
 }

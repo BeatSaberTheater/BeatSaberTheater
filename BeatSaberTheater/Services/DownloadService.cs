@@ -47,16 +47,16 @@ public class DownloadService : YoutubeDLServiceBase
         _videoLoader = videoLoader;
     }
 
-    public void StartDownload(VideoConfig video, VideoQuality.Mode quality)
+    public void StartDownload(VideoConfig video, VideoQuality.Mode quality, VideoFormats.Format format)
     {
-        _coroutineStarter.StartCoroutine(DownloadVideoCoroutine(video, quality));
+        _coroutineStarter.StartCoroutine(DownloadVideoCoroutine(video, quality, format));
     }
 
-    private IEnumerator DownloadVideoCoroutine(VideoConfig video, VideoQuality.Mode quality)
+    private IEnumerator DownloadVideoCoroutine(VideoConfig video, VideoQuality.Mode quality, VideoFormats.Format format)
     {
         _loggingService.Info($"Starting download of {video.title}");
 
-        var downloadProcess = CreateDownloadProcess(video, quality);
+        var downloadProcess = CreateDownloadProcess(video, quality, format);
         if (downloadProcess == null)
         {
             _loggingService.Warn("Failed to create download process");
@@ -207,7 +207,7 @@ public class DownloadService : YoutubeDLServiceBase
         DownloadFinished?.Invoke(video);
     }
 
-    private Process? CreateDownloadProcess(VideoConfig video, VideoQuality.Mode quality)
+    private Process? CreateDownloadProcess(VideoConfig video, VideoQuality.Mode quality, VideoFormats.Format format)
     {
         if (video.LevelDir == null || video.VideoPath == null)
         {
@@ -266,9 +266,19 @@ public class DownloadService : YoutubeDLServiceBase
                                        $" -o \"{video.VideoPath}\"" +
                                        " --no-playlist" + // Don't download playlists, only the first video
                                        " --no-part" + // Don't store download in parts, write directly to file
-                                       " --recode-video mp4" + //Re-encode to mp4 (will be skipped most of the time, since it's already in an mp4 container)
                                        " --no-mtime" + //Video last modified will be when it was downloaded, not when it was uploaded to youtube
                                        " --socket-timeout 10"; //Retry if no response in 10 seconds Note: Not if download takes more than 10 seconds but if the time between any 2 messages from the server is 10 seconds
+
+        if (format == VideoFormats.Format.Webm)
+        {
+            downloadProcessArguments +=
+                $" --ppa \"ffmpeg:-c:v libvpx -crf 10 -b:v 4M -c:a libvorbis -quality good -threads 8 -cpu-used 5 '{Path.GetFileNameWithoutExtension(video.VideoPath)}.webm'\"";
+            video.videoFile = Path.GetFileNameWithoutExtension(video.videoFile) + ".webm";
+        }
+        else
+        {
+            downloadProcessArguments += " --recode-video mp4"; //Re-encode to mp4 (will be skipped most of the time, since it's already in an mp4 container)
+        }
 
         var process = CreateProcess(downloadProcessArguments, video.LevelDir);
         _downloadProcesses.TryAdd(video, process);

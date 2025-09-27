@@ -735,7 +735,7 @@ public class VideoMenuUI : IInitializable, IDisposable
             case DownloadState.Cancelled:
                 _currentVideo.DownloadProgress = 0;
                 _searchService.StopSearch();
-                _downloadService.StartDownload(_currentVideo, _config.QualityMode);
+                _downloadService.StartDownload(_currentVideo, _config.QualityMode, _config.Format);
                 _currentVideo.NeedsToSave = true;
                 _videoLoader.AddConfigToCache(_currentVideo, _currentLevel!);
                 break;
@@ -894,7 +894,7 @@ public class VideoMenuUI : IInitializable, IDisposable
                 { NeedsToSave = true };
         _videoLoader.AddConfigToCache(config, _currentLevel);
         _searchService.StopSearch();
-        _downloadService.StartDownload(config, _config.QualityMode);
+        _downloadService.StartDownload(config, _config.QualityMode, _config.Format);
         _currentVideo = config;
         SetupVideoDetails();
     }
