@@ -293,7 +293,7 @@ public class DownloadService : YoutubeDLServiceBase
 
         if (format == VideoFormats.Format.Webm)
         {
-            downloadProcessArguments += $" --exec \"{Path.Combine(UnityGame.LibraryPath, "ffmpeg.exe")} -i %(filepath,_filename|)q -progress pipe:1 -c:v libvpx -crf 10 -b:v 4M -quality realtime -cpu-used 8 -c:a libvorbis \"\"{Path.GetFileNameWithoutExtension(video.VideoPath)}.webm\"\"\"";
+            downloadProcessArguments += $" --exec \"{Path.Combine(UnityGame.LibraryPath, "ffmpeg.exe")} -i %(filepath,_filename|)q -progress pipe:1 -c:v libvpx -crf 10 -b:v 4M -quality realtime -cpu-used 8 -c:a libvorbis \\\"{Path.GetFileNameWithoutExtension(video.VideoPath)}.webm\\\"\"";
             video.videoFile = Path.GetFileNameWithoutExtension(video.videoFile) + ".webm";
         }
         else
