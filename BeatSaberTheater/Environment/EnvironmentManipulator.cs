@@ -185,16 +185,14 @@ public class EnvironmentManipulator : IInitializable
     {
         if (videoConfig.additionalScreens == null) return;
 
+        _loggingService.Debug($"Creating {videoConfig.additionalScreens.Length} additional screens");
         var videoPlayerScreen = _playbackManager.GetVideoPlayerFirstScreen();
         if (videoPlayerScreen != null)
-        {
-            var i = 0;
-            foreach (var _ in videoConfig.additionalScreens)
+            for (var i = 0; i < videoConfig.additionalScreens.Length; i++)
             {
-                var clone = Object.Instantiate(videoPlayerScreen, videoPlayerScreen.transform.parent);
-                clone.name += $" ({i++.ToString()})";
+                var clone = _playbackManager.CreateScreen(videoPlayerScreen.transform.parent);
+                clone.name += $" (TheaterInternal - {i.ToString()})";
             }
-        }
     }
 
     private List<EnvironmentObject> SelectObjectsFromScene(EnvironmentModification modification,
@@ -276,7 +274,7 @@ public class EnvironmentManipulator : IInitializable
             foreach (var screenConfig in config.additionalScreens)
             {
                 var clone = _playbackManager.FindVideoPlayerScreen(screen =>
-                    screen.Screen.name.EndsWith("(" + i + ")"));
+                    screen.Screen.name.EndsWith("(TheaterInternal - " + i + ")"));
                 if (clone is null)
                 {
                     _loggingService.Error($"Couldn't find a screen ending with {"(" + i + ")"}");
@@ -342,16 +340,26 @@ public class EnvironmentManipulator : IInitializable
         {
             if (!screen.name.StartsWith("CinemaScreen")) return;
 
-            if (screen.name.Contains("Clone"))
+            var customBloomPrePass = screen.gameObject.GetComponent<CustomBloomPrePass>();
+
+            if (screen.name.Contains("(Clone)"))
             {
-                // This may need to get reworked to ensure the CurvedSurface and CustomBloomPrePass get removed properly
-                _playbackManager.AddScreenToVideoPlayer(screen.gameObject);
+                _loggingService.Debug($"Cloning screen: {screen.name}");
+                if (!screen.name.Contains("TheaterInternal"))
+                {
+                    _loggingService.Debug("Setting up external screen");
+                    var curvedSurface = screen.gameObject.GetComponent<CurvedSurface>();
+                    _playbackManager.AddScreenToVideoPlayer(screen.gameObject, curvedSurface, customBloomPrePass);
+                }
+
                 screen.GetComponent<Renderer>().material =
                     _playbackManager.GetVideoPlayerFirstScreen()?.GetComponent<Renderer>().material;
-                Object.Destroy(screen.Find("TheaterDirectionalLight").gameObject);
+                var directionalLight = screen.Find("TheaterDirectionalLight");
+                if (directionalLight != null)
+                    Object.Destroy(directionalLight.gameObject);
             }
 
-            screen.gameObject.GetComponent<CustomBloomPrePass>().enabled = false;
+            customBloomPrePass.enabled = false;
             _loggingService.Debug("Disabled bloom prepass");
         }
 

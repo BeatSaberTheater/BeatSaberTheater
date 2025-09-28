@@ -214,6 +214,14 @@ public class CustomVideoPlayer : MonoBehaviour
         SetDefaultMenuPlacement();
     }
 
+    internal GameObject CreateScreen(Transform parent)
+    {
+        var newScreen = _screenManager.CreateScreen(parent);
+        _screenManager.SetScreensActive(true);
+        SetDefaultMenuPlacement();
+        return newScreen;
+    }
+
     private static Shader GetShader(string? path = null)
     {
         AssetBundle myLoadedAssetBundle;
@@ -501,12 +509,12 @@ public class CustomVideoPlayer : MonoBehaviour
 
     public GameObject? FindScreen(Predicate<ScreenObjectGroup> predicate)
     {
-        return _screenManager?.ScreenGroups.Find(predicate).Screen;
+        return _screenManager?.ScreenGroups.Find(predicate)?.Screen;
     }
 
-    public void AddScreen(GameObject screen)
+    public void AddScreen(GameObject screen, CurvedSurface curvedSurface, CustomBloomPrePass customBloomPrePass)
     {
-        _screenManager.ScreenGroups.Add(new ScreenObjectGroup(screen, null, null));
+        _screenManager.ScreenGroups.Add(new ScreenObjectGroup(screen, curvedSurface, customBloomPrePass));
     }
 
     public void SetScreenShaderParameters(VideoConfig? config)

@@ -47,7 +47,7 @@ public class ScreenManager : IInitializable
         _materialPropertyBlock = new MaterialPropertyBlock();
     }
 
-    internal void CreateScreen(Transform parent)
+    internal GameObject CreateScreen(Transform parent)
     {
         var newScreen = new GameObject("CinemaScreen")
         {
@@ -64,19 +64,20 @@ public class ScreenManager : IInitializable
         newScreen.AddComponent<SoftParent>();
         ScreenGroups.Add(
             new ScreenObjectGroup(newScreen, curvedSurface, customBloomPrePass));
+        return newScreen;
     }
 
     internal void ResetScreens()
     {
         // Remove all but the first
+        _loggingService.Debug($"Removing {ScreenGroups.Count - 1} screens");
+
         for (var i = 1; i < ScreenGroups.Count; i++)
         {
             var group = ScreenGroups[i];
             Object.Destroy(group.Screen);
-            if (group.CurvedSurface != null)
-                Object.Destroy(group.CurvedSurface);
-            if (group.CustomBloomPrePass != null)
-                Object.Destroy(group.CustomBloomPrePass);
+            Object.Destroy(group.CurvedSurface);
+            Object.Destroy(group.CustomBloomPrePass);
         }
 
         if (ScreenGroups.Count > 1)
