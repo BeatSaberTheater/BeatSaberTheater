@@ -11,6 +11,7 @@ using BeatSaberTheater.Settings;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
 using BeatSaberTheater.Video.Config;
+using IPA.Utilities;
 using IPA.Utilities.Async;
 using UnityEngine;
 
@@ -24,6 +25,9 @@ public class DownloadService : YoutubeDLServiceBase
         @"(?<percentage>\d+\.?\d*)%",
         RegexOptions.Compiled | RegexOptions.CultureInvariant
     );
+
+    private static readonly Regex TranscodeProgressRegex = new(@"out_time_us=(?<micros>\d+)",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public event Action<VideoConfig>? DownloadProgress;
     public event Action<VideoConfig>? DownloadFinished;
@@ -179,6 +183,13 @@ public class DownloadService : YoutubeDLServiceBase
             {
                 video.DownloadState = DownloadState.Converting;
             }
+            else if (dataReceivedEventArgs.Data.Contains("[Exec]"))
+            {
+                // When using the webm format, the conversion will be done by executing ffmpeg after downloading
+                // and merging the video. This is currently the only --exec step in yt-dlp. Once we see the [Exec] stage
+                // being executed, we may assume the conversion has started
+                video.DownloadState = DownloadState.Converting;
+            }
             else if (dataReceivedEventArgs.Data.Contains("[download]"))
             {
                 if (dataReceivedEventArgs.Data.EndsWith(".mp4"))
@@ -187,6 +198,16 @@ public class DownloadService : YoutubeDLServiceBase
                     video.DownloadState = DownloadState.DownloadingAudio;
                 else
                     video.DownloadState = DownloadState.Downloading;
+            }
+            else
+            {
+                // Try and retrieve transcoding progress from FFMpeg out of stdout. If present, calculate the current
+                // transcoding progress by comparing the number of processed seconds to the total video seconds
+                var transcodeOutputTimeMatch = TranscodeProgressRegex.Match(dataReceivedEventArgs.Data);
+                if (transcodeOutputTimeMatch.Success && long.TryParse(transcodeOutputTimeMatch.Groups["micros"].Value, out var microsConverted))
+                {
+                    video.ConvertingProgress = ((float)microsConverted / ((long) video.duration * 1000000)) * 100;
+                }
             }
 
             return;
@@ -264,7 +285,7 @@ public class DownloadService : YoutubeDLServiceBase
         var downloadProcessArguments = videoUrl +
                                        videoFormat +
                                        " --no-cache-dir" + // Don't use temp storage
-                                       $" -o \"{outputPath}\"" +
+                                       $" -o \"{outputPath}.mp4\"" +
                                        " --no-playlist" + // Don't download playlists, only the first video
                                        " --no-part" + // Don't store download in parts, write directly to file
                                        " --no-mtime" + //Video last modified will be when it was downloaded, not when it was uploaded to youtube
@@ -272,7 +293,7 @@ public class DownloadService : YoutubeDLServiceBase
 
         if (format == VideoFormats.Format.Webm)
         {
-            downloadProcessArguments += $" --ppa \"ffmpeg:-c:v libvpx -crf 10 -b:v 4M -quality realtime -cpu-used 8 -c:a libvorbis '{Path.GetFileNameWithoutExtension(video.VideoPath)}.webm'\"";
+            downloadProcessArguments += $" --exec \"{Path.Combine(UnityGame.LibraryPath, "ffmpeg.exe")} -i %(filepath,_filename|)q -progress pipe:1 -c:v libvpx -crf 10 -b:v 4M -quality realtime -cpu-used 8 -c:a libvorbis \"\"{Path.GetFileNameWithoutExtension(video.VideoPath)}.webm\"\"\"";
             video.videoFile = Path.GetFileNameWithoutExtension(video.videoFile) + ".webm";
         }
         else

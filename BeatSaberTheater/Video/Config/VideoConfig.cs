@@ -46,6 +46,7 @@ public class VideoConfig
     public Vignette? vignette;
 
     [JsonIgnore] [NonSerialized] public float DownloadProgress;
+    [JsonIgnore] [NonSerialized] public float? ConvertingProgress;
     [JsonIgnore] [NonSerialized] public DownloadState DownloadState;
     [JsonIgnore] [NonSerialized] public string? ErrorMessage;
     [JsonIgnore] [NonSerialized] public string? LevelDir;

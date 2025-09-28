@@ -399,7 +399,10 @@ public class VideoMenuUI : IInitializable, IDisposable
                 break;
             case DownloadState.Converting:
                 _levelDetailMenu.SetActive(true);
-                _levelDetailMenu.SetText($"Converting...",
+                var convertingText = videoConfig.ConvertingProgress.HasValue
+                    ? $"Converting ({videoConfig.ConvertingProgress:##}%)"
+                    : "Converting...";
+                _levelDetailMenu.SetText(convertingText,
                     "Cancel", Color.yellow, Color.red);
                 break;
             case DownloadState.NotDownloaded:
@@ -455,7 +458,10 @@ public class VideoMenuUI : IInitializable, IDisposable
                 _previewButton.interactable = false;
                 break;
             case DownloadState.Converting:
-                _videoStatusText.text = $"Converting...";
+                var convertingText = videoConfig.ConvertingProgress.HasValue
+                    ? $"Converting ({videoConfig.ConvertingProgress:##}%)"
+                    : "Converting...";
+                _videoStatusText.text = convertingText;
                 _videoStatusText.color = Color.yellow;
                 _previewButton.interactable = false;
                 break;
