@@ -399,10 +399,7 @@ public class VideoMenuUI : IInitializable, IDisposable
                 break;
             case DownloadState.Converting:
                 _levelDetailMenu.SetActive(true);
-                var convertingText = videoConfig.ConvertingProgress.HasValue
-                    ? $"Converting ({videoConfig.ConvertingProgress:##}%)"
-                    : "Converting...";
-                _levelDetailMenu.SetText(convertingText,
+                _levelDetailMenu.SetText(GetConversionProgressDisplayString(videoConfig),
                     "Cancel", Color.yellow, Color.red);
                 break;
             case DownloadState.NotDownloaded:
@@ -458,9 +455,7 @@ public class VideoMenuUI : IInitializable, IDisposable
                 _previewButton.interactable = false;
                 break;
             case DownloadState.Converting:
-                var convertingText = videoConfig.ConvertingProgress.HasValue
-                    ? $"Converting ({videoConfig.ConvertingProgress:##}%)"
-                    : "Converting...";
+                var convertingText = GetConversionProgressDisplayString(videoConfig);
                 _videoStatusText.text = convertingText;
                 _videoStatusText.color = Color.yellow;
                 _previewButton.interactable = false;
@@ -953,6 +948,15 @@ public class VideoMenuUI : IInitializable, IDisposable
     private void IncreaseOffsetLow()
     {
         ApplyOffset(20);
+    }
+
+    private string GetConversionProgressDisplayString(VideoConfig config)
+    {
+        var convertingText = config.ConvertingProgress.HasValue
+            ? $"Converting ({config.ConvertingProgress:##}%)"
+            : "Converting...";
+
+        return convertingText;
     }
 }
 
