@@ -8,7 +8,7 @@ using Zenject;
 
 namespace BeatSaberTheater.Screen;
 
-internal class CustomBloomPrePass : MonoBehaviour
+public class CustomBloomPrePass : MonoBehaviour
 {
     [Inject] private readonly LoggingService _loggingService = null!;
     [Inject] private readonly PluginConfig _config = null!;

@@ -497,14 +497,6 @@ public class VideoMenuUI : IInitializable, IDisposable
         _videoThumnnail.sprite = coverSprite;
     }
 
-    public void SetSelectedLevel(BeatmapLevel level)
-    {
-        if (_currentLevel != null && level.levelID == _currentLevel.levelID) return;
-
-        _loggingService.Debug($"Setting level to {level.levelID}");
-        HandleDidSelectLevel(level);
-    }
-
     public void HandleDidSelectEditorBeatmap(BeatmapDataModel beatmapData, string originalPath)
     {
         if (_config.PluginEnabled) return;

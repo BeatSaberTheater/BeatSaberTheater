@@ -70,7 +70,9 @@ public class PlaybackManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        _videoPlayer.Shutdown(FrameReady, OnPrepareComplete, VideoPlayerErrorReceived);
+        if (_videoPlayer != null)
+            _videoPlayer.Shutdown(FrameReady, OnPrepareComplete, VideoPlayerErrorReceived);
+
         BSEvents.gameSceneActive -= GameSceneActive;
         BSEvents.gameSceneLoaded -= GameSceneLoaded;
         BSEvents.lateMenuSceneLoadedFresh -= OnMenuSceneLoadedFresh;
@@ -242,6 +244,7 @@ public class PlaybackManager : MonoBehaviour
 
         StopPlayback();
         _videoPlayer.Hide();
+        _videoPlayer.ResetScreens();
 
         if (!TheaterFileHelpers.IsInEditor())
         {
@@ -276,10 +279,10 @@ public class PlaybackManager : MonoBehaviour
 
         UpdateVideoPlayerPlacement(_videoConfig, _activeScene);
 
+        _videoPlayer.Show();
         // Fixes rough pop-in at the start of the song when transparency is disabled
-        if (_videoConfig.TransparencyEnabled)
+        if (!(_videoConfig.TransparencyEnabled && _config.TransparencyEnabled) && _activeScene != Scene.Menu)
         {
-            _videoPlayer.Show();
             _videoPlayer.ScreenColor = Color.black;
             _videoPlayer.ShowScreenBody();
         }
@@ -333,9 +336,9 @@ public class PlaybackManager : MonoBehaviour
         }
 
         if (config.TransparencyEnabled)
-            _videoPlayer.ShowScreenBody();
-        else
             _videoPlayer.HideScreenBody();
+        else
+            _videoPlayer.ShowScreenBody();
 
         // if (_activeScene == Scene.SoloGameplay) EnvironmentController.VideoConfigSceneModifications(_videoConfig);
     }
@@ -345,6 +348,7 @@ public class PlaybackManager : MonoBehaviour
         _loggingService.Info("MenuSceneLoaded");
         _activeScene = Scene.Menu;
         _videoPlayer.Hide();
+        _videoPlayer.ResetScreens();
         StopAllCoroutines();
         _previewWaitingForPreviewPlayer = true;
         gameObject.SetActive(true);
@@ -477,7 +481,7 @@ public class PlaybackManager : MonoBehaviour
         _videoPlayer.IsSyncing = false;
 
         // Always hide screen body in the menu, since the drawbacks of the body being visible are large
-        if (_videoConfig.TransparencyEnabled && _config.TransparencyEnabled && _activeScene != Scene.Menu)
+        if (!(_videoConfig.TransparencyEnabled && _config.TransparencyEnabled) && _activeScene != Scene.Menu)
             _videoPlayer.ShowScreenBody();
         else
             _videoPlayer.HideScreenBody();
@@ -950,9 +954,10 @@ public class PlaybackManager : MonoBehaviour
 
     #endregion
 
-    public void AddScreenToVideoPlayer(GameObject screen)
+    public void AddScreenToVideoPlayer(GameObject screen, CurvedSurface curvedSurface,
+        CustomBloomPrePass customBloomPrePass)
     {
-        _videoPlayer.AddScreen(screen);
+        _videoPlayer.AddScreen(screen, curvedSurface, customBloomPrePass);
     }
 
     public void DisableVideoPlayerScreens()
@@ -960,7 +965,7 @@ public class PlaybackManager : MonoBehaviour
         _videoPlayer.DisableScreen();
     }
 
-    public GameObject? FindVideoPlayerScreen(Predicate<GameObject> predicate)
+    public GameObject? FindVideoPlayerScreen(Predicate<ScreenObjectGroup> predicate)
     {
         return _videoPlayer.FindScreen(predicate);
     }
@@ -1039,5 +1044,10 @@ public class PlaybackManager : MonoBehaviour
     public void SetVideoPlayerSoftParent(Transform transform)
     {
         _videoPlayer.SetSoftParent(transform);
+    }
+
+    internal GameObject CreateScreen(Transform parent)
+    {
+        return _videoPlayer.CreateScreen(parent);
     }
 }

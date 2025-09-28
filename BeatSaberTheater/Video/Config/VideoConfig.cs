@@ -9,6 +9,8 @@ using SongCore.Data;
 
 namespace BeatSaberTheater.Video.Config;
 
+[Serializable]
+[JsonObject(ItemNullValueHandling = NullValueHandling.Ignore)]
 public class VideoConfig
 {
     public bool? allowCustomPlatform;

@@ -98,6 +98,7 @@ public class CustomVideoPlayer : MonoBehaviour
     internal void Startup(VideoPlayer.FrameReadyEventHandler frameReadyEventHandler,
         VideoPlayer.EventHandler preparedCompleteEventHandler, Action<string>? videoPlayerErrorReceivedEvent)
     {
+        _screenManager = new ScreenManager(_config, _curvedSurfaceFactory, _customBloomPrePassFactory, _loggingService);
         CreateScreen();
         _screenRenderer = _screenManager.GetRenderer();
         _screenRenderer.material = new Material(GetShader()) { color = _screenColorOff };
@@ -208,10 +209,17 @@ public class CustomVideoPlayer : MonoBehaviour
 
     private void CreateScreen()
     {
-        _screenManager = new ScreenManager(_config, _curvedSurfaceFactory, _customBloomPrePassFactory, _loggingService);
         _screenManager.CreateScreen(transform);
         _screenManager.SetScreensActive(true);
         SetDefaultMenuPlacement();
+    }
+
+    internal GameObject CreateScreen(Transform parent)
+    {
+        var newScreen = _screenManager.CreateScreen(parent);
+        _screenManager.SetScreensActive(true);
+        SetDefaultMenuPlacement();
+        return newScreen;
     }
 
     private static Shader GetShader(string? path = null)
@@ -383,7 +391,7 @@ public class CustomVideoPlayer : MonoBehaviour
         if (_player.isPlaying || (_player.isPrepared && _player.isPaused)) SetTexture(_player.texture);
     }
 
-    //For manual invocation instead of the event function
+    // For manual invocation instead of the event function
     public void UpdateScreenContent()
     {
         SetTexture(_player.texture);
@@ -496,17 +504,17 @@ public class CustomVideoPlayer : MonoBehaviour
 
     public GameObject? GetFirstScreen()
     {
-        return _screenManager?.Screens[0];
+        return _screenManager?.ScreenGroups[0].Screen;
     }
 
-    public GameObject? FindScreen(Predicate<GameObject> predicate)
+    public GameObject? FindScreen(Predicate<ScreenObjectGroup> predicate)
     {
-        return _screenManager?.Screens.Find(predicate);
+        return _screenManager?.ScreenGroups.Find(predicate)?.Screen;
     }
 
-    public void AddScreen(GameObject screen)
+    public void AddScreen(GameObject screen, CurvedSurface curvedSurface, CustomBloomPrePass customBloomPrePass)
     {
-        _screenManager.Screens.Add(screen);
+        _screenManager.ScreenGroups.Add(new ScreenObjectGroup(screen, curvedSurface, customBloomPrePass));
     }
 
     public void SetScreenShaderParameters(VideoConfig? config)
@@ -522,5 +530,10 @@ public class CustomVideoPlayer : MonoBehaviour
     public void DisableScreen()
     {
         _screenManager.SetScreensActive(false);
+    }
+
+    public void ResetScreens()
+    {
+        _screenManager.ResetScreens();
     }
 }
