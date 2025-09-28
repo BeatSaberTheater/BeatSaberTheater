@@ -285,7 +285,7 @@ public class DownloadService : YoutubeDLServiceBase
         var downloadProcessArguments = videoUrl +
                                        videoFormat +
                                        " --no-cache-dir" + // Don't use temp storage
-                                       $" -o \"{outputPath}.mp4\"" +
+                                       $" -o \"{outputPath}\"" +
                                        " --no-playlist" + // Don't download playlists, only the first video
                                        " --no-part" + // Don't store download in parts, write directly to file
                                        " --no-mtime" + //Video last modified will be when it was downloaded, not when it was uploaded to youtube
