@@ -17,6 +17,7 @@ internal class TheaterSettingsViewController
 
     private const float FADE_DURATION = 0.2f;
     [UIValue("modes")] [UsedImplicitly] private List<object> _qualityModes = VideoQuality.GetModeList();
+    [UIValue("formats")] [UsedImplicitly] private List<object> _videoFormats = VideoFormats.GetFormatList();
 
     [UIValue("show-video")]
     public bool PluginEnabled
@@ -113,6 +114,13 @@ internal class TheaterSettingsViewController
     {
         get => VideoQuality.ToName(_config.QualityMode);
         set => _config.QualityMode = VideoQuality.FromName(value);
+    }
+    
+    [UIValue("format")]
+    public string Format
+    {
+        get => VideoFormats.ToName(_config.Format);
+        set => _config.Format = VideoFormats.FromName(value);
     }
 
     private void SetSettingsTexture()

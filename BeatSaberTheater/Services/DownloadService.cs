@@ -11,6 +11,7 @@ using BeatSaberTheater.Settings;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
 using BeatSaberTheater.Video.Config;
+using IPA.Utilities;
 using IPA.Utilities.Async;
 using UnityEngine;
 
@@ -24,6 +25,9 @@ public class DownloadService : YoutubeDLServiceBase
         @"(?<percentage>\d+\.?\d*)%",
         RegexOptions.Compiled | RegexOptions.CultureInvariant
     );
+
+    private static readonly Regex TranscodeProgressRegex = new(@"out_time_us=(?<micros>\d+)",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public event Action<VideoConfig>? DownloadProgress;
     public event Action<VideoConfig>? DownloadFinished;
@@ -47,16 +51,16 @@ public class DownloadService : YoutubeDLServiceBase
         _videoLoader = videoLoader;
     }
 
-    public void StartDownload(VideoConfig video, VideoQuality.Mode quality)
+    public void StartDownload(VideoConfig video, VideoQuality.Mode quality, VideoFormats.Format format)
     {
-        _coroutineStarter.StartCoroutine(DownloadVideoCoroutine(video, quality));
+        _coroutineStarter.StartCoroutine(DownloadVideoCoroutine(video, quality, format));
     }
 
-    private IEnumerator DownloadVideoCoroutine(VideoConfig video, VideoQuality.Mode quality)
+    private IEnumerator DownloadVideoCoroutine(VideoConfig video, VideoQuality.Mode quality, VideoFormats.Format format)
     {
         _loggingService.Info($"Starting download of {video.title}");
 
-        var downloadProcess = CreateDownloadProcess(video, quality);
+        var downloadProcess = CreateDownloadProcess(video, quality, format);
         if (downloadProcess == null)
         {
             _loggingService.Warn("Failed to create download process");
@@ -179,6 +183,13 @@ public class DownloadService : YoutubeDLServiceBase
             {
                 video.DownloadState = DownloadState.Converting;
             }
+            else if (dataReceivedEventArgs.Data.Contains("[Exec]"))
+            {
+                // When using the webm format, the conversion will be done by executing ffmpeg after downloading
+                // and merging the video. This is currently the only --exec step in yt-dlp. Once we see the [Exec] stage
+                // being executed, we may assume the conversion has started
+                video.DownloadState = DownloadState.Converting;
+            }
             else if (dataReceivedEventArgs.Data.Contains("[download]"))
             {
                 if (dataReceivedEventArgs.Data.EndsWith(".mp4"))
@@ -187,6 +198,16 @@ public class DownloadService : YoutubeDLServiceBase
                     video.DownloadState = DownloadState.DownloadingAudio;
                 else
                     video.DownloadState = DownloadState.Downloading;
+            }
+            else
+            {
+                // Try and retrieve transcoding progress from FFMpeg out of stdout. If present, calculate the current
+                // transcoding progress by comparing the number of processed seconds to the total video seconds
+                var transcodeOutputTimeMatch = TranscodeProgressRegex.Match(dataReceivedEventArgs.Data);
+                if (transcodeOutputTimeMatch.Success && long.TryParse(transcodeOutputTimeMatch.Groups["micros"].Value, out var microsConverted))
+                {
+                    video.ConvertingProgress = ((float)microsConverted / ((long) video.duration * 1000000)) * 100;
+                }
             }
 
             return;
@@ -207,7 +228,7 @@ public class DownloadService : YoutubeDLServiceBase
         DownloadFinished?.Invoke(video);
     }
 
-    private Process? CreateDownloadProcess(VideoConfig video, VideoQuality.Mode quality)
+    private Process? CreateDownloadProcess(VideoConfig video, VideoQuality.Mode quality, VideoFormats.Format format)
     {
         if (video.LevelDir == null || video.VideoPath == null)
         {
@@ -259,18 +280,46 @@ public class DownloadService : YoutubeDLServiceBase
 
         var videoFormat = VideoQuality.ToYoutubeDLFormat(video, quality);
         videoFormat = videoFormat.Length > 0 ? $" -f \"{videoFormat}\"" : "";
-
+        var outputPath = video.VideoPath;
+        
         var downloadProcessArguments = videoUrl +
                                        videoFormat +
                                        " --no-cache-dir" + // Don't use temp storage
-                                       $" -o \"{video.VideoPath}\"" +
+                                       $" -o \"{outputPath}\"" +
                                        " --no-playlist" + // Don't download playlists, only the first video
                                        " --no-part" + // Don't store download in parts, write directly to file
-                                       " --recode-video mp4" + //Re-encode to mp4 (will be skipped most of the time, since it's already in an mp4 container)
                                        " --no-mtime" + //Video last modified will be when it was downloaded, not when it was uploaded to youtube
                                        " --socket-timeout 10"; //Retry if no response in 10 seconds Note: Not if download takes more than 10 seconds but if the time between any 2 messages from the server is 10 seconds
 
+        if (format == VideoFormats.Format.Webm)
+        {
+            downloadProcessArguments += $" --exec \"{Path.Combine(UnityGame.LibraryPath, "ffmpeg.exe")} -i %(filepath,_filename|)q -progress pipe:1 -c:v libvpx -crf 10 -b:v 4M -quality realtime -cpu-used 8 -c:a libvorbis \\\"{Path.GetFileNameWithoutExtension(video.VideoPath)}.webm\\\"\"";
+            video.videoFile = Path.GetFileNameWithoutExtension(video.videoFile) + ".webm";
+        }
+        else
+        {
+            downloadProcessArguments += " --recode-video mp4"; //Re-encode to mp4 (will be skipped most of the time, since it's already in an mp4 container)
+        }
+
         var process = CreateProcess(downloadProcessArguments, video.LevelDir);
+        if (format == VideoFormats.Format.Webm)
+        {
+            // Clean up download .mp4 file when using Webm. It is not used, and nearly doubles the size on disk of the video files
+            process.Disposed += ((_, _) =>
+            {
+                Plugin._log.Info("Cleaning up present mp4 file. Reason: WebM is requested as output format");
+                if (File.Exists(outputPath))
+                {
+                    File.Delete(outputPath);
+                    Plugin._log.Info("Removed: " + outputPath);
+                }
+                else
+                {
+                    Plugin._log.Warn("Video file doesn't exist - cannot remove: " + outputPath);
+                }
+            });
+        }
+        
         _downloadProcesses.TryAdd(video, process);
         return process;
     }

@@ -399,7 +399,7 @@ public class VideoMenuUI : IInitializable, IDisposable
                 break;
             case DownloadState.Converting:
                 _levelDetailMenu.SetActive(true);
-                _levelDetailMenu.SetText($"Converting...",
+                _levelDetailMenu.SetText(GetConversionProgressDisplayString(videoConfig),
                     "Cancel", Color.yellow, Color.red);
                 break;
             case DownloadState.NotDownloaded:
@@ -455,7 +455,8 @@ public class VideoMenuUI : IInitializable, IDisposable
                 _previewButton.interactable = false;
                 break;
             case DownloadState.Converting:
-                _videoStatusText.text = $"Converting...";
+                var convertingText = GetConversionProgressDisplayString(videoConfig);
+                _videoStatusText.text = convertingText;
                 _videoStatusText.color = Color.yellow;
                 _previewButton.interactable = false;
                 break;
@@ -727,7 +728,7 @@ public class VideoMenuUI : IInitializable, IDisposable
             case DownloadState.Cancelled:
                 _currentVideo.DownloadProgress = 0;
                 _searchService.StopSearch();
-                _downloadService.StartDownload(_currentVideo, _config.QualityMode);
+                _downloadService.StartDownload(_currentVideo, _config.QualityMode, _config.Format);
                 _currentVideo.NeedsToSave = true;
                 _videoLoader.AddConfigToCache(_currentVideo, _currentLevel!);
                 break;
@@ -886,7 +887,7 @@ public class VideoMenuUI : IInitializable, IDisposable
                 { NeedsToSave = true };
         _videoLoader.AddConfigToCache(config, _currentLevel);
         _searchService.StopSearch();
-        _downloadService.StartDownload(config, _config.QualityMode);
+        _downloadService.StartDownload(config, _config.QualityMode, _config.Format);
         _currentVideo = config;
         SetupVideoDetails();
     }
@@ -939,6 +940,15 @@ public class VideoMenuUI : IInitializable, IDisposable
     private void IncreaseOffsetLow()
     {
         ApplyOffset(20);
+    }
+
+    private string GetConversionProgressDisplayString(VideoConfig config)
+    {
+        var convertingText = config.ConvertingProgress.HasValue
+            ? $"Converting ({config.ConvertingProgress:##}%)"
+            : "Converting...";
+
+        return convertingText;
     }
 }
 

@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Models;
+using BeatSaberTheater.Settings;
 using BeatSaberTheater.Util;
 using Newtonsoft.Json;
 using SongCore.Data;
@@ -47,6 +48,7 @@ public class VideoConfig
     public Vignette? vignette;
 
     [JsonIgnore] [NonSerialized] public float DownloadProgress;
+    [JsonIgnore] [NonSerialized] public float? ConvertingProgress;
     [JsonIgnore] [NonSerialized] public DownloadState DownloadState;
     [JsonIgnore] [NonSerialized] public string? ErrorMessage;
     [JsonIgnore] [NonSerialized] public string? LevelDir;
@@ -156,7 +158,12 @@ public class VideoConfig
     {
         var fileName = videoFile ?? TheaterFileHelpers.ReplaceIllegalFilesystemChars(title ?? videoID ?? "video");
         fileName = TheaterFileHelpers.ShortenFilename(levelPath, fileName);
-        if (!fileName.EndsWith(".mp4")) fileName += ".mp4";
+
+        if (!Path.HasExtension(fileName))
+        {
+            fileName += ".mp4";
+        }
+        
         return fileName;
     }
 }
