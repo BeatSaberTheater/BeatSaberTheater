@@ -106,6 +106,7 @@ public class EnvironmentManipulator : IInitializable
     private void SceneChanged(UnityEngine.SceneManagement.Scene arg0, UnityEngine.SceneManagement.Scene arg1)
     {
         _loggingService.Debug($"Scene changed from {arg0.name} to {arg1.name}");
+        Object.DontDestroyOnLoad(_playbackManager);
         var sceneName = arg1.name;
         switch (sceneName)
         {
