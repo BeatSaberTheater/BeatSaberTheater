@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace BeatSaberTheater.Services;
 
-public class SearchService : YoutubeDLServiceBase
+internal class SearchService : YoutubeDLServiceBase
 {
     public readonly List<YTResult> SearchResults = new();
     private Coroutine? _searchCoroutine;
@@ -20,10 +20,13 @@ public class SearchService : YoutubeDLServiceBase
     public event Action<YTResult>? SearchProgress;
     public event Action? SearchFinished;
 
+    private readonly PluginConfig _config;
     private readonly TheaterCoroutineStarter _coroutineStarter;
 
-    public SearchService(TheaterCoroutineStarter coroutineStarter, LoggingService loggingService) : base(loggingService)
+    public SearchService(PluginConfig config, TheaterCoroutineStarter coroutineStarter, LoggingService loggingService)
+        : base(loggingService)
     {
+        _config = config;
         _coroutineStarter = coroutineStarter;
     }
 
@@ -65,7 +68,7 @@ public class SearchService : YoutubeDLServiceBase
         yield return new WaitUntil(() => IsProcessRunning(_searchProcess) || startProcessTimeout.HasTimedOut);
         startProcessTimeout.Stop();
 
-        var timeout = new DownloadTimeout(45);
+        var timeout = new DownloadTimeout(_config.SearchTimeoutSeconds);
         yield return new WaitUntil(() => !IsProcessRunning(_searchProcess) || timeout.HasTimedOut);
         timeout.Stop();
 

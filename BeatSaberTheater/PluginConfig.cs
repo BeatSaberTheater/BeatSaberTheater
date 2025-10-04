@@ -21,5 +21,8 @@ internal class PluginConfig
     public virtual VideoQuality.Mode QualityMode { get; set; } = VideoQuality.Mode.Q720P;
     public virtual VideoFormats.Format Format { get; set; } = VideoFormats.Format.Mp4;
     public virtual bool ForceDisableEnvironmentOverrides { get; set; } = false;
+
+    // Timeouts
     public virtual int DownloadTimeoutSeconds { get; set; } = 5 * 60;
+    public virtual int SearchTimeoutSeconds { get; set; } = 45;
 }

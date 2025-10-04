@@ -98,7 +98,28 @@ internal class DownloadService : YoutubeDLServiceBase
 
         yield return new WaitUntil(() => !IsProcessRunning(downloadProcess) || timeout.HasTimedOut);
         if (timeout.HasTimedOut)
+        {
             _loggingService.Warn($"[{downloadProcess.Id}] Timeout reached, disposing download process");
+            try
+            {
+                if (downloadProcess != null && !downloadProcess.HasExited)
+                {
+                    downloadProcess.Kill();
+                }
+            }
+            catch (Exception ex)
+            {
+                _loggingService.Warn($"Error killing process: {ex}");
+            }
+
+            video.DownloadState = DownloadState.NotDownloaded;
+            video.ErrorMessage = "Download timed out.";
+            _videoLoader.DeleteVideo(video);
+
+            DownloadFinished?.Invoke(video);
+            DisposeProcess(downloadProcess);
+            yield break;
+        }
         else
             //When the download is finished, wait for process to exit instead of immediately killing it
             yield return new WaitForSeconds(20f);
@@ -119,14 +140,7 @@ internal class DownloadService : YoutubeDLServiceBase
     private void DownloadProcessExited(Process process, VideoConfig video)
     {
         // Ensure all stdout/stderr are flushed
-        try
-        {
-            process.WaitForExit();
-        }
-        catch (Exception e)
-        {
-            _loggingService.Warn(e);
-        }
+        try { process.WaitForExit(); } catch { /* ignore */ }
 
         var exitCode = process.ExitCode;
         string stderr = string.Empty;
@@ -135,7 +149,6 @@ internal class DownloadService : YoutubeDLServiceBase
         {
             try
             {
-                // Read stderr once, only on non-zero exit.
                 stderr = process.StandardError.ReadToEnd();
             }
             catch (Exception ex)

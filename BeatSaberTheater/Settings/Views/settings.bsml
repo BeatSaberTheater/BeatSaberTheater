@@ -20,6 +20,10 @@
                           hover-hint='Move the screen in 90°/360° levels to always be in the direction the notes come from.&#xD;&#xA;&#xD;&#xA;Recommended: On'></bool-setting>
             <bool-setting apply-on-change="true" text='Show Song Cover on Screen' value='cover-enabled'
                           hover-hint="Shows the song's cover image on screen if the map doesn't have a video.&#xD;&#xA;&#xD;&#xA;This may currently not look great on some environments."></bool-setting>
+            <string-setting apply-on-change="true" text='Download Timeout Seconds' value='download-timeout-seconds'
+                          hover-hint="Determines how long to wait while downloading and converting the video before timing out."></string-setting>
+            <string-setting apply-on-change="true" text='Search Timeout Seconds' value='search-timeout-seconds'
+                          hover-hint="Determines how long to wait while searching for videos before timing out."></string-setting>
         </modifier-container>
     </tab>
 
