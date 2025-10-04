@@ -1,6 +1,5 @@
 ﻿using System;
 using BeatSaberTheater.Harmony.Signals;
-using BeatSaberTheater.Screen;
 using HarmonyLib;
 using JetBrains.Annotations;
 using UnityEngine;

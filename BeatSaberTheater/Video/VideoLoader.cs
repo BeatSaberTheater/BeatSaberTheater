@@ -85,14 +85,13 @@ public class VideoLoader(
 
     private static AudioClipAsyncLoader? _audioClipAsyncLoader;
 
-    internal static void IndexMaps(Loader? loader = null,
-        ConcurrentDictionary<string, BeatmapLevel>? beatmapLevels = null)
+    internal static void IndexMaps(Loader? loader,
+        ConcurrentDictionary<string, BeatmapLevel>? beatmapLevels)
     {
-        IndexMapsAsync(loader, beatmapLevels).RunSynchronously();
+        Task.Run(IndexMapsAsync);
     }
 
-    private static async Task IndexMapsAsync(Loader? loader = null,
-        ConcurrentDictionary<string, BeatmapLevel>? beatmapLevels = null)
+    private static async Task IndexMapsAsync()
     {
         Plugin._log.Debug("Indexing maps...");
         var stopwatch = new Stopwatch();
@@ -103,12 +102,12 @@ public class VideoLoader(
         void Action()
         {
             var options = new ParallelOptions
-                { MaxDegreeOfParallelism = Math.Max(1, System.Environment.ProcessorCount / 2 - 1) };
+            { MaxDegreeOfParallelism = Math.Max(1, System.Environment.ProcessorCount / 2 - 1) };
             Parallel.ForEach(Loader.CustomLevels, options, IndexMap);
             if (officialMaps.Count > 0) Parallel.ForEach(officialMaps, options, IndexMap);
         }
 
-        var loadingTask = new Task((Action)Action, CancellationToken.None);
+        var loadingTask = new Task(Action, CancellationToken.None);
         var loadingAwaiter = loadingTask.ConfigureAwait(false);
         loadingTask.Start();
         await loadingAwaiter;

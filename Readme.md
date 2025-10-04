@@ -7,7 +7,7 @@ This mod is a rewrite/successor to the [Cinema mod](https://github.com/Kevga/Bea
 
 ## Installation
 
-This mod is not yet available on BeatMods and must be installed manually. 
+This mod is not yet available on BeatMods and must be installed manually.
 
 ### Manual Installation
 
