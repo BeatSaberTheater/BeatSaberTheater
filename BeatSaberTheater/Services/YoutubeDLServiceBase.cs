@@ -112,7 +112,7 @@ public abstract class YoutubeDLServiceBase : IInitializable
             timer.Start();
             var ret = process.Start();
             process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
+
             _loggingService.Debug($"Starting thread took {timer.Elapsed.TotalMilliseconds}ms");
             if (!ret) _loggingService.Error("Failed to start thread");
         }

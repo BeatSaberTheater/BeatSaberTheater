@@ -13,7 +13,6 @@ namespace BeatSaberTheater.Services;
 
 public class SearchService : YoutubeDLServiceBase
 {
-    // TODO: On search finish, results are disposed and disappear from menu
     public readonly List<YTResult> SearchResults = new();
     private Coroutine? _searchCoroutine;
     private Process? _searchProcess;
@@ -51,18 +50,17 @@ public class SearchService : YoutubeDLServiceBase
         _searchProcess.OutputDataReceived += (sender, e) =>
             UnityMainThreadTaskScheduler.Factory.StartNew(delegate { SearchProcessDataReceived(e); });
 
-        _searchProcess.ErrorDataReceived += (sender, e) =>
-            UnityMainThreadTaskScheduler.Factory.StartNew(delegate { SearchProcessErrorDataReceived(e); });
-
         _searchProcess.Exited += (sender, e) =>
             UnityMainThreadTaskScheduler.Factory.StartNew(delegate
             {
-                SearchProcessExited(((Process)sender).ExitCode);
+                SearchProcessExited((Process)sender);
             });
 
         _loggingService.Info(
             $"Starting youtube-dl process with arguments: \"{_searchProcess.StartInfo.FileName}\" {_searchProcess.StartInfo.Arguments}");
+
         StartProcessThreaded(_searchProcess);
+
         var startProcessTimeout = new DownloadTimeout(10);
         yield return new WaitUntil(() => IsProcessRunning(_searchProcess) || startProcessTimeout.HasTimedOut);
         startProcessTimeout.Stop();
@@ -75,17 +73,9 @@ public class SearchService : YoutubeDLServiceBase
         DisposeProcess(_searchProcess);
     }
 
-    private void SearchProcessErrorDataReceived(DataReceivedEventArgs e)
-    {
-        if (e.Data == null) return;
-
-        _loggingService.Error("youtube-dl process error:");
-        _loggingService.Error(e.Data);
-    }
-
     private void SearchProcessDataReceived(DataReceivedEventArgs e)
     {
-        var output = e.Data.Trim();
+        var output = e.Data?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(output)) return;
 
         if (output.Contains("yt command exited"))
@@ -100,8 +90,7 @@ public class SearchService : YoutubeDLServiceBase
             return;
         }
 
-        var trimmedLine = output;
-        var ytResult = ParseSearchResult(trimmedLine);
+        var ytResult = ParseSearchResult(output);
         if (ytResult == null) return;
 
         SearchResults.Add(ytResult);
@@ -122,15 +111,30 @@ public class SearchService : YoutubeDLServiceBase
             return null;
         }
 
-        var ytResult = new YTResult(result);
-        return ytResult;
+        return new YTResult(result);
     }
 
-    private void SearchProcessExited(int exitCode)
+    private void SearchProcessExited(Process process)
     {
+        try { process.WaitForExit(); } catch { /* ignore */ }
+
+        var exitCode = process.ExitCode;
         _loggingService.Info($"Search process exited with exitcode {exitCode}");
+
+        if (exitCode != 0)
+        {
+            string stderr = string.Empty;
+            try { stderr = process.StandardError.ReadToEnd(); } catch { /* ignore */ }
+
+            if (!string.IsNullOrWhiteSpace(stderr))
+            {
+                _loggingService.Error("yt-dlp search stderr output:");
+                _loggingService.Error(stderr.Trim());
+            }
+        }
+
         SearchFinished?.Invoke();
-        DisposeProcess(_searchProcess);
+        DisposeProcess(process);
         _searchProcess = null;
     }
 
