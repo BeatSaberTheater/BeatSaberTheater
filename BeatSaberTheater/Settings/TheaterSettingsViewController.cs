@@ -16,8 +16,8 @@ internal class TheaterSettingsViewController
     [Inject] private PluginConfig _config = null!;
 
     private const float FADE_DURATION = 0.2f;
-    [UIValue("modes")] [UsedImplicitly] private List<object> _qualityModes = VideoQuality.GetModeList();
-    [UIValue("formats")] [UsedImplicitly] private List<object> _videoFormats = VideoFormats.GetFormatList();
+    [UIValue("modes")][UsedImplicitly] private List<object> _qualityModes = VideoQuality.GetModeList();
+    [UIValue("formats")][UsedImplicitly] private List<object> _videoFormats = VideoFormats.GetFormatList();
 
     [UIValue("show-video")]
     public bool PluginEnabled
@@ -115,12 +115,38 @@ internal class TheaterSettingsViewController
         get => VideoQuality.ToName(_config.QualityMode);
         set => _config.QualityMode = VideoQuality.FromName(value);
     }
-    
+
     [UIValue("format")]
     public string Format
     {
         get => VideoFormats.ToName(_config.Format);
         set => _config.Format = VideoFormats.FromName(value);
+    }
+
+    [UIValue("download-timeout-seconds")]
+    public string DownloadTimeoutSeconds
+    {
+        get => _config.DownloadTimeoutSeconds.ToString();
+        set
+        {
+            if (int.TryParse(value, out var timeout))
+            {
+                _config.DownloadTimeoutSeconds = timeout;
+            }
+        }
+    }
+
+    [UIValue("search-timeout-seconds")]
+    public string SearchTimeoutSeconds
+    {
+        get => _config.SearchTimeoutSeconds.ToString();
+        set
+        {
+            if (int.TryParse(value, out var timeout))
+            {
+                _config.SearchTimeoutSeconds = timeout;
+            }
+        }
     }
 
     private void SetSettingsTexture()

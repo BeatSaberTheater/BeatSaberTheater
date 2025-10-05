@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Settings;
@@ -17,9 +18,10 @@ using UnityEngine;
 
 namespace BeatSaberTheater.Services;
 
-public class DownloadService : YoutubeDLServiceBase
+internal class DownloadService : YoutubeDLServiceBase
 {
     private readonly ConcurrentDictionary<VideoConfig, Process> _downloadProcesses = new();
+    private readonly ConcurrentDictionary<VideoConfig, StringBuilder> _stderrBuffers = new();
 
     private static readonly Regex DownloadProgressRegex = new(
         @"(?<percentage>\d+\.?\d*)%",
@@ -41,12 +43,14 @@ public class DownloadService : YoutubeDLServiceBase
         "https://vimeo.com/"
     };
 
+    private readonly PluginConfig _config;
     private readonly TheaterCoroutineStarter _coroutineStarter;
     private readonly VideoLoader _videoLoader;
 
-    public DownloadService(TheaterCoroutineStarter coroutineStarter, LoggingService loggingService,
+    public DownloadService(PluginConfig config, TheaterCoroutineStarter coroutineStarter, LoggingService loggingService,
         VideoLoader videoLoader) : base(loggingService)
     {
+        _config = config;
         _coroutineStarter = coroutineStarter;
         _videoLoader = videoLoader;
     }
@@ -74,7 +78,7 @@ public class DownloadService : YoutubeDLServiceBase
         _loggingService.Info(
             $"youtube-dl command: \"{downloadProcess.StartInfo.FileName}\" {downloadProcess.StartInfo.Arguments}");
 
-        var timeout = new DownloadTimeout(5 * 60);
+        var timeout = new DownloadTimeout(_config.DownloadTimeoutSeconds);
 
         downloadProcess.OutputDataReceived += (sender, e) =>
             UnityMainThreadTaskScheduler.Factory.StartNew(delegate
@@ -98,7 +102,29 @@ public class DownloadService : YoutubeDLServiceBase
 
         yield return new WaitUntil(() => !IsProcessRunning(downloadProcess) || timeout.HasTimedOut);
         if (timeout.HasTimedOut)
+        {
             _loggingService.Warn($"[{downloadProcess.Id}] Timeout reached, disposing download process");
+            try
+            {
+                if (downloadProcess != null && !downloadProcess.HasExited)
+                {
+                    downloadProcess.Kill();
+                }
+            }
+            catch (Exception ex)
+            {
+                _loggingService.Warn($"Error killing process: {ex}");
+            }
+
+            video.DownloadState = DownloadState.NotDownloaded;
+            video.ErrorMessage = "Download timed out.";
+            _videoLoader.DeleteVideo(video);
+
+            DownloadFinished?.Invoke(video);
+            DisposeProcess(downloadProcess);
+            _stderrBuffers.TryRemove(video, out var _);
+            yield break;
+        }
         else
             //When the download is finished, wait for process to exit instead of immediately killing it
             yield return new WaitForSeconds(20f);
@@ -118,21 +144,33 @@ public class DownloadService : YoutubeDLServiceBase
 
     private void DownloadErrorDataReceived(DataReceivedEventArgs eventArgs, VideoConfig video)
     {
-        var error = eventArgs.Data.Trim();
-        if (error.Length == 0) return;
+        if (string.IsNullOrWhiteSpace(eventArgs.Data)) return;
 
-        _loggingService.Error(error);
-        video.ErrorMessage = ShortenErrorMessage(error);
+        var buffer = _stderrBuffers.GetOrAdd(video, _ => new StringBuilder());
+        buffer.AppendLine(eventArgs.Data);
     }
 
     private void DownloadProcessExited(Process process, VideoConfig video)
     {
+        // Ensure all stdout/stderr are flushed
+        try { process.WaitForExit(); } catch { /* ignore */ }
+
         var exitCode = process.ExitCode;
-        if (exitCode != 0) video.DownloadState = DownloadState.NotDownloaded;
+        var stderr = _stderrBuffers.TryRemove(video, out var sb) ? sb.ToString() : string.Empty;
 
-        _loggingService.Info($"[{process.Id}] Download process exited with code {exitCode}");
+        if (exitCode != 0)
+        {
+            _loggingService.Error($"[{process.Id}] yt-dlp exited with code {exitCode}");
+            if (!string.IsNullOrWhiteSpace(stderr))
+                _loggingService.Error(stderr);
 
-        if (video.DownloadState == DownloadState.Cancelled || video.DownloadState == DownloadState.NotDownloaded)
+            video.DownloadState = DownloadState.NotDownloaded;
+            video.ErrorMessage = ShortenErrorMessage(stderr);
+
+            _videoLoader.DeleteVideo(video);
+            DownloadFinished?.Invoke(video);
+        }
+        else if (video.DownloadState == DownloadState.Cancelled)
         {
             _loggingService.Info("Cancelled download");
             _videoLoader.DeleteVideo(video);
@@ -146,7 +184,8 @@ public class DownloadService : YoutubeDLServiceBase
             video.ErrorMessage = null;
             video.NeedsToSave = true;
             _coroutineStarter.StartCoroutine(WaitForDownloadToFinishCoroutine(video));
-            _loggingService.Info($"Download of {video.title} finished");
+            DownloadFinished?.Invoke(video);
+            _loggingService.Info($"[{process.Id}] Download of {video.title} finished successfully");
         }
 
         DisposeProcess(process);
@@ -206,7 +245,7 @@ public class DownloadService : YoutubeDLServiceBase
                 var transcodeOutputTimeMatch = TranscodeProgressRegex.Match(dataReceivedEventArgs.Data);
                 if (transcodeOutputTimeMatch.Success && long.TryParse(transcodeOutputTimeMatch.Groups["micros"].Value, out var microsConverted))
                 {
-                    video.ConvertingProgress = ((float)microsConverted / ((long) video.duration * 1000000)) * 100;
+                    video.ConvertingProgress = ((float)microsConverted / ((long)video.duration * 1000000)) * 100;
                 }
             }
 
@@ -281,7 +320,7 @@ public class DownloadService : YoutubeDLServiceBase
         var videoFormat = VideoQuality.ToYoutubeDLFormat(video, quality);
         videoFormat = videoFormat.Length > 0 ? $" -f \"{videoFormat}\"" : "";
         var outputPath = video.VideoPath;
-        
+
         var downloadProcessArguments = videoUrl +
                                        videoFormat +
                                        " --no-cache-dir" + // Don't use temp storage
@@ -319,7 +358,7 @@ public class DownloadService : YoutubeDLServiceBase
                 }
             });
         }
-        
+
         _downloadProcesses.TryAdd(video, process);
         return process;
     }
