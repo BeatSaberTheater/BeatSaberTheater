@@ -21,6 +21,7 @@ namespace BeatSaberTheater.Services;
 internal class DownloadService : YoutubeDLServiceBase
 {
     private readonly ConcurrentDictionary<VideoConfig, Process> _downloadProcesses = new();
+    private readonly ConcurrentDictionary<VideoConfig, StringBuilder> _stderrBuffers = new();
 
     private static readonly Regex DownloadProgressRegex = new(
         @"(?<percentage>\d+\.?\d*)%",
@@ -85,6 +86,9 @@ internal class DownloadService : YoutubeDLServiceBase
                 DownloadOutputDataReceived((Process)sender, e, video);
             });
 
+        downloadProcess.ErrorDataReceived += (sender, e) =>
+            UnityMainThreadTaskScheduler.Factory.StartNew(delegate { DownloadErrorDataReceived(e, video); });
+
         downloadProcess.Exited += (sender, e) =>
             UnityMainThreadTaskScheduler.Factory.StartNew(delegate { DownloadProcessExited((Process)sender, video); });
 
@@ -118,6 +122,7 @@ internal class DownloadService : YoutubeDLServiceBase
 
             DownloadFinished?.Invoke(video);
             DisposeProcess(downloadProcess);
+            _stderrBuffers.TryRemove(video, out var _);
             yield break;
         }
         else
@@ -137,38 +142,30 @@ internal class DownloadService : YoutubeDLServiceBase
         DownloadProgress?.Invoke(video);
     }
 
+    private void DownloadErrorDataReceived(DataReceivedEventArgs eventArgs, VideoConfig video)
+    {
+        if (string.IsNullOrWhiteSpace(eventArgs.Data)) return;
+
+        var buffer = _stderrBuffers.GetOrAdd(video, _ => new StringBuilder());
+        buffer.AppendLine(eventArgs.Data);
+    }
+
     private void DownloadProcessExited(Process process, VideoConfig video)
     {
         // Ensure all stdout/stderr are flushed
         try { process.WaitForExit(); } catch { /* ignore */ }
 
         var exitCode = process.ExitCode;
-        string stderr = string.Empty;
+        var stderr = _stderrBuffers.TryRemove(video, out var sb) ? sb.ToString() : string.Empty;
 
         if (exitCode != 0)
         {
-            try
-            {
-                stderr = process.StandardError.ReadToEnd();
-            }
-            catch (Exception ex)
-            {
-                _loggingService.Warn(ex);
-            }
-        }
-
-        // If failed -> log stderr and mark NotDownloaded
-        if (exitCode != 0)
-        {
-            video.DownloadState = DownloadState.NotDownloaded;
-
             _loggingService.Error($"[{process.Id}] yt-dlp exited with code {exitCode}");
             if (!string.IsNullOrWhiteSpace(stderr))
-                _loggingService.Error(stderr.Trim());
+                _loggingService.Error(stderr);
 
-            video.ErrorMessage = !string.IsNullOrWhiteSpace(stderr)
-                ? ShortenErrorMessage(stderr)
-                : "Unknown error. See log for details.";
+            video.DownloadState = DownloadState.NotDownloaded;
+            video.ErrorMessage = ShortenErrorMessage(stderr);
 
             _videoLoader.DeleteVideo(video);
             DownloadFinished?.Invoke(video);
