@@ -23,7 +23,7 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="BSTheater.Shared" Version="1.0.0-dev.10" />
+        <PackageReference Include="BSTheater.Shared" Version="1.0.1" />
     </ItemGroup>
 
     <ItemGroup>
@@ -98,6 +98,10 @@
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\BGLib.UnityExtension.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="BGNetCore" Publicize="true">
+            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\BGNetCore.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="BS_Utils">
             <HintPath>$(BeatSaberDir)\Plugins\BS_Utils.dll</HintPath>
             <Private>false</Private>
@@ -150,6 +154,10 @@
         <Reference Include="netstandard" />
         <Reference Include="Newtonsoft.Json">
             <HintPath>$(BeatSaberDir)\IPA\Libs\Newtonsoft.Json.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="PlatformUserModel" Publicize="true">
+            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\PlatformUserModel.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="Rendering" Publicize="true">
