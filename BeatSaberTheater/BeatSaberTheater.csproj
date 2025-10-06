@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-    <Import Project="BeatSaberTheater.csproj.user" Condition="Exists('BeatSaberTheater.csproj.user')"/>
+    <Import Project="BeatSaberTheater.csproj.user" Condition="Exists('BeatSaberTheater.csproj.user')" />
 
     <PropertyGroup>
         <TargetFramework>net472</TargetFramework>
@@ -23,29 +23,30 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+        <PackageReference Include="BSTheater.Shared" Version="1.0.0-dev.10" />
     </ItemGroup>
 
     <ItemGroup>
-        <None Remove="VideoMenu\Views\video-menu.bsml"/>
-        <EmbeddedResource Include="VideoMenu\Views\video-menu.bsml"/>
-        <None Remove="Settings\Views\settings.bsml"/>
-        <EmbeddedResource Include="Settings\Views\settings.bsml"/>
-        <None Remove="Resources\trash.png"/>
-        <EmbeddedResource Include="Resources\trash.png"/>
-        <None Remove="Resources\configs.json"/>
-        <EmbeddedResource Include="Resources\configs.json"/>
-        <None Remove="VideoMenu\Views\level-detail.bsml"/>
-        <EmbeddedResource Include="VideoMenu\Views\level-detail.bsml"/>
-        <None Remove="Resources\bstheater.bundle"/>
-        <EmbeddedResource Include="Resources\bstheater.bundle"/>
+        <None Remove="VideoMenu\Views\video-menu.bsml" />
+        <EmbeddedResource Include="VideoMenu\Views\video-menu.bsml" />
+        <None Remove="Settings\Views\settings.bsml" />
+        <EmbeddedResource Include="Settings\Views\settings.bsml" />
+        <None Remove="Resources\trash.png" />
+        <EmbeddedResource Include="Resources\trash.png" />
+        <None Remove="Resources\configs.json" />
+        <EmbeddedResource Include="Resources\configs.json" />
+        <None Remove="VideoMenu\Views\level-detail.bsml" />
+        <EmbeddedResource Include="VideoMenu\Views\level-detail.bsml" />
+        <None Remove="Resources\bstheater.bundle" />
+        <EmbeddedResource Include="Resources\bstheater.bundle" />
     </ItemGroup>
 
     <ItemGroup>
-        <Content Include="Resources\cinema.bplist" CopyToOutputDirectory="PreserveNewest"/>
+        <Content Include="Resources\cinema.bplist" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
     <ItemGroup>
-        <None Include="BeatSaberTheater.csproj.user" Condition="Exists('BeatSaberTheater.csproj.user')"/>
+        <None Include="BeatSaberTheater.csproj.user" Condition="Exists('BeatSaberTheater.csproj.user')" />
     </ItemGroup>
 
     <ItemGroup>
@@ -145,8 +146,8 @@
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\MenuLightPreset.dll</HintPath>
             <Private>false</Private>
         </Reference>
-        <Reference Include="mscorlib"/>
-        <Reference Include="netstandard"/>
+        <Reference Include="mscorlib" />
+        <Reference Include="netstandard" />
         <Reference Include="Newtonsoft.Json">
             <HintPath>$(BeatSaberDir)\IPA\Libs\Newtonsoft.Json.dll</HintPath>
             <Private>false</Private>
@@ -163,9 +164,13 @@
             <HintPath>$(BeatSaberDir)\Plugins\SongCore.dll</HintPath>
             <Private>false</Private>
         </Reference>
-        <Reference Include="System"/>
+        <Reference Include="System" />
         <Reference Include="System.Core">
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\System.Core.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="System.Net.Http">
+            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\System.Net.Http.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="Unity.TextMeshPro">
@@ -227,9 +232,7 @@
     </ItemGroup>
 
     <Target Name="FlattenForRelease" AfterTargets="Build">
-        <Copy SourceFiles="Resources\cinema.bplist"
-              DestinationFolder="$(OutputPath)/Artifact/Playlists"
-              SkipUnchangedFiles="true"/>
+        <Copy SourceFiles="Resources\cinema.bplist" DestinationFolder="$(OutputPath)/Artifact/Playlists" SkipUnchangedFiles="true" />
     </Target>
 
 </Project>
