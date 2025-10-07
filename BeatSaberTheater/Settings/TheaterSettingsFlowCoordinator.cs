@@ -1,5 +1,6 @@
 using System;
 using BeatSaberMarkupLanguage;
+using BeatSaberTheater.Settings.V2;
 using BeatSaberTheater.Util;
 using HMUI;
 
