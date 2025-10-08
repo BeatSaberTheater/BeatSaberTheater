@@ -14,8 +14,7 @@ internal class TheaterSettingsViewController
 
 	private void Awake()
 	{
-		_viewComponent = new TheaterSettingsViewComponent();
-		_viewComponent.Setup(_config);
+		_viewComponent = new TheaterSettingsViewComponent(_config);
 		_viewComponent.Use(transform);
 	}
 	// [Inject] private LoggingService _loggingService = null!;

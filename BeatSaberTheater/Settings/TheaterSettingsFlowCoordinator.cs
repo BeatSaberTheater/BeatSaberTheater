@@ -1,15 +1,14 @@
 using System;
 using BeatSaberMarkupLanguage;
-using BeatSaberTheater.Settings.V2;
-using BeatSaberTheater.Util;
 using HMUI;
+using Zenject;
 
 namespace BeatSaberTheater.Settings;
 
 public class TheaterSettingsFlowCoordinator : FlowCoordinator
 {
-    private readonly TheaterSettingsViewController
-        _viewController = BeatSaberUI.CreateViewController<TheaterSettingsViewController>();
+    [Inject] private readonly TheaterSettingsViewController
+        _viewController = null!;
 
     protected override void DidActivate(bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling)
     {
