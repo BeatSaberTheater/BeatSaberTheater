@@ -21,32 +21,6 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
 	private InputField _downloadTimeoutSeconds = null!;
 	private InputField _searchTimeoutSeconds = null!;
 
-	// [UIValue("download-timeout-seconds")]
-	// public string DownloadTimeoutSeconds
-	// {
-	//     get => _config.DownloadTimeoutSeconds.ToString();
-	//     set
-	//     {
-	//         if (int.TryParse(value, out var timeout))
-	//         {
-	//             _config.DownloadTimeoutSeconds = timeout;
-	//         }
-	//     }
-	// }
-	//
-	// [UIValue("search-timeout-seconds")]
-	// public string SearchTimeoutSeconds
-	// {
-	//     get => _config.SearchTimeoutSeconds.ToString();
-	//     set
-	//     {
-	//         if (int.TryParse(value, out var timeout))
-	//         {
-	//             _config.SearchTimeoutSeconds = timeout;
-	//         }
-	//     }
-	// 
-
 	protected override GameObject Construct()
 	{
 		return new Layout()
