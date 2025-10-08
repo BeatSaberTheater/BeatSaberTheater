@@ -1,4 +1,5 @@
 using Reactive;
+using Reactive.Components;
 using Reactive.BeatSaber.Components;
 using Reactive.Yoga;
 using UnityEngine;
@@ -6,13 +7,15 @@ using Label = Reactive.Components.Basic.Label;
 
 namespace BeatSaberTheater.Settings.V2;
 
-public class TheaterSettingsGeneralTabComponent : ReactiveComponent
+internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : ReactiveComponent
 {
+	private Toggle _enableTheater = null!;
+
 	protected override GameObject Construct()
 	{
 		return new Layout()
-			{
-				Children =
+		{
+			Children =
 				{
 					new Layout()
 						{
@@ -25,11 +28,12 @@ public class TheaterSettingsGeneralTabComponent : ReactiveComponent
 									.AsFlexItem(),
 								new Toggle() {}
 									.AsFlexItem()
+									.Bind(ref _enableTheater)
 							}
 						}
 						.AsFlexItem()
 						.AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween),
-				
+
 					new Layout()
 						{
 							Children =
@@ -53,7 +57,7 @@ public class TheaterSettingsGeneralTabComponent : ReactiveComponent
 						}
 						.AsFlexItem()
 						.AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween),
-				
+
 					new Layout()
 						{
 							Children =
@@ -76,7 +80,7 @@ public class TheaterSettingsGeneralTabComponent : ReactiveComponent
 						}
 						.AsFlexItem()
 						.AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween),
-				
+
 					new Layout()
 						{
 							Children =
@@ -92,7 +96,7 @@ public class TheaterSettingsGeneralTabComponent : ReactiveComponent
 						}
 						.AsFlexItem()
 						.AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween),
-				
+
 					new Layout()
 						{
 							Children =
@@ -108,7 +112,7 @@ public class TheaterSettingsGeneralTabComponent : ReactiveComponent
 						}
 						.AsFlexItem()
 						.AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween),
-				
+
 					new Layout()
 						{
 							Children =
@@ -124,7 +128,7 @@ public class TheaterSettingsGeneralTabComponent : ReactiveComponent
 						}
 						.AsFlexItem()
 						.AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween),
-				
+
 					new Layout()
 						{
 							Children =
@@ -141,9 +145,24 @@ public class TheaterSettingsGeneralTabComponent : ReactiveComponent
 						.AsFlexItem()
 						.AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween),
 				}
-			}
+		}
 			.AsFlexGroup(FlexDirection.Column, gap: new YogaVector(0, 2), justifyContent: Justify.Center)
 			.AsFlexItem()
 			.Use();
+	}
+
+	protected override void OnStart()
+	{
+		Plugin._log.Debug($"_config is null: {_config is null}");
+		_enableTheater.Active = _config?.PluginEnabled ?? false;
+
+		_enableTheater.PropertyChangedEvent += (label, toggled) =>
+		{
+			Plugin._log.Debug($"Callback data: {toggled}");
+			Plugin._log.Debug($"_config is null: {_config is null}");
+			Plugin._log.Debug($"Setting theater enabled to {toggled}");
+			if (_config is not null)
+				_config.PluginEnabled = (bool)toggled;
+		};
 	}
 }

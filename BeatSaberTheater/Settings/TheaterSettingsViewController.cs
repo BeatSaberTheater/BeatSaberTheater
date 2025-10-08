@@ -1,5 +1,6 @@
 using BeatSaberTheater.Settings.V2;
 using HMUI;
+using Zenject;
 
 namespace BeatSaberTheater.Settings;
 
@@ -7,11 +8,14 @@ namespace BeatSaberTheater.Settings;
 internal class TheaterSettingsViewController
 	: ViewController
 {
+	[Inject] private readonly PluginConfig _config = null!;
+
 	private TheaterSettingsViewComponent _viewComponent = null!;
 
 	private void Awake()
 	{
 		_viewComponent = new TheaterSettingsViewComponent();
+		_viewComponent.Setup(_config);
 		_viewComponent.Use(transform);
 	}
 	// [Inject] private LoggingService _loggingService = null!;

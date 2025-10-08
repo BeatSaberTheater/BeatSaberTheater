@@ -6,7 +6,7 @@ using Label = Reactive.Components.Basic.Label;
 
 namespace BeatSaberTheater.Settings.V2;
 
-public class TheaterSettingsViewComponent : ReactiveComponent
+internal class TheaterSettingsViewComponent() : ReactiveComponent
 {
 	private enum TheaterSettingsTabs
 	{
@@ -14,13 +14,12 @@ public class TheaterSettingsViewComponent : ReactiveComponent
 		Visuals
 	}
 
-
 	protected override GameObject Construct()
 	{
 		var currentTab = Remember(TheaterSettingsTabs.General);
 		return new Layout()
-			{
-				Children =
+		{
+			Children =
 				{
 					new Layout()
 						{
@@ -54,7 +53,7 @@ public class TheaterSettingsViewComponent : ReactiveComponent
 							WithinLayoutIfDisabled = false,
 							Children =
 							{
-								new TheaterSettingsGeneralTabComponent()
+								new TheaterSettingsGeneralTabComponent(_config)
 							}
 						}
 						.Animate(currentTab, (layout, tabs) => { layout.Enabled = currentTab == TheaterSettingsTabs.General; })
@@ -76,7 +75,14 @@ public class TheaterSettingsViewComponent : ReactiveComponent
 						.Animate(currentTab, (layout, tabs) => { layout.Enabled = tabs == TheaterSettingsTabs.Visuals; })
 						.AsFlexItem(flex: 1)
 				}
-			}.AsFlexGroup(FlexDirection.Column)
+		}.AsFlexGroup(FlexDirection.Column)
 			.Use();
+	}
+
+	private PluginConfig? _config;
+
+	public void Setup(PluginConfig config)
+	{
+		_config = config;
 	}
 }
