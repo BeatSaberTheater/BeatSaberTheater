@@ -35,7 +35,41 @@ public class AuthTokenService : IInitializable, IDisposable
 
     private void OnMenuSceneLoadedFresh(ScenesTransitionSetupDataSO? scenesTransition)
     {
-        Task.Run(RefreshAuthToken);
+        _loggingService.Debug("Starting auth token refresh loop");
+        _refreshTokenCts?.Cancel();
+        _refreshTokenCts = new CancellationTokenSource();
+
+        // Start persistent background loop
+        _ = Task.Run(() => AuthTokenRefreshLoop(_refreshTokenCts.Token));
+    }
+
+    private async Task AuthTokenRefreshLoop(CancellationToken token)
+    {
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    // If token is missing or near expiry, refresh it
+                    if (string.IsNullOrEmpty(CurrentAuthToken) || DateTime.UtcNow >= _tokenExpiryUtc.AddMinutes(-5))
+                    {
+                        await RefreshAuthToken();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _loggingService.Error($"Error during token refresh: {ex}");
+                }
+
+                // Sleep for 60 seconds between checks
+                await Task.Delay(TimeSpan.FromSeconds(60), token);
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // Expected during disposal
+        }
     }
 
     private async Task RefreshAuthToken()
@@ -64,37 +98,6 @@ public class AuthTokenService : IInitializable, IDisposable
 
         _loggingService.Debug($"Current auth token has been rotated: {CurrentAuthToken}");
         _loggingService.Debug($"Token expires at {_tokenExpiryUtc:u}");
-
-        ScheduleNextRefresh();
-    }
-
-    private void ScheduleNextRefresh()
-    {
-        _refreshTokenCts?.Cancel();
-        _refreshTokenCts = new CancellationTokenSource();
-
-        var timeUntilExpiry = _tokenExpiryUtc - DateTime.UtcNow;
-        var refreshDelay = timeUntilExpiry - TimeSpan.FromMinutes(5); // refresh 5 minutes before expiry
-        if (refreshDelay < TimeSpan.Zero)
-            refreshDelay = TimeSpan.FromMinutes(1); // refresh soon if token is near-expired
-
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                _loggingService.Debug($"Scheduling next auth token refresh in {refreshDelay.TotalMinutes:F1} minutes");
-                await Task.Delay(refreshDelay, _refreshTokenCts.Token);
-                await RefreshAuthToken();
-            }
-            catch (TaskCanceledException)
-            {
-                // expected when Dispose() or new refresh
-            }
-            catch (Exception ex)
-            {
-                _loggingService.Error($"Error scheduling next token refresh: {ex}");
-            }
-        }, _refreshTokenCts.Token);
     }
 
     private DateTime? ParseJwtExpiry(string jwt)
@@ -115,10 +118,10 @@ public class AuthTokenService : IInitializable, IDisposable
             if (expValue != null)
                 return DateTimeOffset.FromUnixTimeSeconds(expValue.Value).UtcDateTime;
         }
-        catch
+        catch (Exception ex)
         {
-            // ignored — fallback will handle missing exp
-            _loggingService.Debug("Failed parsing expiration from JWT");
+            _loggingService.Warn($"Failed parsing expiration from JWT: {ex}");
+            _loggingService.Debug($"Received JWT: {jwt}");
         }
         return null;
     }
