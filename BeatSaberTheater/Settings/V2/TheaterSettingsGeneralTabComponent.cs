@@ -1,6 +1,4 @@
-using System;
-using System.Linq.Expressions;
-using System.Reflection;
+using BeatSaberTheater.Util.ReactiveUi;
 using Reactive;
 using Reactive.BeatSaber.Components;
 using Reactive.Yoga;
@@ -216,37 +214,6 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
 			.Use();
 	}
 
-	private void SetupPropertyBinding<T>(ReactiveComponent component, Expression<Func<PluginConfig, T>> property,
-		Expression<Func<object, object>>? conversion = null)
-	{
-		component.PropertyChangedEvent += (_, o) =>
-		{
-			if (_config is not null)
-			{
-				var memberExpression = property.Body as MemberExpression;
-				var field = memberExpression?.Member as FieldInfo;
-				var prop = memberExpression?.Member as PropertyInfo;
-
-				var valueToWrite = conversion != null ? conversion.Compile()(o) : o;
-				if (field != null)
-				{
-					Plugin._log.Debug("field Value -> " + valueToWrite);
-					field.SetValue(_config, valueToWrite);
-				}
-
-				else if (prop != null)
-				{
-					Plugin._log.Debug("prop Value -> " + valueToWrite);
-					prop.SetValue(_config, valueToWrite);
-				}
-				else
-				{
-					Plugin._log.Error("Could not find property to write: " + property);
-				}
-			}
-		};
-	}
-
 	protected override void OnStart()
 	{
 		_enableTheater.Active = _config?.PluginEnabled ?? false;
@@ -261,16 +228,20 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
 		_downloadTimeoutSeconds.Text = _config?.DownloadTimeoutSeconds.ToString() ?? "0";
 		_searchTimeoutSeconds.Text = _config?.SearchTimeoutSeconds.ToString() ?? "0";
 
-		SetupPropertyBinding(_enableTheater, x => x.PluginEnabled);
-		SetupPropertyBinding(_format, x => x.Format);
-		SetupPropertyBinding(_mode, x => x.QualityMode);
-		SetupPropertyBinding(_forceBigMirror, x => x.ForceDisableEnvironmentOverrides);
-		SetupPropertyBinding(_disableCustomPlatforms, x => x.DisableCustomPlatforms);
-		SetupPropertyBinding(_rotate90360maps, x => x.Enable360Rotation);
-		SetupPropertyBinding(_showSongCover, x => x.CoverEnabled);
-		SetupPropertyBinding(_downloadTimeoutSeconds, x => x.DownloadTimeoutSeconds,
-			o => o.ToString().TryParseIntDirect() == null ? 0 : int.Parse(o.ToString()));
-		SetupPropertyBinding(_searchTimeoutSeconds, x => x.SearchTimeoutSeconds, o => o.ToString().TryParseIntDirect() == null ? 0 : int.Parse(o.ToString()));
+		if (_config != null)
+		{
+			ReactiveUiHelpers.SetupPropertyBinding(_enableTheater, _config, x => x.PluginEnabled);
+			ReactiveUiHelpers.SetupPropertyBinding(_format, _config, x => x.Format);
+			ReactiveUiHelpers.SetupPropertyBinding(_mode, _config, x => x.QualityMode);
+			ReactiveUiHelpers.SetupPropertyBinding(_forceBigMirror, _config, x => x.ForceDisableEnvironmentOverrides);
+			ReactiveUiHelpers.SetupPropertyBinding(_disableCustomPlatforms, _config, x => x.DisableCustomPlatforms);
+			ReactiveUiHelpers.SetupPropertyBinding(_rotate90360maps, _config, x => x.Enable360Rotation);
+			ReactiveUiHelpers.SetupPropertyBinding(_showSongCover, _config, x => x.CoverEnabled);
+			ReactiveUiHelpers.SetupPropertyBinding(_downloadTimeoutSeconds, _config, x => x.DownloadTimeoutSeconds,
+				o => o.ToString().TryParseIntDirect() == null ? 0 : int.Parse(o.ToString()));
+			ReactiveUiHelpers.SetupPropertyBinding(_searchTimeoutSeconds, _config, x => x.SearchTimeoutSeconds,
+				o => o.ToString().TryParseIntDirect() == null ? 0 : int.Parse(o.ToString()));
+		}
 	}
 }
 

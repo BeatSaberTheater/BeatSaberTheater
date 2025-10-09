@@ -2,7 +2,6 @@ using Reactive;
 using Reactive.BeatSaber.Components;
 using Reactive.Yoga;
 using UnityEngine;
-using Label = Reactive.Components.Basic.Label;
 
 namespace BeatSaberTheater.Settings.V2;
 
@@ -48,31 +47,37 @@ internal class TheaterSettingsViewComponent(PluginConfig config) : ReactiveCompo
 						.AsFlexGroup(FlexDirection.Row, Justify.Center, gap: new YogaVector(2f, 0)),
 
 					new Layout()
+					{
+						Children =
 						{
-							Enabled = currentTab == TheaterSettingsTabs.General,
-							WithinLayoutIfDisabled = false,
-							Children =
-							{
-								new TheaterSettingsGeneralTabComponent(config)
-							}
-						}
-						.Animate(currentTab, (layout, tabs) => { layout.Enabled = currentTab == TheaterSettingsTabs.General; })
-						.AsFlexGroup(FlexDirection.Column)
-						.AsFlexItem(flex: 1),
-
-					new Layout()
-						{
-							Enabled = currentTab == TheaterSettingsTabs.Visuals,
-							WithinLayoutIfDisabled = false,
-							Children =
-							{
-								new Label()
+							new Layout()
 								{
-									Text = "Visuals Tab"
+									Enabled = currentTab == TheaterSettingsTabs.General,
+									WithinLayoutIfDisabled = false,
+									Children =
+									{
+										new TheaterSettingsGeneralTabComponent(config)
+									}
 								}
-							}
+								.Animate(currentTab, (layout, tabs) => { layout.Enabled = tabs == TheaterSettingsTabs.General; })
+								.AsFlexGroup(FlexDirection.Column)
+								.AsFlexItem(flex: 1, maxSize: new YogaVector() { x = YogaValue.Percent(75) }),
+
+							new Layout()
+								{
+									Enabled = currentTab == TheaterSettingsTabs.Visuals,
+									WithinLayoutIfDisabled = false,
+									Children =
+									{
+										new TheaterSettingsVisualsTabComponent(config)
+									}
+								}
+								.Animate(currentTab, (layout, tabs) => { layout.Enabled = tabs == TheaterSettingsTabs.Visuals; })
+								.AsFlexGroup(FlexDirection.Column)
+								.AsFlexItem(flex: 1, maxSize: new YogaVector() { x = YogaValue.Percent(75) })
 						}
-						.Animate(currentTab, (layout, tabs) => { layout.Enabled = tabs == TheaterSettingsTabs.Visuals; })
+					}
+					.AsFlexGroup(FlexDirection.Row, Justify.Center, Align.FlexStart)
 						.AsFlexItem(flex: 1)
 				}
 		}.AsFlexGroup(FlexDirection.Column)
