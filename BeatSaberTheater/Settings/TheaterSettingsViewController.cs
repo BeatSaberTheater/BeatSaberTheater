@@ -6,7 +6,6 @@ using Zenject;
 
 namespace BeatSaberTheater.Settings;
 
-// [ViewDefinition("BeatSaberTheater.Settings.Views.settings.bsml")]
 internal class TheaterSettingsViewController
 	: ViewController
 {
