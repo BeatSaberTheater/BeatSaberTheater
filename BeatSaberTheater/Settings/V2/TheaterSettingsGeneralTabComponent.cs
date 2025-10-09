@@ -24,8 +24,8 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
 	protected override GameObject Construct()
 	{
 		return new Layout()
-			{
-				Children =
+		{
+			Children =
 				{
 					new Layout()
 						{
@@ -210,7 +210,7 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
 						.AsFlexItem()
 						.AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween),
 				}
-			}
+		}
 			.AsFlexGroup(FlexDirection.Column, gap: new YogaVector(0, 2), justifyContent: Justify.Center)
 			.AsFlexItem()
 			.Use();
@@ -256,14 +256,15 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
 		_disableCustomPlatforms.Active = _config?.DisableCustomPlatforms ?? false;
 		_rotate90360maps.Active = _config?.Enable360Rotation ?? false;
 		_showSongCover.Active = _config?.CoverEnabled ?? false;
-		
+
 		// Todo: figure out how to bind initial values to inputfields
-		// _downloadTimeoutSeconds.Text = _config?.DownloadTimeoutSeconds.ToString() ?? "0";
-		// _searchTimeoutSeconds.Text = _config?.SearchTimeoutSeconds.ToString() ?? "0";
-		
+		_downloadTimeoutSeconds.Text = _config?.DownloadTimeoutSeconds.ToString() ?? "0";
+		_searchTimeoutSeconds.Text = _config?.SearchTimeoutSeconds.ToString() ?? "0";
+
 		SetupPropertyBinding(_enableTheater, x => x.PluginEnabled);
 		SetupPropertyBinding(_format, x => x.Format);
 		SetupPropertyBinding(_mode, x => x.QualityMode);
+		SetupPropertyBinding(_forceBigMirror, x => x.ForceDisableEnvironmentOverrides);
 		SetupPropertyBinding(_disableCustomPlatforms, x => x.DisableCustomPlatforms);
 		SetupPropertyBinding(_rotate90360maps, x => x.Enable360Rotation);
 		SetupPropertyBinding(_showSongCover, x => x.CoverEnabled);
