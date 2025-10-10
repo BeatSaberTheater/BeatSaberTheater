@@ -1,4 +1,5 @@
 using System;
+using BeatSaberTheater.Components;
 using BeatSaberTheater.Util.ReactiveUi;
 using Reactive;
 using Reactive.BeatSaber.Components;
@@ -18,14 +19,14 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
 	private Toggle _disableCustomPlatforms = null!;
 	private Toggle _rotate90360maps = null!;
 	private Toggle _showSongCover = null!;
-	private Slider _downloadTimeoutSeconds = null!;
-	private Slider _searchTimeoutSeconds = null!;
+	private StringInput _downloadTimeoutSeconds = null!;
+	private StringInput _searchTimeoutSeconds = null!;
 
 	protected override GameObject Construct()
 	{
 		return new Layout()
-			{
-				Children =
+		{
+			Children =
 				{
 					new Layout()
 						{
@@ -170,10 +171,13 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
 										Text = "Download Timeout"
 									}
 									.AsFlexItem(),
-								new Slider()
+								new StringInput()
 									{
-										ValueStep = 1,
-										ValueRange = new Range(1, 300)
+										TextApplicationContract = s => int.TryParse(s, out _),
+										Keyboard = new KeyboardModal<Keyboard, StringInput>
+										{
+											Offset = new(0f, 32f)
+										}
 									}
 									.AsFlexItem()
 									.Bind(ref _downloadTimeoutSeconds)
@@ -191,10 +195,14 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
 										Text = "Search Timeout"
 									}
 									.AsFlexItem(),
-								new Slider()
+								new StringInput()
 									{
-										ValueStep = 1,
-										ValueRange = new Range(1, 300)
+										TextApplicationContract = s => int.TryParse(s, out _),
+										// Todo: Create our own Numbers-Only keyboard?
+										Keyboard = new KeyboardModal<Keyboard, StringInput>
+										{
+											Offset = new(0f, 32f)
+										}
 									}
 									.AsFlexItem()
 									.Bind(ref _searchTimeoutSeconds)
@@ -203,7 +211,7 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
 						.AsFlexItem()
 						.AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween),
 				}
-			}
+		}
 			.AsFlexGroup(FlexDirection.Column, gap: new YogaVector(0, 2), justifyContent: Justify.Center)
 			.AsFlexItem()
 			.Use();
@@ -211,6 +219,7 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
 
 	protected override void OnStart()
 	{
+		Plugin._log.Debug("TabComponent OnStart()");
 		_enableTheater.Active = _config?.PluginEnabled ?? false;
 		_format.Select(_config?.Format ?? VideoFormats.Format.Mp4);
 		_mode.Select(_config?.QualityMode ?? VideoQuality.Mode.Q1080P);
@@ -218,8 +227,8 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
 		_disableCustomPlatforms.Active = _config?.DisableCustomPlatforms ?? false;
 		_rotate90360maps.Active = _config?.Enable360Rotation ?? false;
 		_showSongCover.Active = _config?.CoverEnabled ?? false;
-		_downloadTimeoutSeconds.Value = _config?.DownloadTimeoutSeconds ?? 0;
-		_searchTimeoutSeconds.Value = _config?.SearchTimeoutSeconds ?? 0;
+		_downloadTimeoutSeconds.Append(_config?.DownloadTimeoutSeconds.ToString() ?? "0");
+		_searchTimeoutSeconds.Append(_config?.SearchTimeoutSeconds.ToString() ?? "0");
 
 		if (_config != null)
 		{
@@ -230,8 +239,10 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
 			ReactiveUiHelpers.SetupPropertyBinding(_disableCustomPlatforms, _config, x => x.DisableCustomPlatforms);
 			ReactiveUiHelpers.SetupPropertyBinding(_rotate90360maps, _config, x => x.Enable360Rotation);
 			ReactiveUiHelpers.SetupPropertyBinding(_showSongCover, _config, x => x.CoverEnabled);
-			ReactiveUiHelpers.SetupPropertyBinding(_downloadTimeoutSeconds, _config, x => x.DownloadTimeoutSeconds, x => Convert.ToInt32(x));
-			ReactiveUiHelpers.SetupPropertyBinding(_searchTimeoutSeconds, _config, x => x.SearchTimeoutSeconds, x => Convert.ToInt32(x));
+			ReactiveUiHelpers.SetupPropertyBinding(_downloadTimeoutSeconds, _config, x => x.DownloadTimeoutSeconds,
+				o => o.ToString().TryParseIntDirect() == null ? 0 : int.Parse(o.ToString()));
+			ReactiveUiHelpers.SetupPropertyBinding(_searchTimeoutSeconds, _config, x => x.SearchTimeoutSeconds,
+				o => o.ToString().TryParseIntDirect() == null ? 0 : int.Parse(o.ToString()));
 		}
 	}
 }
