@@ -35,9 +35,7 @@ public class LevelDetailViewController
 		var beatmapDifficulty = levelDetail.Find("BeatmapDifficulty");
 		var beatmapCharacteristic = levelDetail.Find("BeatmapCharacteristic");
 		var actionButtons = levelDetail.Find("ActionButtons");
-		var levelDetailBackground = beatmapDifficulty.Find("BG");
-		if (beatmapDifficulty == null || beatmapCharacteristic == null || actionButtons == null ||
-		    levelDetailBackground == null)
+		if (beatmapDifficulty == null || beatmapCharacteristic == null || actionButtons == null)
 		{
 			_standardLevelDetailViewController = null;
 			return;
