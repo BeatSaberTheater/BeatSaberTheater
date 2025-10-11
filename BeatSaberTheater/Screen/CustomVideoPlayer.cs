@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Reflection;
 using BeatSaberTheater.Screen.Interfaces;
 using BeatSaberTheater.Util;
-using BeatSaberTheater.Video;
 using BeatSaberTheater.Video.Config;
 using BS_Utils.Utilities;
 using UnityEngine;

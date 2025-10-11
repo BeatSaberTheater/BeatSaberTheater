@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Models;
-using BeatSaberTheater.Settings;
 using BeatSaberTheater.Util;
 using Newtonsoft.Json;
 using SongCore.Data;
@@ -47,13 +46,13 @@ public class VideoConfig
     public EnvironmentModification[]? environment;
     public Vignette? vignette;
 
-    [JsonIgnore] [NonSerialized] public float DownloadProgress;
-    [JsonIgnore] [NonSerialized] public float? ConvertingProgress;
-    [JsonIgnore] [NonSerialized] public DownloadState DownloadState;
-    [JsonIgnore] [NonSerialized] public string? ErrorMessage;
-    [JsonIgnore] [NonSerialized] public string? LevelDir;
-    [JsonIgnore] [NonSerialized] public bool NeedsToSave;
-    [JsonIgnore] [NonSerialized] public bool PlaybackDisabledByMissingSuggestion;
+    [JsonIgnore][NonSerialized] public float DownloadProgress;
+    [JsonIgnore][NonSerialized] public float? ConvertingProgress;
+    [JsonIgnore][NonSerialized] public DownloadState DownloadState;
+    [JsonIgnore][NonSerialized] public string? ErrorMessage;
+    [JsonIgnore][NonSerialized] public string? LevelDir;
+    [JsonIgnore][NonSerialized] public bool NeedsToSave;
+    [JsonIgnore][NonSerialized] public bool PlaybackDisabledByMissingSuggestion;
 
     [JsonIgnore] public string? ConfigPath => LevelDir != null ? VideoLoader.GetConfigPath(LevelDir) : null;
 
@@ -163,7 +162,7 @@ public class VideoConfig
         {
             fileName += ".mp4";
         }
-        
+
         return fileName;
     }
 }

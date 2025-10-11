@@ -1,6 +1,5 @@
 using Zenject;
 using BeatSaberTheater.Settings;
-using BeatSaberTheater.Settings.V2;
 
 namespace BeatSaberTheater.Installers;
 

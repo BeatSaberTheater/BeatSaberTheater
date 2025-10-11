@@ -13,6 +13,6 @@ public class VideoMenuInstaller : Installer
         // Video player and playback manager dependencies
         Container.BindInterfacesAndSelfTo<DownloadService>().AsSingle();
         Container.BindInterfacesAndSelfTo<SearchService>().AsSingle();
-        Container.BindInterfacesTo<VideoMenuUI>().AsSingle();
+        Container.Bind<VideoMenuUI>().FromNewComponentAsViewController().AsSingle();
     }
 }
