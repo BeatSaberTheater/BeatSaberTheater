@@ -31,8 +31,6 @@ public class LevelDetailViewController
 		_root.ButtonPressed += () => ButtonPressedAction?.Invoke();
 		SetActive(false);
 
-		// _buttonUnderline = _button.transform.Find("Underline").gameObject.GetComponent<Image>();
-
 		//Clone background from level difficulty selection
 		var beatmapDifficulty = levelDetail.Find("BeatmapDifficulty");
 		var beatmapCharacteristic = levelDetail.Find("BeatmapCharacteristic");
