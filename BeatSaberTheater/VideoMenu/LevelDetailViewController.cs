@@ -1,21 +1,31 @@
 using System;
 using System.Linq;
+using HMUI;
 using JetBrains.Annotations;
 using UnityEngine;
+using Zenject;
 
 namespace BeatSaberTheater.VideoMenu;
 
 [UsedImplicitly]
-public class LevelDetailViewController
+public class LevelDetailViewController : ViewController
 {
-    private readonly LevelDetailComponent _root = null!;
-    private readonly StandardLevelDetailViewController? _standardLevelDetailViewController;
+    private LevelDetailComponent _root = null!;
+    private StandardLevelDetailViewController? _standardLevelDetailViewController;
+    [Inject] private readonly VideoMenuUI _videoMenuUI = null!;
 
     internal event Action? ButtonPressedAction;
 
     // ReSharper disable Unity.InefficientPropertyAccess
     internal LevelDetailViewController()
     {
+
+    }
+
+    private void Awake()
+    {
+        Plugin._log.Debug("LevelDetailViewController Awake()");
+
         _standardLevelDetailViewController =
             Resources.FindObjectsOfTypeAll<StandardLevelDetailViewController>().LastOrDefault();
         if (_standardLevelDetailViewController == null) return;
@@ -27,7 +37,9 @@ public class LevelDetailViewController
             return;
         }
 
-        _root = new LevelDetailComponent(levelDetail.gameObject.transform);
+        // _videoMenuUI.enabled = false;
+
+        _root = new LevelDetailComponent(levelDetail.gameObject.transform, _videoMenuUI!);
         _root.ButtonPressed += () => ButtonPressedAction?.Invoke();
         SetActive(false);
 
@@ -62,6 +74,8 @@ public class LevelDetailViewController
         rectTransform.anchorMax = difficultyTransform.anchorMax;
         rectTransform.offsetMin = offsetMin;
         rectTransform.offsetMax = offsetMax;
+
+        SetActive(true);
     }
 
     public void SetActive(bool active)

@@ -51,7 +51,7 @@ internal class Plugin
 
         // Instructs SiraUtil to use this installer when the main menu initializes
         zenjector.Install<SettingsMenuInstaller>(Location.Menu);
-        zenjector.Install<VideoMenuInstaller>(Location.Menu);
+        zenjector.Install<VideoMenuInstaller>(Location.App);
 
         _log.Info($"{pluginMetadata.Name} {pluginMetadata.HVersion} initialized.");
     }

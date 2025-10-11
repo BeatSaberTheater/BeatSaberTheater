@@ -6,6 +6,7 @@ using BeatmapEditor3D.DataModels;
 using BeatSaberMarkupLanguage;
 using BeatSaberMarkupLanguage.Attributes;
 using BeatSaberMarkupLanguage.Components;
+using BeatSaberMarkupLanguage.FloatingScreen;
 using BeatSaberMarkupLanguage.GameplaySetup;
 using BeatSaberMarkupLanguage.Parser;
 using BeatSaberTheater.Download;
@@ -52,6 +53,17 @@ public class VideoMenuUI : ViewController
             _videoLoader
         );
         _viewComponent.Use(transform);
+    }
+
+    public void SpawnMenu()
+    {
+        var floatingScreen = FloatingScreen.CreateFloatingScreen(
+            screenSize: new Vector2(150f, 150f),
+            createHandle: false,
+            position: new Vector3(0f, 1f, 2f),
+            rotation: Quaternion.Euler(0f, 0f, 0f)
+        );
+        floatingScreen.SetRootViewController(this, ViewController.AnimationType.None);
     }
 
     //     private readonly GameplaySetup _gameplaySetup;

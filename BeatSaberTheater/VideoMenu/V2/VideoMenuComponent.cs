@@ -1,14 +1,16 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using BeatSaberMarkupLanguage.GameplaySetup;
+using BeatmapEditor3D.DataModels;
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Playback;
 using BeatSaberTheater.Services;
 using BeatSaberTheater.Util;
+using BeatSaberTheater.Util.ReactiveUi;
 using BeatSaberTheater.Video;
 using BeatSaberTheater.Video.Config;
 using Reactive;
+using Reactive.BeatSaber.Components;
 using Reactive.Yoga;
 using UnityEngine;
 
@@ -21,17 +23,14 @@ internal enum VideoMenuSection
     Results
 }
 
-internal class VideoMenuComponent : ReactiveComponent
+internal class VideoMenuComponent(TheaterCoroutineStarter coroutineStarter,
+        DownloadService downloadService,
+        LoggingService loggingService,
+        PlaybackManager playbackManager,
+        PluginConfig pluginConfig,
+        SearchService searchService,
+        VideoLoader videoLoader) : ReactiveComponent
 {
-    // Services from original class constructor
-    private readonly TheaterCoroutineStarter _coroutineStarter;
-    private readonly DownloadService _downloadService;
-    private readonly LoggingService _loggingService;
-    private readonly PlaybackManager _playbackManager;
-    private readonly PluginConfig _config;
-    private readonly SearchService _searchService;
-    private readonly VideoLoader _videoLoader;
-
     // Children
     private NoVideoComponent _noVideo = null!;
     private VideoDetailsComponent _details = null!;
@@ -53,27 +52,12 @@ internal class VideoMenuComponent : ReactiveComponent
     private Coroutine? _searchLoadingCoroutine;
     private Coroutine? _updateSearchResultsCoroutine;
 
-    public VideoMenuComponent(TheaterCoroutineStarter coroutineStarter,
-        DownloadService downloadService,
-        LoggingService loggingService,
-        PlaybackManager playbackManager,
-        PluginConfig config,
-        SearchService searchService,
-        VideoLoader videoLoader)
-    {
-        _coroutineStarter = coroutineStarter;
-        _downloadService = downloadService;
-        _loggingService = loggingService;
-        _playbackManager = playbackManager;
-        _config = config;
-        _searchService = searchService;
-        _videoLoader = videoLoader;
-    }
-
     protected override GameObject Construct()
     {
-        return new Layout
+        return new Background()
         {
+            WithinLayoutIfDisabled = true,
+            LayoutModifier = new YogaModifier() { Margin = new YogaFrame() { left = 2.pt(), right = 2.pt() } },
             Children =
             {
                 new NoVideoComponent(OnSearchClicked).AsFlexItem().Bind(ref _noVideo),
@@ -83,7 +67,8 @@ internal class VideoMenuComponent : ReactiveComponent
                     .AsFlexItem().Bind(ref _results)
             }
         }
-        .AsFlexGroup(FlexDirection.Column)
+        .AsFlexGroup(FlexDirection.Row, Justify.SpaceAround, constrainVertical: false, padding: new YogaFrame(0, YogaValue.Point(2)))
+        .AsBeatSaberBackground()
         .Use();
     }
 
@@ -94,11 +79,12 @@ internal class VideoMenuComponent : ReactiveComponent
         UpdateSectionVisibility(_activeSection.Value);
 
         // subscribe to services (mirrors original Initialize wiring)
-        _searchService.SearchProgress += SearchProgress;
-        _searchService.SearchFinished += SearchFinished;
-        _downloadService.DownloadProgress += OnDownloadProgress;
-        _downloadService.DownloadFinished += OnDownloadFinished;
+        searchService.SearchProgress += SearchProgress;
+        searchService.SearchFinished += SearchFinished;
+        downloadService.DownloadProgress += OnDownloadProgress;
+        downloadService.DownloadFinished += OnDownloadFinished;
         VideoLoader.ConfigChanged += OnConfigChanged;
+        Events.LevelSelected += OnLevelSelected;
     }
 
     public void Initialize()
@@ -114,14 +100,15 @@ internal class VideoMenuComponent : ReactiveComponent
     public void Dispose()
     {
         // Unsubscribe everything safely
-        _searchService.SearchProgress -= SearchProgress;
-        _searchService.SearchFinished -= SearchFinished;
-        _downloadService.DownloadProgress -= OnDownloadProgress;
-        _downloadService.DownloadFinished -= OnDownloadFinished;
+        searchService.SearchProgress -= SearchProgress;
+        searchService.SearchFinished -= SearchFinished;
+        downloadService.DownloadProgress -= OnDownloadProgress;
+        downloadService.DownloadFinished -= OnDownloadFinished;
         VideoLoader.ConfigChanged -= OnConfigChanged;
+        Events.LevelSelected -= OnLevelSelected;
 
-        if (_searchLoadingCoroutine != null) _coroutineStarter.StopCoroutine(_searchLoadingCoroutine);
-        if (_updateSearchResultsCoroutine != null) _coroutineStarter.StopCoroutine(_updateSearchResultsCoroutine);
+        if (_searchLoadingCoroutine != null) coroutineStarter.StopCoroutine(_searchLoadingCoroutine);
+        if (_updateSearchResultsCoroutine != null) coroutineStarter.StopCoroutine(_updateSearchResultsCoroutine);
     }
 
     private void UpdateSectionVisibility(VideoMenuSection section)
@@ -136,15 +123,15 @@ internal class VideoMenuComponent : ReactiveComponent
     public void ResetVideoMenu()
     {
         // Mirror original behavior: choose view based on availability
-        if (_currentVideo == null || !_downloadService.LibrariesAvailable())
+        if (_currentVideo == null || !downloadService.LibrariesAvailable())
         {
-            _noVideo.SetMessage(!_downloadService.LibrariesAvailable()
+            _noVideo.SetMessage(!downloadService.LibrariesAvailable()
                 ? "Libraries not found. Please reinstall Theater.\r\nMake sure you unzip the files from the Libs folder into 'Beat Saber\\Libs'."
-                : !_config.PluginEnabled ? "Theater is disabled.\r\nYou can re-enable it on the left side of the main menu." :
+                : !pluginConfig.PluginEnabled ? "Theater is disabled.\r\nYou can re-enable it on the left side of the main menu." :
                 _currentLevel == null ? "No level selected" : "No video configured");
 
             _activeSection.Value = VideoMenuSection.NoVideo;
-            _noVideo.SetSearchButtonActive(_downloadService.LibrariesAvailable() && _currentLevel != null && !VideoLoader.IsDlcSong(_currentLevel));
+            _noVideo.SetSearchButtonActive(downloadService.LibrariesAvailable() && _currentLevel != null && !VideoLoader.IsDlcSong(_currentLevel));
             return;
         }
 
@@ -152,12 +139,24 @@ internal class VideoMenuComponent : ReactiveComponent
         SetupVideoDetails();
     }
 
+    public void HandleDidSelectEditorBeatmap(BeatmapDataModel beatmapData, string originalPath)
+    {
+        if (pluginConfig.PluginEnabled) return;
+
+        playbackManager.StopPreview(true);
+        if (_currentVideo.Value?.NeedsToSave == true) videoLoader.SaveVideoConfig(_currentVideo.Value);
+
+        _currentVideo.Value = videoLoader.GetConfigForEditorLevel(beatmapData, originalPath);
+        videoLoader.SetupFileSystemWatcher(originalPath);
+        playbackManager.SetSelectedLevel(null, _currentVideo.Value);
+    }
+
     public void HandleDidSelectLevel(BeatmapLevel? level)
     {
         // similar to original: stop preview, save pending config etc.
-        _playbackManager.StopPreview(true);
+        playbackManager.StopPreview(true);
 
-        if (_currentVideo.Value?.NeedsToSave == true) _videoLoader.SaveVideoConfig(_currentVideo.Value);
+        if (_currentVideo.Value?.NeedsToSave == true) videoLoader.SaveVideoConfig(_currentVideo.Value);
 
         _currentLevel = level;
         if (_currentLevel == null)
@@ -167,13 +166,25 @@ internal class VideoMenuComponent : ReactiveComponent
             return;
         }
 
-        _currentVideo.Value = _videoLoader.GetConfigForLevel(_currentLevel);
-        _videoLoader.SetupFileSystemWatcher(_currentLevel);
-        _playbackManager.SetSelectedLevel(_currentLevel, _currentVideo.Value);
+        _currentVideo.Value = videoLoader.GetConfigForLevel(_currentLevel);
+        videoLoader.SetupFileSystemWatcher(_currentLevel);
+        playbackManager.SetSelectedLevel(_currentLevel, _currentVideo.Value);
 
         // prepare default search text similar to original
         _searchText.Value = _currentLevel.songName + (!string.IsNullOrEmpty(_currentLevel.songAuthorName) ? " " + _currentLevel.songAuthorName : "");
         SetupVideoDetails();
+    }
+
+    private void OnLevelSelected(LevelSelectedArgs levelSelectedArgs)
+    {
+        if (levelSelectedArgs.BeatmapData != null)
+        {
+            loggingService.Debug("Level selected from VideoMenuUI");
+            HandleDidSelectEditorBeatmap(levelSelectedArgs.BeatmapData, levelSelectedArgs.OriginalPath!);
+            return;
+        }
+
+        HandleDidSelectLevel(levelSelectedArgs.BeatmapLevel);
     }
 
     private void OnConfigChanged(VideoConfig? config)
@@ -201,15 +212,15 @@ internal class VideoMenuComponent : ReactiveComponent
             return;
         }
 
-        _playbackManager.PrepareVideo(vc);
-        if (_currentLevel != null) _videoLoader.RemoveConfigFromCache(_currentLevel);
+        playbackManager.PrepareVideo(vc);
+        if (_currentLevel != null) videoLoader.RemoveConfigFromCache(_currentLevel);
         SetupVideoDetails();
         _details.RefreshLevelDetailMenu();
     }
 
     public void SetupVideoDetails()
     {
-        if (_currentVideo.Value == null || !_downloadService.LibrariesAvailable())
+        if (_currentVideo.Value == null || !downloadService.LibrariesAvailable())
         {
             ResetVideoMenu();
             return;
@@ -235,7 +246,7 @@ internal class VideoMenuComponent : ReactiveComponent
         _details.SetVideo(_currentVideo.Value, _currentLevel);
         _details.SetThumbnail(_currentVideo.Value.videoID != null ? $"https://i.ytimg.com/vi/{_currentVideo.Value.videoID}/hqdefault.jpg" : null);
         _details.UpdateStatusText(_currentVideo.Value);
-        _details.SetButtonState(true, _downloadService.LibrariesAvailable());
+        _details.SetButtonState(true, downloadService.LibrariesAvailable());
 
         _activeSection.Value = VideoMenuSection.Details;
 
@@ -259,9 +270,9 @@ internal class VideoMenuComponent : ReactiveComponent
 
         ResetSearchView();
         _results.SetLoading(true);
-        _searchLoadingCoroutine = _coroutineStarter.StartCoroutine(SearchLoadingCoroutine());
+        _searchLoadingCoroutine = coroutineStarter.StartCoroutine(SearchLoadingCoroutine());
 
-        _searchService.Search(query);
+        searchService.Search(query);
     }
 
     private void SearchProgress(YTResult result)
@@ -270,7 +281,7 @@ internal class VideoMenuComponent : ReactiveComponent
         if (_searchResults.Contains(result)) return;
 
         _searchResults.Add(result);
-        _updateSearchResultsCoroutine = _coroutineStarter.StartCoroutine(UpdateSearchResults(result));
+        _updateSearchResultsCoroutine = coroutineStarter.StartCoroutine(UpdateSearchResults(result));
     }
 
     private void SearchFinished()
@@ -298,7 +309,7 @@ internal class VideoMenuComponent : ReactiveComponent
         }
         catch (Exception e)
         {
-            _loggingService.Warn(e);
+            loggingService.Warn(e);
         }
 
         // download thumbnail
@@ -315,7 +326,7 @@ internal class VideoMenuComponent : ReactiveComponent
             }
             else
             {
-                _loggingService.Debug(uwr.error);
+                loggingService.Debug(uwr.error);
             }
         }
 
@@ -345,8 +356,8 @@ internal class VideoMenuComponent : ReactiveComponent
 
     private void ResetSearchView()
     {
-        if (_searchLoadingCoroutine != null) _coroutineStarter.StopCoroutine(_searchLoadingCoroutine);
-        if (_updateSearchResultsCoroutine != null) _coroutineStarter.StopCoroutine(_updateSearchResultsCoroutine);
+        if (_searchLoadingCoroutine != null) coroutineStarter.StopCoroutine(_searchLoadingCoroutine);
+        if (_updateSearchResultsCoroutine != null) coroutineStarter.StopCoroutine(_updateSearchResultsCoroutine);
 
         _searchResults.Clear();
         _results.ResetSearchView();
@@ -372,9 +383,9 @@ internal class VideoMenuComponent : ReactiveComponent
         {
             NeedsToSave = true
         };
-        _videoLoader.AddConfigToCache(config, _currentLevel!);
-        _searchService.StopSearch();
-        _downloadService.StartDownload(config, _config.QualityMode, _config.Format);
+        videoLoader.AddConfigToCache(config, _currentLevel!);
+        searchService.StopSearch();
+        downloadService.StartDownload(config, pluginConfig.QualityMode, pluginConfig.Format);
         _currentVideo.Value = config;
 
         SetupVideoDetails();
@@ -386,23 +397,23 @@ internal class VideoMenuComponent : ReactiveComponent
         var selected = _results.GetSelectedResult();
         if (selected == null || _currentLevel == null)
         {
-            _loggingService.Error("No selection or level on download request");
+            loggingService.Error("No selection or level on download request");
             return;
         }
 
         _results.SetDownloadInteractable(false);
         var config = new VideoConfig(selected, VideoLoader.GetTheaterLevelPath(_currentLevel)) { NeedsToSave = true };
-        _videoLoader.AddConfigToCache(config, _currentLevel);
-        _searchService.StopSearch();
-        _downloadService.StartDownload(config, _config.QualityMode, _config.Format);
+        videoLoader.AddConfigToCache(config, _currentLevel);
+        searchService.StopSearch();
+        downloadService.StartDownload(config, pluginConfig.QualityMode, pluginConfig.Format);
         _currentVideo.Value = config;
         SetupVideoDetails();
     }
 
     private void OnPreviewAction()
     {
-        _playbackManager.StartPreview().Start();
-        _details.SetButtonState(true, _downloadService.LibrariesAvailable());
+        playbackManager.StartPreview().Start();
+        _details.SetButtonState(true, downloadService.LibrariesAvailable());
     }
 
     private void OnDeleteVideoAction()
@@ -410,11 +421,11 @@ internal class VideoMenuComponent : ReactiveComponent
         var cur = _currentVideo.Value;
         if (cur == null)
         {
-            _loggingService.Warn("delete video requested but current video is null");
+            loggingService.Warn("delete video requested but current video is null");
             return;
         }
 
-        _playbackManager.StopPreview(true);
+        playbackManager.StopPreview(true);
 
         switch (cur.DownloadState)
         {
@@ -422,19 +433,19 @@ internal class VideoMenuComponent : ReactiveComponent
             case DownloadState.Downloading:
             case DownloadState.DownloadingAudio:
             case DownloadState.DownloadingVideo:
-                _downloadService.CancelDownload(cur);
+                downloadService.CancelDownload(cur);
                 break;
             case DownloadState.NotDownloaded:
             case DownloadState.Cancelled:
                 cur.DownloadProgress = 0;
-                _searchService.StopSearch();
-                _downloadService.StartDownload(cur, _config.QualityMode, _config.Format);
+                searchService.StopSearch();
+                downloadService.StartDownload(cur, pluginConfig.QualityMode, pluginConfig.Format);
                 cur.NeedsToSave = true;
-                _videoLoader.AddConfigToCache(cur, _currentLevel!);
+                videoLoader.AddConfigToCache(cur, _currentLevel!);
                 break;
             default:
-                _videoLoader.DeleteVideo(cur);
-                _playbackManager.StopAndUnloadVideo();
+                videoLoader.DeleteVideo(cur);
+                playbackManager.StopAndUnloadVideo();
                 SetupVideoDetails();
                 _details.RefreshLevelDetailMenu();
                 break;
@@ -449,18 +460,18 @@ internal class VideoMenuComponent : ReactiveComponent
         var cur = _currentVideo.Value;
         if (cur == null || _currentLevel == null)
         {
-            _loggingService.Warn("Failed to delete config: Either currentVideo or currentLevel is null");
+            loggingService.Warn("Failed to delete config: Either currentVideo or currentLevel is null");
             return;
         }
 
-        _playbackManager.StopPreview(true);
-        _playbackManager.StopPlayback();
-        _playbackManager.HideVideoPlayer();
+        playbackManager.StopPreview(true);
+        playbackManager.StopPlayback();
+        playbackManager.HideVideoPlayer();
 
-        if (cur.IsDownloading) _downloadService.CancelDownload(cur);
+        if (cur.IsDownloading) downloadService.CancelDownload(cur);
 
-        _videoLoader.DeleteVideo(cur);
-        var success = _videoLoader.DeleteConfig(cur, _currentLevel);
+        videoLoader.DeleteVideo(cur);
+        var success = videoLoader.DeleteConfig(cur, _currentLevel);
         if (success) _currentVideo.Value = null;
 
         _details.HideLevelDetailMenu();
@@ -488,6 +499,6 @@ internal class VideoMenuComponent : ReactiveComponent
         _currentVideo.Value.offset += offset;
         _details.SetOffsetText($"{_currentVideo.Value.offset:n0} ms");
         _currentVideo.Value.NeedsToSave = true;
-        _playbackManager.ApplyOffset(offset);
+        playbackManager.ApplyOffset(offset);
     }
 }

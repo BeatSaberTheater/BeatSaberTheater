@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace BeatSaberTheater.VideoMenu;
 
-public class LevelDetailComponent(Transform parent) : ReactiveComponent
+public class LevelDetailComponent(Transform parent, VideoMenuUI videoMenuUI) : ReactiveComponent
 {
     public event Action? ButtonPressed;
     private Label _label = null!;
@@ -31,10 +31,10 @@ public class LevelDetailComponent(Transform parent) : ReactiveComponent
     protected override GameObject Construct()
     {
         return new Background()
-            {
-                WithinLayoutIfDisabled = true,
-                LayoutModifier = new YogaModifier() { Margin = new YogaFrame() { left = 2.pt(), right = 2.pt() } },
-                Children =
+        {
+            WithinLayoutIfDisabled = true,
+            LayoutModifier = new YogaModifier() { Margin = new YogaFrame() { left = 2.pt(), right = 2.pt() } },
+            Children =
                 {
                     new Label() { WithinLayoutIfDisabled = false, Text = "Video available", Color = Color.white.ColorWithAlpha(0.75f) }
                         .AsFlexItem(flex: 0)
@@ -47,12 +47,13 @@ public class LevelDetailComponent(Transform parent) : ReactiveComponent
                             {
                                 Plugin._log.Info("Downloading video...");
                                 ButtonPressed?.Invoke();
+                                videoMenuUI.SpawnMenu();
                             }
                         }
                         .AsFlexItem(0)
                         .Bind(ref _button)
                 }
-            }
+        }
             .AsFlexGroup(FlexDirection.Row, Justify.SpaceAround, constrainVertical: false, padding: new YogaFrame(0, YogaValue.Point(2)))
             .AsBeatSaberBackground()
             .Use(parent);
