@@ -35,7 +35,6 @@
         <None Remove="Resources\configs.json"/>
         <EmbeddedResource Include="Resources\configs.json"/>
         <None Remove="VideoMenu\Views\level-detail.bsml"/>
-        <EmbeddedResource Include="VideoMenu\Views\level-detail.bsml"/>
         <None Remove="Resources\bstheater.bundle"/>
         <EmbeddedResource Include="Resources\bstheater.bundle"/>
     </ItemGroup>
@@ -49,7 +48,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Reference Include="Reactive.BeatSaber.Components">
+        <Reference Include="Reactive.BeatSaber.Components" Publicize="true">
             <HintPath>$(BeatSaberDir)\Plugins\Reactive.BeatSaber.Components.dll</HintPath>
             <Private>False</Private>
         </Reference>
