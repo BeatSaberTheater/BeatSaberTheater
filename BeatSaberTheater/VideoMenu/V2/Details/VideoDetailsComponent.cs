@@ -1,13 +1,13 @@
-using System;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video.Config;
 using Reactive;
 using Reactive.BeatSaber.Components;
 using Reactive.Yoga;
+using System;
 using TMPro;
 using UnityEngine;
 
-namespace BeatSaberTheater.VideoMenu.V2;
+namespace BeatSaberTheater.VideoMenu.V2.Details;
 
 internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, Action onPreview, Action onDeleteConfig, Action onDeleteVideo) : ReactiveComponent
 {

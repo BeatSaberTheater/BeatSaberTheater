@@ -7,9 +7,8 @@ using UnityEngine;
 
 namespace BeatSaberTheater.VideoMenu;
 
-public class LevelDetailComponent(Transform parent, VideoMenuUI videoMenuUI) : ReactiveComponent
+public class LevelDetailComponent(Transform parent, Action ButtonPressed) : ReactiveComponent
 {
-    public event Action? ButtonPressed;
     private Label _label = null!;
     private BsButton _button = null!;
 
@@ -46,8 +45,7 @@ public class LevelDetailComponent(Transform parent, VideoMenuUI videoMenuUI) : R
                             OnClick = () =>
                             {
                                 Plugin._log.Info("Downloading video...");
-                                ButtonPressed?.Invoke();
-                                videoMenuUI.SpawnMenu();
+                                ButtonPressed.Invoke();
                             }
                         }
                         .AsFlexItem(0)

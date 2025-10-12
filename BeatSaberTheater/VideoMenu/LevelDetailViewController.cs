@@ -14,8 +14,6 @@ public class LevelDetailViewController : ViewController
     private StandardLevelDetailViewController? _standardLevelDetailViewController;
     [Inject] private readonly VideoMenuUI _videoMenuUI = null!;
 
-    internal event Action? ButtonPressedAction;
-
     // ReSharper disable Unity.InefficientPropertyAccess
     internal LevelDetailViewController()
     {
@@ -39,8 +37,8 @@ public class LevelDetailViewController : ViewController
 
         // _videoMenuUI.enabled = false;
 
-        _root = new LevelDetailComponent(levelDetail.gameObject.transform, _videoMenuUI!);
-        _root.ButtonPressed += () => ButtonPressedAction?.Invoke();
+
+        _root = new LevelDetailComponent(levelDetail.gameObject.transform, OnLevelDetailButtonPressed);
         SetActive(false);
 
         //Clone background from level difficulty selection
@@ -97,5 +95,13 @@ public class LevelDetailViewController : ViewController
     {
         if (_standardLevelDetailViewController != null)
             _standardLevelDetailViewController.RefreshContentLevelDetailView();
+    }
+
+    private void OnLevelDetailButtonPressed()
+    {
+        if (_standardLevelDetailViewController?.beatmapLevel != null)
+        {
+            _videoMenuUI.SpawnMenu(_standardLevelDetailViewController.beatmapLevel);
+        }
     }
 }

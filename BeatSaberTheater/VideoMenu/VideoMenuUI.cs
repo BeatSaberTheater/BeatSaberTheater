@@ -1,69 +1,38 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using BeatmapEditor3D.DataModels;
-using BeatSaberMarkupLanguage;
-using BeatSaberMarkupLanguage.Attributes;
-using BeatSaberMarkupLanguage.Components;
-using BeatSaberMarkupLanguage.FloatingScreen;
-using BeatSaberMarkupLanguage.GameplaySetup;
-using BeatSaberMarkupLanguage.Parser;
-using BeatSaberTheater.Download;
 using BeatSaberTheater.Playback;
 using BeatSaberTheater.Services;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
-using BeatSaberTheater.Video.Config;
 using BeatSaberTheater.VideoMenu.V2;
 using HMUI;
-using IPA.Utilities;
-using JetBrains.Annotations;
-using SongCore.Data;
-using TMPro;
+using Reactive.BeatSaber.Components;
 using UnityEngine;
-using UnityEngine.Networking;
-using UnityEngine.UI;
 using Zenject;
-using Object = UnityEngine.Object;
 
 namespace BeatSaberTheater.VideoMenu;
 
 public class VideoMenuUI : ViewController
 {
-    [Inject] private readonly LoggingService _loggingService = null!;
-    [Inject] private readonly PlaybackManager _playbackManager = null!;
-    [Inject] private readonly PluginConfig _config = null!;
-    [Inject] private readonly TheaterCoroutineStarter _coroutineStarter = null!;
-    [Inject] private readonly DownloadService _downloadService = null!;
-    [Inject] private readonly SearchService _searchService = null!;
-    [Inject] private readonly VideoLoader _videoLoader = null!;
-
+    [Inject] private readonly DiContainer _container = null!;
     private VideoMenuComponent _viewComponent = null!;
 
-    private void Awake()
+    public void SpawnMenu(BeatmapLevel beatmapLevel)
     {
+        var screenSystem = FindObjectOfType<LevelSelectionNavigationController>();
+        var screenTransform = screenSystem.transform;
         _viewComponent = new VideoMenuComponent(
-            _coroutineStarter,
-            _downloadService,
-            _loggingService,
-            _playbackManager,
-            _config,
-            _searchService,
-            _videoLoader
+            _container!,
+            beatmapLevel
         );
-        _viewComponent.Use(transform);
-    }
 
-    public void SpawnMenu()
-    {
-        var floatingScreen = FloatingScreen.CreateFloatingScreen(
-            screenSize: new Vector2(150f, 150f),
-            createHandle: false,
-            position: new Vector3(0f, 1f, 2f),
-            rotation: Quaternion.Euler(0f, 0f, 0f)
-        );
-        floatingScreen.SetRootViewController(this, ViewController.AnimationType.None);
+        ModalSystem.PresentModal(new VideoMenuUIModal(_viewComponent), screenTransform, true, false);
+
+        // todo: bad hack to get the modal to overlay all other UI elements
+        // this should be done by the modal system?
+        // Notably, this stops the playlist selector from being rendered above the video ui modal
+        var modalSystem = GameObject.Find("ModalSystem")
+            .GetComponent<Canvas>();
+        modalSystem.overrideSorting = true;
+        modalSystem.sortingOrder = 10;
     }
 
     //     private readonly GameplaySetup _gameplaySetup;

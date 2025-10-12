@@ -6,13 +6,16 @@ using BeatSaberTheater.Download;
 using BeatSaberTheater.Playback;
 using BeatSaberTheater.Services;
 using BeatSaberTheater.Util;
-using BeatSaberTheater.Util.ReactiveUi;
 using BeatSaberTheater.Video;
 using BeatSaberTheater.Video.Config;
+using BeatSaberTheater.VideoMenu.V2.Details;
+using BeatSaberTheater.VideoMenu.V2.NoVideo;
+using BeatSaberTheater.VideoMenu.V2.Presets;
+using BeatSaberTheater.VideoMenu.V2.SearchResults;
 using Reactive;
-using Reactive.BeatSaber.Components;
 using Reactive.Yoga;
 using UnityEngine;
+using Zenject;
 
 namespace BeatSaberTheater.VideoMenu.V2;
 
@@ -20,16 +23,11 @@ internal enum VideoMenuSection
 {
     NoVideo,
     Details,
-    Results
+    Results,
+    Presets
 }
 
-internal class VideoMenuComponent(TheaterCoroutineStarter coroutineStarter,
-        DownloadService downloadService,
-        LoggingService loggingService,
-        PlaybackManager playbackManager,
-        PluginConfig pluginConfig,
-        SearchService searchService,
-        VideoLoader videoLoader) : ReactiveComponent
+internal class VideoMenuComponent : ReactiveComponent, IDisposable
 {
     // Children
     private NoVideoComponent _noVideo = null!;
@@ -37,78 +35,116 @@ internal class VideoMenuComponent(TheaterCoroutineStarter coroutineStarter,
     private VideoSearchResultsComponent _results = null!;
 
     // Reactive state
-    private readonly ObservableValue<VideoMenuSection> _activeSection = new(VideoMenuSection.NoVideo);
+    private readonly ObservableValue<VideoMenuSection> _activeSection = Remember(VideoMenuSection.NoVideo);
     private readonly ObservableValue<VideoConfig?> _currentVideo = new(null);
     private readonly ObservableValue<string> _searchText = new(string.Empty);
 
-    // Original-like state
-    private BeatmapLevel? _currentLevel;
-    private bool _videoMenuInitialized;
+    // private bool _videoMenuInitialized;
+
     // private bool _videoMenuActive;
     // private string? _thumbnailURL;
     private readonly List<YTResult> _searchResults = new();
 
     // coroutines
-    private Coroutine? _searchLoadingCoroutine;
-    private Coroutine? _updateSearchResultsCoroutine;
+    private BeatmapLevel _currentLevel;
 
-    protected override GameObject Construct()
-    {
-        return new Background()
-        {
-            WithinLayoutIfDisabled = true,
-            LayoutModifier = new YogaModifier() { Margin = new YogaFrame() { left = 2.pt(), right = 2.pt() } },
-            Children =
-            {
-                new NoVideoComponent(OnSearchClicked).AsFlexItem().Bind(ref _noVideo),
-                new VideoDetailsComponent(OnSearchClicked, ApplyOffset, OnPreviewAction, OnDeleteConfigAction, OnDeleteVideoAction)
-                    .AsFlexItem().Bind(ref _details),
-                new VideoSearchResultsComponent(OnSelectResult, OnBackAction, OnDownloadAction, OnRefineAction)
-                    .AsFlexItem().Bind(ref _results)
-            }
-        }
-        .AsFlexGroup(FlexDirection.Row, Justify.SpaceAround, constrainVertical: false, padding: new YogaFrame(0, YogaValue.Point(2)))
-        .AsBeatSaberBackground()
-        .Use();
-    }
+    private readonly TheaterCoroutineStarter coroutineStarter = null!;
+    private readonly DownloadService downloadService = null!;
+    private readonly LoggingService loggingService = null!;
+    private readonly PlaybackManager playbackManager = null!;
+    private readonly PluginConfig pluginConfig = null!;
+    private readonly SearchService searchService = null!;
+    private readonly VideoLoader videoLoader = null!;
 
-    protected override void OnInitialize()
+    public VideoMenuComponent(DiContainer container, BeatmapLevel currentLevel)
     {
+        _currentLevel = currentLevel;
+        videoLoader = container.Resolve<VideoLoader>();
+        searchService = container.Resolve<SearchService>();
+        pluginConfig = container.Resolve<PluginConfig>();
+        playbackManager = container.Resolve<PlaybackManager>();
+        loggingService = container.Resolve<LoggingService>();
+        downloadService = container.Resolve<DownloadService>();
+        coroutineStarter = container.Resolve<TheaterCoroutineStarter>();
+
         // update children enable state when active section changes
         _activeSection.ValueChangedEvent += section => UpdateSectionVisibility(section);
         UpdateSectionVisibility(_activeSection.Value);
 
         // subscribe to services (mirrors original Initialize wiring)
-        searchService.SearchProgress += SearchProgress;
-        searchService.SearchFinished += SearchFinished;
         downloadService.DownloadProgress += OnDownloadProgress;
         downloadService.DownloadFinished += OnDownloadFinished;
         VideoLoader.ConfigChanged += OnConfigChanged;
-        Events.LevelSelected += OnLevelSelected;
+
+        _results.SearchService = searchService;
+        _results.CurrentLevel = currentLevel;
+        _results.CoroutineStarter = coroutineStarter;
     }
 
-    public void Initialize()
+    protected override GameObject Construct()
     {
-        if (_videoMenuInitialized) return;
-        _videoMenuInitialized = true;
-
-        // default to no video UI
-        _activeSection.Value = VideoMenuSection.NoVideo;
-        // _videoMenuActive = false;
+        return new Layout()
+            {
+                LayoutModifier = new YogaModifier() { Margin = new YogaFrame() { left = 2.pt(), right = 2.pt() } },
+                Children =
+                {
+                    new Layout()
+                        {
+                            Enabled = _activeSection.Value == VideoMenuSection.NoVideo,
+                            Children = { new NoVideoComponent(OnSearchClicked, OnPresetsSearchClicked).AsFlexItem().Bind(ref _noVideo), }
+                        }
+                        .Animate(_activeSection, (layout, section) => { layout.Enabled = section == VideoMenuSection.NoVideo; })
+                        .AsFlexGroup(FlexDirection.Row, Justify.SpaceAround, constrainVertical: false)
+                        .AsFlexItem(1),
+                    new Layout()
+                        {
+                            Enabled = _activeSection.Value == VideoMenuSection.Details,
+                            Children =
+                            {
+                                new VideoDetailsComponent(OnSearchClicked, ApplyOffset, OnPreviewAction, OnDeleteConfigAction, OnDeleteVideoAction)
+                                    .AsFlexItem().Bind(ref _details),
+                            }
+                        }
+                        .Animate(_activeSection, (layout, section) => { layout.Enabled = section == VideoMenuSection.Details; })
+                        .AsFlexGroup(FlexDirection.Row, Justify.SpaceAround, constrainVertical: false)
+                        .AsFlexItem(1),
+                    new Layout()
+                        {
+                            Enabled = _activeSection.Value == VideoMenuSection.Results,
+                            Children =
+                            {
+                                new VideoSearchResultsComponent(OnSelectResult, OnBackAction, OnDownloadAction, OnRefineAction)
+                                    .AsFlexItem(1).Bind(ref _results)
+                            }
+                        }
+                        .Animate(_activeSection, (layout, section) => { layout.Enabled = section == VideoMenuSection.Results; })
+                        .AsFlexGroup(FlexDirection.Row, Justify.SpaceAround, constrainVertical: false)
+                        .AsFlexItem(1),
+                    new Layout()
+                        {
+                            Enabled = _activeSection.Value == VideoMenuSection.Presets,
+                            Children = { new VideoDetailsPresetsComponent() }
+                        }
+                        .Animate(_activeSection, (layout, section) => { layout.Enabled = section == VideoMenuSection.Presets; })
+                        .AsFlexGroup(FlexDirection.Row, Justify.SpaceAround, constrainVertical: false)
+                        .AsFlexItem(1)
+                }
+            }
+            .AsFlexGroup(FlexDirection.Row, Justify.SpaceAround, constrainVertical: false, padding: new YogaFrame(0, YogaValue.Point(2)))
+            .AsFlexItem(1)
+            .Use();
     }
 
     public void Dispose()
     {
         // Unsubscribe everything safely
-        searchService.SearchProgress -= SearchProgress;
-        searchService.SearchFinished -= SearchFinished;
         downloadService.DownloadProgress -= OnDownloadProgress;
         downloadService.DownloadFinished -= OnDownloadFinished;
         VideoLoader.ConfigChanged -= OnConfigChanged;
         Events.LevelSelected -= OnLevelSelected;
 
-        if (_searchLoadingCoroutine != null) coroutineStarter.StopCoroutine(_searchLoadingCoroutine);
-        if (_updateSearchResultsCoroutine != null) coroutineStarter.StopCoroutine(_updateSearchResultsCoroutine);
+        // if (_searchLoadingCoroutine != null) coroutineStarter.StopCoroutine(_searchLoadingCoroutine);
+        // if (_updateSearchResultsCoroutine != null) coroutineStarter.StopCoroutine(_updateSearchResultsCoroutine);
     }
 
     private void UpdateSectionVisibility(VideoMenuSection section)
@@ -127,8 +163,11 @@ internal class VideoMenuComponent(TheaterCoroutineStarter coroutineStarter,
         {
             _noVideo.SetMessage(!downloadService.LibrariesAvailable()
                 ? "Libraries not found. Please reinstall Theater.\r\nMake sure you unzip the files from the Libs folder into 'Beat Saber\\Libs'."
-                : !pluginConfig.PluginEnabled ? "Theater is disabled.\r\nYou can re-enable it on the left side of the main menu." :
-                _currentLevel == null ? "No level selected" : "No video configured");
+                : !pluginConfig.PluginEnabled
+                    ? "Theater is disabled.\r\nYou can re-enable it on the left side of the main menu."
+                    : _currentLevel == null
+                        ? "No level selected"
+                        : "No video configured");
 
             _activeSection.Value = VideoMenuSection.NoVideo;
             _noVideo.SetSearchButtonActive(downloadService.LibrariesAvailable() && _currentLevel != null && !VideoLoader.IsDlcSong(_currentLevel));
@@ -158,7 +197,7 @@ internal class VideoMenuComponent(TheaterCoroutineStarter coroutineStarter,
 
         if (_currentVideo.Value?.NeedsToSave == true) videoLoader.SaveVideoConfig(_currentVideo.Value);
 
-        _currentLevel = level;
+        _currentLevel = level!;
         if (_currentLevel == null)
         {
             _currentVideo.Value = null;
@@ -231,7 +270,8 @@ internal class VideoMenuComponent(TheaterCoroutineStarter coroutineStarter,
         {
             if (_currentVideo.Value.forceEnvironmentModifications == true)
             {
-                _noVideo.SetMessage("This map uses Theater to modify the environment\r\nwithout displaying a video.\r\n\r\nNo configuration options available.");
+                _noVideo.SetMessage(
+                    "This map uses Theater to modify the environment\r\nwithout displaying a video.\r\n\r\nNo configuration options available.");
                 _noVideo.SetSearchButtonActive(false);
                 _activeSection.Value = VideoMenuSection.NoVideo;
             }
@@ -239,6 +279,7 @@ internal class VideoMenuComponent(TheaterCoroutineStarter coroutineStarter,
             {
                 ResetVideoMenu();
             }
+
             return;
         }
 
@@ -259,41 +300,6 @@ internal class VideoMenuComponent(TheaterCoroutineStarter coroutineStarter,
         {
             _details.SetCustomizeOffsetVisibility(false);
         }
-    }
-
-    // ---- Search handling (root mirrors original coroutines and SearchService events) ----
-
-    public void OnQueryAction(string query)
-    {
-        _searchText.Value = query;
-        _activeSection.Value = VideoMenuSection.Results;
-
-        ResetSearchView();
-        _results.SetLoading(true);
-        _searchLoadingCoroutine = coroutineStarter.StartCoroutine(SearchLoadingCoroutine());
-
-        searchService.Search(query);
-    }
-
-    private void SearchProgress(YTResult result)
-    {
-        // dedupe as original
-        if (_searchResults.Contains(result)) return;
-
-        _searchResults.Add(result);
-        _updateSearchResultsCoroutine = coroutineStarter.StartCoroutine(UpdateSearchResults(result));
-    }
-
-    private void SearchFinished()
-    {
-        if (_searchResults.Count == 0)
-        {
-            _results.SetLoading(false);
-            _results.SetNoResultsMessage("No search results found.\r\nUse the Refine Search button in the bottom right to choose a different search query.");
-            return;
-        }
-
-        _results.SetLoading(false);
     }
 
     private IEnumerator UpdateSearchResults(YTResult result)
@@ -330,37 +336,8 @@ internal class VideoMenuComponent(TheaterCoroutineStarter coroutineStarter,
             }
         }
 
-        _results.AddSearchResult(result, title, description, sprite);
-
         // enable download button if something selected (mirrors original logic)
         _results.SetDownloadInteractable(false);
-    }
-
-    private IEnumerator SearchLoadingCoroutine()
-    {
-        int count = 0;
-        const string loadingText = "Searching for videos, please wait";
-        _results.SetLoading(true);
-
-        while (_results.IsLoading)
-        {
-            var periods = string.Empty;
-            count++;
-            for (var i = 0; i < count; i++) periods += ".";
-            if (count == 3) count = 0;
-
-            _results.SetLoadingText(loadingText + periods);
-            yield return new WaitForSeconds(0.5f);
-        }
-    }
-
-    private void ResetSearchView()
-    {
-        if (_searchLoadingCoroutine != null) coroutineStarter.StopCoroutine(_searchLoadingCoroutine);
-        if (_updateSearchResultsCoroutine != null) coroutineStarter.StopCoroutine(_updateSearchResultsCoroutine);
-
-        _searchResults.Clear();
-        _results.ResetSearchView();
     }
 
     // ---- Actions from child components / UI commands (mirrors original UI actions) ----
@@ -369,7 +346,13 @@ internal class VideoMenuComponent(TheaterCoroutineStarter coroutineStarter,
     {
         // show keyboard in original; we expose OnQueryAction for actual query
         // Here we route to Results view with current search text
-        OnQueryAction(_searchText.Value ?? string.Empty);
+        // OnQueryAction(_searchText.Value ?? string.Empty);
+        _activeSection.Value = VideoMenuSection.Results;
+    }
+
+    private void OnPresetsSearchClicked()
+    {
+        _activeSection.Value = VideoMenuSection.Presets;
     }
 
     private void OnSelectResult()
@@ -379,10 +362,7 @@ internal class VideoMenuComponent(TheaterCoroutineStarter coroutineStarter,
         var selected = _results.GetSelectedResult();
         if (selected == null || _currentLevel is null) return;
 
-        var config = new VideoConfig(selected, VideoLoader.GetTheaterLevelPath(_currentLevel))
-        {
-            NeedsToSave = true
-        };
+        var config = new VideoConfig(selected, VideoLoader.GetTheaterLevelPath(_currentLevel)) { NeedsToSave = true };
         videoLoader.AddConfigToCache(config, _currentLevel!);
         searchService.StopSearch();
         downloadService.StartDownload(config, pluginConfig.QualityMode, pluginConfig.Format);
@@ -481,14 +461,14 @@ internal class VideoMenuComponent(TheaterCoroutineStarter coroutineStarter,
     private void OnBackAction()
     {
         // go back to details
-        _activeSection.Value = VideoMenuSection.Details;
-        SetupVideoDetails();
+        _activeSection.Value = VideoMenuSection.NoVideo;
+        // SetupVideoDetails();
     }
 
     private void OnRefineAction()
     {
         // show keyboard/emit event in original. Here just show results with current search text
-        OnQueryAction(_searchText.Value ?? string.Empty);
+        // OnQueryAction(_searchText.Value ?? string.Empty);
     }
 
     // ---- Utility ----
