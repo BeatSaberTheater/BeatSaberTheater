@@ -46,8 +46,7 @@ internal class SearchService : YoutubeDLServiceBase
 
         var searchProcessArguments = $"\"ytsearch{expectedResultCount}:{query}\"" +
                                      " -j" + //Instructs yt-dl to return json data without downloading anything
-                                     " -i" + //Ignore errors
-                                     " --flat-playlist"; // Do not extract a playlist's URL result (Should speed up query result)
+                                     " -i"; //Ignore errors
 
         _searchProcess = CreateProcess(searchProcessArguments);
 
