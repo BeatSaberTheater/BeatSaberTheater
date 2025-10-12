@@ -1,3 +1,4 @@
+using BeatmapEditor3D.BpmEditor.Commands;
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Services;
 using BeatSaberTheater.Util;
@@ -24,12 +25,14 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
     private BsButton _downloadButton = null!;
     private BsButton _refineButton = null!;
     private BsButton _backButton = null!;
-    private ListView<YTResult, VideoResultListCell> _resultsView = null!;
+    private ListView<VideoResultListCellData, VideoResultListCell> _resultsView = null!;
 
     private readonly Action _onSelect;
 
     // internal result store
-    private readonly ObservableValue<IReadOnlyList<YTResult>> _results = Remember<IReadOnlyList<YTResult>>(new List<YTResult>());
+    private readonly ObservableValue<IReadOnlyList<VideoResultListCellData>> _results =
+        Remember<IReadOnlyList<VideoResultListCellData>>(new List<VideoResultListCellData>());
+
     private int _selectedIndex = -1;
     public BeatmapLevel CurrentLevel { get; set; } = null!;
     public SearchService SearchService { get; set; } = null!;
@@ -41,6 +44,8 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
     private Coroutine? _searchLoadingCoroutine;
     // private Coroutine? _updateSearchResultsCoroutine;
 
+    private ObservableValue<VideoResultListCellData> _currentlySelectedSearchResult = Remember<VideoResultListCellData>(null!);
+
     public VideoSearchResultsComponent(Action onSelect, Action onBack, Action onDownload, Action onRefine)
     {
         _onBack = onBack;
@@ -51,17 +56,10 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
 
     protected override void OnStart()
     {
-        if (SearchService == null)
-        {
-            Plugin._log.Error("Search service is not set!");
-        }
-        else
-        {
-            SearchService.SearchProgress += SearchServiceOnSearchProgress;
-            SearchService.SearchFinished += SearchServiceOnSearchFinished;
+        SearchService.SearchProgress += SearchServiceOnSearchProgress;
+        SearchService.SearchFinished += SearchServiceOnSearchFinished;
 
-            OnQueryAction($"{CurrentLevel.songAuthorName} {CurrentLevel.songName}");
-        }
+        OnQueryAction($"{CurrentLevel.songAuthorName} {CurrentLevel.songName}");
     }
 
     private void SearchServiceOnSearchFinished()
@@ -81,11 +79,30 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
         // mayhaps even tag YTResults with a specific search request id
         Plugin._log.Debug($"Search progress: {obj.ToString()}");
 
-        if (!_results.Value.Any(x => x.ID == obj.ID))
+        if (!_results.Value.Any(x => x.Data.ID == obj.ID))
         {
             // Todo: prevent expensive list copying
-            _results.Value = _results.Value.ToList().Append(obj).ToList();
+            VideoResultListCellData videoResultListCellData = new VideoResultListCellData() { Data = obj, IsSelected = false, };
+            _results.Value = _results.Value.ToList().Append(videoResultListCellData).ToList();
             _resultsView.Items = _results.Value;
+            videoResultListCellData.ButtonSelectedChanged += VideoResultListCellDataOnButtonSelectedChanged;
+        }
+    }
+
+    private void VideoResultListCellDataOnButtonSelectedChanged(VideoResultListCellData videoResultListCellData, bool b)
+    {
+        // Deselect everything but the thing that was just enabled
+        if (b)
+        {
+            foreach (var item in _results.Value)
+            {
+                if (item.Data.ID != videoResultListCellData.Data.ID)
+                {
+                    item.UpdateSelectionState(false);
+                }
+            }
+
+            _currentlySelectedSearchResult.Value = videoResultListCellData;
         }
     }
 
@@ -104,7 +121,8 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
                             {
                                 new ScrollArea()
                                     {
-                                        ScrollContent = new ListView<YTResult, VideoResultListCell>()
+                                        HideScrollbarWhenNothingToScroll = true,
+                                        ScrollContent = new ListView<VideoResultListCellData, VideoResultListCell>()
                                             {
                                                 Enabled = true, WithinLayoutIfDisabled = true, Items = _results.Value,
                                             }
@@ -138,7 +156,7 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
 
     public void ResetSearchView()
     {
-        _results.Value = (List<YTResult>)new List<YTResult>();
+        _results.Value = new List<VideoResultListCellData>();
         _selectedIndex = -1;
         SetDownloadInteractable(false);
         SetLoading(false);
@@ -179,7 +197,7 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
     public YTResult? GetSelectedResult()
     {
         if (_selectedIndex < 0 || _selectedIndex >= _results.Value.Count) return null;
-        return _results.Value[_selectedIndex];
+        return _results.Value[_selectedIndex].Data;
     }
 
     public void Dispose()

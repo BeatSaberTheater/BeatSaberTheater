@@ -52,7 +52,7 @@
             <HintPath>$(BeatSaberDir)\Plugins\Reactive.BeatSaber.Components.dll</HintPath>
             <Private>False</Private>
         </Reference>
-        <Reference Include="Reactive.Components">
+        <Reference Include="Reactive.Components" Publicize="true">
             <HintPath>$(BeatSaberDir)\Libs\Reactive.Components.dll</HintPath>
             <Private>False</Private>
         </Reference>

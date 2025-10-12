@@ -11,7 +11,10 @@ namespace BeatSaberTheater.VideoMenu
 {
     internal class VideoMenuUIModal(VideoMenuComponent component) : ModalBase, IComponentHolder<VideoMenuComponent>
     {
+#pragma warning disable CS0108, CS0114
         public VideoMenuComponent Component { get; } = component;
+#pragma warning restore CS0108, CS0114
+
         public event Action? OnSave;
 
         private BsButton _backButton = null!;
