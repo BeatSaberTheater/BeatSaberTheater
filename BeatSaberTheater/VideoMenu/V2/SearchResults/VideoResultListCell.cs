@@ -14,7 +14,7 @@ using UnityEngine;
 public class VideoResultListCellData
 {
     public event Action<VideoResultListCellData, bool>? ButtonSelectedChanged = null!;
-    public event Action<bool>? UpdateSelectionStateChanged = null!;
+    public event Action<string>? UpdateSelectionStateChanged = null!;
 
     public YTResult Data { get; set; } = null!;
     public bool IsSelected { get; set; }
@@ -32,12 +32,11 @@ public class VideoResultListCellData
         }
     }
 
-    public void UpdateSelectionState(bool selected)
+    public void UpdateSelectionState(string selectedId)
     {
         try
         {
-            IsSelected = selected;
-            UpdateSelectionStateChanged?.Invoke(selected);
+            UpdateSelectionStateChanged?.Invoke(selectedId);
         }
         catch (Exception ex)
         {
@@ -51,30 +50,39 @@ namespace BeatSaberTheater.VideoMenu.V2.SearchResults
     internal class VideoResultListCell : ListCell<VideoResultListCellData>
     {
         private AeroButton _button = null!;
-        private ObservableValue<VideoResultListCellData> _item = Remember<VideoResultListCellData>(null!);
+        private INotifyValueChanged<VideoResultListCellData> _item = Remember<VideoResultListCellData>(null!);
+        private ObservableValue<string> _currentlySelectedId = new("");
 
         public override GameObject Construct()
         {
-            _item = Remember(Item);
+            _item = ObservableItem;
 
-            var descriptionString = $"{TheaterFileHelpers.FilterEmoji(_item.Value.Data.Author)} | {_item.Value.Data.GetQualityString()}";
             var descriptionLabels = new List<ILayoutItem>
             {
-                new Label() { RaycastTarget = false, Text = descriptionString, FontSize = 2.5f, Color = Color.white.ColorWithAlpha(0.75f) },
                 new Label()
-                {
-                    RaycastTarget = false,
-                    Text = _item.Value.Data.IsStillImage() ? " | " : "",
-                    FontSize = 2.5f,
-                    Color = Color.white.ColorWithAlpha(0.75f)
-                },
+                    {
+                        RaycastTarget = false,
+                        Text = $"{TheaterFileHelpers.FilterEmoji(_item.Value.Data.Author)} | {_item.Value.Data.GetQualityString()}",
+                        FontSize = 2.5f,
+                        Color = Color.white.ColorWithAlpha(0.75f)
+                    }
+                    .Animate(_item, (label, data) => label.Text = $"{TheaterFileHelpers.FilterEmoji(data.Data.Author)} | {data.Data.GetQualityString()}"),
                 new Label()
-                {
-                    RaycastTarget = false,
-                    Text = _item.Value.Data.IsStillImage() ? " Likely a still image" : "",
-                    FontSize = 2.5f,
-                    Color = Color.yellow.ColorWithAlpha(0.75f)
-                }
+                    {
+                        RaycastTarget = false,
+                        Text = _item.Value.Data.IsStillImage() ? " | " : "",
+                        FontSize = 2.5f,
+                        Color = Color.white.ColorWithAlpha(0.75f)
+                    }
+                    .Animate(_item, (label, data) => label.Text = data.Data.IsStillImage() ? " | " : ""),
+                new Label()
+                    {
+                        RaycastTarget = false,
+                        Text = _item.Value.Data.IsStillImage() ? " Likely a still image" : "",
+                        FontSize = 2.5f,
+                        Color = Color.yellow.ColorWithAlpha(0.75f)
+                    }
+                    .Animate(_item, (label, data) => label.Text = data.Data.IsStillImage() ? " Likely a still image" : ""),
             };
 
             var obj = new Layout()
@@ -87,7 +95,6 @@ namespace BeatSaberTheater.VideoMenu.V2.SearchResults
                                 RaycastTarget = true,
                                 Interactable = true,
                                 Latching = true,
-                                Active = Item.IsSelected,
                                 Colors = new SimpleColorSet()
                                 {
                                     ActiveColor = BeatSaberStyle.ControlButtonColorSet.ActiveColor,
@@ -104,18 +111,24 @@ namespace BeatSaberTheater.VideoMenu.V2.SearchResults
                                 },
                                 OnStateChanged = b =>
                                 {
-                                    if (b)
-                                    {
-                                        _item.Value.ChangeSelected(b);
-                                    }
+                                    _item.Value.ChangeSelected(b);
                                 },
                                 LayoutModifier = new YogaModifier()
                                 {
                                     PositionType = PositionType.Absolute, Size = new YogaVector() { x = 100.pct(), y = 100.pct(), }
                                 }
                             }
+                            .Animate(_item, (button, data) =>
+                            {
+                                button.Active = data.Data.ID == _currentlySelectedId.Value;
+                            })
+                            .Animate(_currentlySelectedId, (button, data) =>
+                            {
+                                button.Active = data == ObservableItem.Value.Data.ID;
+                            })
                             .Bind(ref _button),
                         new WebImage { PreserveAspect = true, Src = $"https://i.ytimg.com/vi/{_item.Value.Data.ID}/hqdefault.jpg", RaycastTarget = false, }
+                            .Animate(_item, (image, data) => image.Src = $"https://i.ytimg.com/vi/{data.Data.ID}/hqdefault.jpg")
                             .AsFlexItem(1, maxSize: new YogaVector() { x = 10 }, size: new YogaVector() { x = 10 }),
                         new Layout()
                             {
@@ -128,6 +141,11 @@ namespace BeatSaberTheater.VideoMenu.V2.SearchResults
                                             FontSize = 3.5f,
                                             RaycastTarget = false,
                                         }
+                                        .Animate(_item,
+                                            (label, data) =>
+                                                label.Text =
+                                                    $"[{TheaterFileHelpers.SecondsToString(data.Data.Duration)}] {TheaterFileHelpers.FilterEmoji(data.Data.Title)}"
+                                        )
                                         .AsFlexItem(1),
                                     new Layout()
                                         {
@@ -154,12 +172,9 @@ namespace BeatSaberTheater.VideoMenu.V2.SearchResults
             return obj;
         }
 
-        private void ItemOnUpdateSelectionStateChanged(bool obj)
+        private void ItemOnUpdateSelectionStateChanged(string obj)
         {
-            if (_button.Active != obj)
-            {
-                _button.Active = obj;
-            }
+            _currentlySelectedId.Value = obj;
         }
     }
 }

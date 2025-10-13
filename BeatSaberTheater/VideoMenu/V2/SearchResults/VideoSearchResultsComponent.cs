@@ -1,13 +1,12 @@
-using BeatmapEditor3D.BpmEditor.Commands;
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Services;
 using BeatSaberTheater.Util;
+using Newtonsoft.Json;
 using Reactive;
 using Reactive.BeatSaber.Components;
 using Reactive.Components;
 using Reactive.Yoga;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
@@ -33,6 +32,8 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
     private readonly ObservableValue<IReadOnlyList<VideoResultListCellData>> _results =
         Remember<IReadOnlyList<VideoResultListCellData>>(new List<VideoResultListCellData>());
 
+    private readonly ObservableValue<bool> _isLoading = Remember(false);
+
     private int _selectedIndex = -1;
     public BeatmapLevel CurrentLevel { get; set; } = null!;
     public SearchService SearchService { get; set; } = null!;
@@ -41,10 +42,9 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
     private readonly Action _onBack;
     private readonly Action _onDownload;
     private readonly Action _onRefine;
-    private Coroutine? _searchLoadingCoroutine;
     // private Coroutine? _updateSearchResultsCoroutine;
 
-    private ObservableValue<VideoResultListCellData> _currentlySelectedSearchResult = Remember<VideoResultListCellData>(null!);
+    private ObservableValue<VideoResultListCellData?> _currentlySelectedSearchResult = Remember<VideoResultListCellData?>(null!);
 
     public VideoSearchResultsComponent(Action onSelect, Action onBack, Action onDownload, Action onRefine)
     {
@@ -64,12 +64,6 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
 
     private void SearchServiceOnSearchFinished()
     {
-        Plugin._log.Debug("Search finished");
-        if (_searchLoadingCoroutine != null)
-        {
-            CoroutineStarter.StopCoroutine(_searchLoadingCoroutine);
-        }
-
         SetLoading(false);
     }
 
@@ -83,30 +77,33 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
         {
             // Todo: prevent expensive list copying
             VideoResultListCellData videoResultListCellData = new VideoResultListCellData() { Data = obj, IsSelected = false, };
-            _results.Value = _results.Value.ToList().Append(videoResultListCellData).ToList();
-            _resultsView.Items = _results.Value;
+            _results.Value = _results.Value.Append(videoResultListCellData).ToList();
             videoResultListCellData.ButtonSelectedChanged += VideoResultListCellDataOnButtonSelectedChanged;
         }
     }
 
     private void VideoResultListCellDataOnButtonSelectedChanged(VideoResultListCellData videoResultListCellData, bool b)
     {
-        // Deselect everything but the thing that was just enabled
         if (b)
         {
+            _currentlySelectedSearchResult.Value = videoResultListCellData;
+            // Deselect everything but the thing that was just enabled
             foreach (var item in _results.Value)
             {
-                if (item.Data.ID != videoResultListCellData.Data.ID)
-                {
-                    item.UpdateSelectionState(false);
-                }
+                item.UpdateSelectionState(b ? videoResultListCellData.Data.ID : "");
             }
+        }
 
-            _currentlySelectedSearchResult.Value = videoResultListCellData;
+        if (!b && videoResultListCellData.Data.ID == _currentlySelectedSearchResult.Value?.Data.ID)
+        {
+            _currentlySelectedSearchResult.Value = null!;
+            
+            foreach (var item in _results.Value)
+            {
+                item.UpdateSelectionState("");
+            }
         }
     }
-
-    public bool IsLoading { get; private set; }
 
     protected override GameObject Construct()
     {
@@ -114,7 +111,21 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
             {
                 Children =
                 {
-                    new Label { Text = "Loading Results...", Alignment = TextAlignmentOptions.Center }.AsFlexItem().Bind(ref _loadingLabel),
+                    new Layout()
+                        {
+                            Children =
+                            {
+                                new Spinner()
+                                    {
+                                        Enabled = _isLoading,
+                                        LayoutModifier = new YogaModifier() { Size = new YogaVector() { x = 3.pt(), y = 3.pt() } }
+                                    }
+                                    .Animate(_isLoading, (spinner, b) => spinner.Enabled = b)
+                                    .AsFlexItem(alignSelf: Align.Center),
+                                new Label { Text = "Loading Results...", Alignment = TextAlignmentOptions.Center }.AsFlexItem().Bind(ref _loadingLabel),
+                            }
+                        }.AsFlexGroup(FlexDirection.Row, Justify.FlexStart, alignContent: Align.Center, gap: 2f)
+                        .AsFlexItem(),
                     new Layout()
                         {
                             Children =
@@ -126,6 +137,11 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
                                             {
                                                 Enabled = true, WithinLayoutIfDisabled = true, Items = _results.Value,
                                             }
+                                            .Animate(_results, (view, list) =>
+                                            {
+                                                Plugin._log.Debug(JsonConvert.SerializeObject(_resultsView.Items.Select(x => x.Data.Title), Formatting.None));
+                                                view.Items = list;
+                                            })
                                             .AsFlexGroup(direction: FlexDirection.Column, gap: 2f, constrainVertical: false)
                                             .AsFlexItem(1)
                                             .Bind(ref _resultsView)
@@ -164,7 +180,7 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
 
     public void SetLoading(bool loading)
     {
-        IsLoading = loading;
+        _isLoading.Value = loading;
         if (_loadingLabel != null) _loadingLabel.Enabled = loading;
     }
 
@@ -202,45 +218,18 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
 
     public void Dispose()
     {
-        if (SearchService == null)
-        {
-            Plugin._log.Error("Search service is not set!");
-        }
-        else
-        {
-            SearchService.SearchProgress -= SearchServiceOnSearchProgress;
-            SearchService.SearchFinished -= SearchServiceOnSearchFinished;
-            if (_searchLoadingCoroutine != null) CoroutineStarter.StopCoroutine(_searchLoadingCoroutine);
-            // if (_updateSearchResultsCoroutine != null) coroutineStarter.StopCoroutine(_updateSearchResultsCoroutine);
-        }
+        SearchService.SearchProgress -= SearchServiceOnSearchProgress;
+        SearchService.SearchFinished -= SearchServiceOnSearchFinished;
+        // if (_updateSearchResultsCoroutine != null) coroutineStarter.StopCoroutine(_updateSearchResultsCoroutine);
     }
 
     // ---- Search handling (root mirrors original coroutines and SearchService events) ----
-
     public void OnQueryAction(string query)
     {
         // _searchText.Value = query;
         // _activeSection.Value = VideoMenuSection.Results;
         ResetSearchView();
-        _searchLoadingCoroutine = CoroutineStarter.StartCoroutine(SearchLoadingCoroutine());
-        SearchService.Search(query);
-    }
-
-    private IEnumerator SearchLoadingCoroutine()
-    {
-        int count = 0;
-        const string loadingText = "Searching for videos, please wait";
         SetLoading(true);
-
-        while (IsLoading)
-        {
-            var periods = string.Empty;
-            count++;
-            for (var i = 0; i < count; i++) periods += ".";
-            if (count == 3) count = 0;
-
-            SetLoadingText(loadingText + periods);
-            yield return new WaitForSeconds(0.5f);
-        }
+        SearchService.Search(query);
     }
 }
