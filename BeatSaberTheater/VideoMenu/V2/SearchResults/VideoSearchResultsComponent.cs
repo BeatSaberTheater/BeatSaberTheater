@@ -1,7 +1,6 @@
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Services;
 using BeatSaberTheater.Util;
-using Newtonsoft.Json;
 using Reactive;
 using Reactive.BeatSaber.Components;
 using Reactive.Components;
@@ -139,7 +138,6 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
                                             }
                                             .Animate(_results, (view, list) =>
                                             {
-                                                Plugin._log.Debug(JsonConvert.SerializeObject(_resultsView.Items.Select(x => x.Data.Title), Formatting.None));
                                                 view.Items = list;
                                             })
                                             .AsFlexGroup(direction: FlexDirection.Column, gap: 2f, constrainVertical: false)
