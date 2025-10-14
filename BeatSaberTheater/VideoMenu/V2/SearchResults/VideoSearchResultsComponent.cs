@@ -91,24 +91,28 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
             {
                 item.UpdateSelectionState(b ? videoResultListCellData.Data.ID : "");
             }
+
+            SetDownloadInteractable(true);
         }
 
         if (!b && videoResultListCellData.Data.ID == _currentlySelectedSearchResult.Value?.Data.ID)
         {
             _currentlySelectedSearchResult.Value = null!;
-            
+
             foreach (var item in _results.Value)
             {
                 item.UpdateSelectionState("");
             }
+
+            SetDownloadInteractable(false);
         }
     }
 
     protected override GameObject Construct()
     {
         return new Layout
-            {
-                Children =
+        {
+            Children =
                 {
                     new Layout()
                         {
@@ -163,7 +167,7 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
                         }
                     }.AsFlexGroup(FlexDirection.Row, gap: new YogaVector(2, 0), justifyContent: Justify.Center).AsFlexItem()
                 }
-            }
+        }
             .AsFlexGroup(FlexDirection.Column, gap: new YogaVector(0, 3))
             .Use();
     }
@@ -210,8 +214,9 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
 
     public YTResult? GetSelectedResult()
     {
-        if (_selectedIndex < 0 || _selectedIndex >= _results.Value.Count) return null;
-        return _results.Value[_selectedIndex].Data;
+        var currentResult = _currentlySelectedSearchResult.Value;
+        if (currentResult is null) return null;
+        return currentResult.Data;
     }
 
     public void Dispose()
