@@ -12,6 +12,7 @@ using BeatSaberTheater.VideoMenu.V2.Details;
 using BeatSaberTheater.VideoMenu.V2.NoVideo;
 using BeatSaberTheater.VideoMenu.V2.Presets;
 using BeatSaberTheater.VideoMenu.V2.SearchResults;
+using Newtonsoft.Json;
 using Reactive;
 using Reactive.Yoga;
 using UnityEngine;
@@ -236,6 +237,7 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
     {
         if (_currentVideo.Value == vc)
         {
+            Plugin._log.Info("Got download progress: " + vc.DownloadProgress);
             _details.UpdateStatusText(vc);
             _details.SetupLevelDetailView(vc);
         }
@@ -285,7 +287,6 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
 
         // Display details
         _details.SetVideo(_currentVideo.Value, _currentLevel);
-        _details.SetThumbnail(_currentVideo.Value.videoID != null ? $"https://i.ytimg.com/vi/{_currentVideo.Value.videoID}/hqdefault.jpg" : null);
         _details.UpdateStatusText(_currentVideo.Value);
         _details.SetButtonState(true, downloadService.LibrariesAvailable());
 
@@ -477,7 +478,6 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
     {
         if (_currentVideo.Value == null) return;
         _currentVideo.Value.offset += offset;
-        _details.SetOffsetText($"{_currentVideo.Value.offset:n0} ms");
         _currentVideo.Value.NeedsToSave = true;
         playbackManager.ApplyOffset(offset);
     }

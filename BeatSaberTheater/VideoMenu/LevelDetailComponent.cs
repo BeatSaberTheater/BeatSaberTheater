@@ -29,31 +29,28 @@ public class LevelDetailComponent(Transform parent, Action ButtonPressed) : Reac
 
     protected override GameObject Construct()
     {
-        return new Background()
+        return new Layout()
         {
             WithinLayoutIfDisabled = true,
-            LayoutModifier = new YogaModifier() { Margin = new YogaFrame() { left = 2.pt(), right = 2.pt() } },
+            LayoutModifier = new YogaModifier() { Margin = new YogaFrame() { left = 0.pt(), right = 0.pt() } },
             Children =
                 {
-                    new Label() { WithinLayoutIfDisabled = false, Text = "Video available", Color = Color.white.ColorWithAlpha(0.75f) }
-                        .AsFlexItem(flex: 0)
-                        .Bind(ref _label),
                     new BsButton()
                         {
                             WithinLayoutIfDisabled = false,
-                            Text = "Download",
+                            Skew = 0,
+                            Text = "Video Options",
                             OnClick = () =>
                             {
-                                Plugin._log.Info("Downloading video...");
                                 ButtonPressed.Invoke();
                             }
                         }
-                        .AsFlexItem(0)
+                        .AsFlexItem(1)
                         .Bind(ref _button)
                 }
         }
             .AsFlexGroup(FlexDirection.Row, Justify.SpaceAround, constrainVertical: false, padding: new YogaFrame(0, YogaValue.Point(2)))
-            .AsBeatSaberBackground()
+            // .AsBeatSaberBackground()
             .Use(parent);
     }
 }

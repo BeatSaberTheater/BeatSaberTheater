@@ -111,24 +111,23 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
     protected override GameObject Construct()
     {
         return new Layout
-        {
-            Children =
+            {
+                Children =
                 {
-                    new Layout()
-                        {
-                            Children =
-                            {
-                                new Spinner()
-                                    {
-                                        Enabled = _isLoading,
-                                        LayoutModifier = new YogaModifier() { Size = new YogaVector() { x = 3.pt(), y = 3.pt() } }
-                                    }
-                                    .Animate(_isLoading, (spinner, b) => spinner.Enabled = b)
-                                    .AsFlexItem(alignSelf: Align.Center),
-                                new Label { Text = "Loading Results...", Alignment = TextAlignmentOptions.Center }.AsFlexItem().Bind(ref _loadingLabel),
-                            }
-                        }.AsFlexGroup(FlexDirection.Row, Justify.FlexStart, alignContent: Align.Center, gap: 2f)
-                        .AsFlexItem(),
+                    // new Layout()
+                    //     {
+                    //         Children =
+                    //         {
+                    //             new Spinner()
+                    //                 {
+                    //                     Enabled = _isLoading, LayoutModifier = new YogaModifier() { Size = new YogaVector() { x = 3.pt(), y = 3.pt() } }
+                    //                 }
+                    //                 .Animate(_isLoading, (spinner, b) => spinner.Enabled = b)
+                    //                 .AsFlexItem(alignSelf: Align.Center),
+                    //             new Label { Text = "Loading Results...", Alignment = TextAlignmentOptions.Center }.AsFlexItem().Bind(ref _loadingLabel),
+                    //         }
+                    //     }.AsFlexGroup(FlexDirection.Row, Justify.FlexStart, alignContent: Align.Center, gap: 2f)
+                    //     .AsFlexItem(),
                     new Layout()
                         {
                             Children =
@@ -161,13 +160,28 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
                     {
                         Children =
                         {
+                            new Layout()
+                            {
+                                LayoutModifier =
+                                    new YogaModifier() { PositionType = PositionType.Absolute, Size = new YogaVector() { x = 100.pct(), y = 100.pct() }, },
+                                Children =
+                                {
+                                    new Spinner()
+                                        {
+                                            Enabled = _isLoading, LayoutModifier = new YogaModifier() { Size = new YogaVector() { x = 3.pt(), y = 3.pt() } }
+                                        }
+                                        .Animate(_isLoading, (spinner, b) => spinner.Enabled = b)
+                                        .AsFlexItem(alignSelf: Align.Center),
+                                    new Label { Text = "Loading Results...", Alignment = TextAlignmentOptions.Center }.AsFlexItem(alignSelf: Align.Center).Bind(ref _loadingLabel),
+                                }
+                            }.AsFlexGroup(FlexDirection.Row, Justify.FlexStart, alignContent: Align.Center, gap: 2f),
                             new BsButton { Text = "Go Back", OnClick = () => _onBack?.Invoke() }.AsFlexItem().Bind(ref _backButton),
                             new BsButton { Text = "Download", OnClick = () => _onDownload?.Invoke() }.AsFlexItem().Bind(ref _downloadButton),
                             new BsButton { Text = "Refine Search", OnClick = () => _onRefine?.Invoke() }.AsFlexItem().Bind(ref _refineButton)
                         }
                     }.AsFlexGroup(FlexDirection.Row, gap: new YogaVector(2, 0), justifyContent: Justify.Center).AsFlexItem()
                 }
-        }
+            }
             .AsFlexGroup(FlexDirection.Column, gap: new YogaVector(0, 3))
             .Use();
     }
@@ -183,21 +197,11 @@ internal class VideoSearchResultsComponent : ReactiveComponent, IDisposable
     public void SetLoading(bool loading)
     {
         _isLoading.Value = loading;
-        if (_loadingLabel != null) _loadingLabel.Enabled = loading;
-    }
-
-    public void SetLoadingText(string text)
-    {
-        if (_loadingLabel != null)
-        {
-            _loadingLabel.Text = text;
-        }
     }
 
     public void SetNoResultsMessage(string message)
     {
         SetLoading(false);
-        SetLoadingText(message);
     }
 
     public void SetDownloadInteractable(bool interactable)

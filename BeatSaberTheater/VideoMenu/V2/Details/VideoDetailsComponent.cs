@@ -9,180 +9,228 @@ using UnityEngine;
 
 namespace BeatSaberTheater.VideoMenu.V2.Details;
 
-internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, Action onPreview, Action onDeleteConfig, Action onDeleteVideo) : ReactiveComponent
+internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, Action onPreview, Action onDeleteConfig, Action onDeleteVideo)
+    : ReactiveComponent
 {
-    private Label _title = null!;
-    private WebImage _thumbnail = null!;
-    private Label _author = null!;
-    private Label _duration = null!;
-    private Label _status = null!;
+    // private Label _status = null!;
     private BsButton _deleteConfig = null!;
-    private BsButton _deleteVideo = null!;
-    private BsButton _previewButton = null!;
-    private Toggle _customizeOffset = null!;
-    private Label _offsetLabel = null!;
-    private Label _offsetValue = null!;
+
+    // private BsButton _deleteVideo = null!;
+    // private BsButton _previewButton = null!;
+    // private Toggle _customizeOffset = null!;
 
     private readonly Action _onSearch = onSearch;
-    private readonly Action<int> _applyOffset = applyOffset;
     private readonly Action _onPreview = onPreview;
     private readonly Action _onDeleteConfig = onDeleteConfig;
     private readonly Action _onDeleteVideo = onDeleteVideo;
 
-    private VideoConfig? _currentVideoLocal;
+    // Note: We should figure out a way how to bind to a sub-property of the videoConfig
+    // Maybe have it implement NotifyPropertyChange on all its properties, and listen to events?
+    // that way we can bind subproperties from the config to our fields
+    private readonly ObservableValue<VideoConfig?> _videoConfig = Remember<VideoConfig?>(null);
+    private readonly ObservableValue<BeatmapLevel?> _beatmapLevel = Remember<BeatmapLevel?>(null);
+
     // private LevelDetailViewController? _levelDetailMenu;
 
     protected override GameObject Construct()
     {
-        return new Layout
-        {
-            Children =
+        return new Layout()
             {
-                // Title + delete config
-                new Layout
+                Children =
                 {
-                    Children =
+                    // Title + delete config
+                    new Layout
                     {
-                        new Label { Text = "Video Title", Alignment = TextAlignmentOptions.Center }.AsFlexItem().Bind(ref _title),
-                        new BsButton { Text = "🗑", OnClick = () => _onDeleteConfig?.Invoke() }.AsFlexItem().Bind(ref _deleteConfig)
-                    }
-                }.AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween).AsFlexItem(),
+                        LayoutModifier = new YogaModifier() { MaxSize = new YogaVector() { y = 8.pt() } },
+                        Children =
+                        {
+                            new Layout()
+                                {
+                                    Children =
+                                    {
+                                        new Label { Text = "Video Title", FontSize = 3.5f, }
+                                            .Animate(_videoConfig, (label, config) => label.Text = TheaterFileHelpers.FilterEmoji(config?.title ?? ""))
+                                            .AsFlexItem(flex: 0, alignSelf: Align.FlexStart),
+                                        new Label() { Text = "Author | Duration", FontSize = 2.5f, Color = Color.white.ColorWithAlpha(0.75f) }
+                                            .Animate(_videoConfig,
+                                                (label, config) =>
+                                                    label.Text =
+                                                        $"{TheaterFileHelpers.FilterEmoji(config?.author ?? "")} | {TheaterFileHelpers.SecondsToString(config?.duration ?? 0)}")
+                                            .AsFlexItem(flex: 0, alignSelf: Align.FlexStart)
+                                    }
+                                }.AsFlexItem(1)
+                                .AsFlexGroup(FlexDirection.Column),
+                            new BsButton { Text = "🗑", OnClick = () => _onDeleteConfig?.Invoke() }
+                                .AsFlexItem()
+                                .Bind(ref _deleteConfig)
+                        }
+                    }.AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween).AsFlexItem(1),
 
-                // Thumbnail + info
-                new Layout
-                {
-                    Children =
-                    {
-                        new WebImage().AsFlexItem(size: new YogaVector(40, 25)).Bind(ref _thumbnail),
-                        new Layout
+                    // Thumbnail + info
+                    new Layout
                         {
                             Children =
                             {
-                                new Label { Text = "Author" }.AsFlexItem().Bind(ref _author),
-                                new Label { Text = "Duration" }.AsFlexItem().Bind(ref _duration),
-                                new Label { Text = "Not downloaded" }.AsFlexItem().Bind(ref _status),
-                                new BsButton { Text = "Delete Video", OnClick = () => _onDeleteVideo?.Invoke() }.AsFlexItem().Bind(ref _deleteVideo)
-                            }
-                        }.AsFlexGroup(FlexDirection.Column).AsFlexItem()
-                    }
-                }.AsFlexGroup(FlexDirection.Row).AsFlexItem(),
+                                new Layout()
+                                    {
+                                        Children =
+                                        {
+                                            new WebImage()
+                                                {
+                                                    LayoutModifier = new YogaModifier() { Size = new YogaVector() { y = 100.pct(), x = 100.pct() } },
+                                                    PreserveAspect = false
+                                                }
+                                                .Animate(_videoConfig,
+                                                    (image, config) =>
+                                                        image.Src = config?.videoID != null ? $"https://i.ytimg.com/vi/{config.videoID}/hqdefault.jpg" : null)
+                                                .AsFlexItem(1, alignSelf: Align.Center),
+                                            new BsPrimaryButton() { Skew = 0, Text = "Preview" }
+                                                .Animate(_videoConfig, (button, config) =>
+                                                {
+                                                    if (config != null)
+                                                    {
+                                                        button.Text = config.DownloadState switch
+                                                        {
+                                                            DownloadState.Preparing => "Preparing",
+                                                            DownloadState.Downloading => $"Downloading ({Convert.ToInt32(config.DownloadProgress * 100)}%)",
+                                                            DownloadState.Converting => (config.ConvertingProgress.HasValue)
+                                                                ? (config.ConvertingProgress.HasValue
+                                                                    ? $"Converting ({config.ConvertingProgress:##}%)"
+                                                                    : "Converting...")
+                                                                : $"Downloading ({Convert.ToInt32(config.DownloadProgress * 100)}%)",
+                                                            DownloadState.Downloaded => "Preview",
+                                                            _ => config.ErrorMessage ?? "Not downloaded"
+                                                        };
+                                                        
+                                                        button.Interactable = config?.DownloadState == DownloadState.Downloaded;
+                                                    }
+                                                })
+                                                .AsFlexItem()
+                                        }
+                                    }
+                                    .AsFlexGroup(FlexDirection.Column, overflow: Overflow.Hidden, gap: 1)
+                                    .AsFlexItem(1),
 
-                // Offset controls
-                new Layout
-                {
-                    Children =
+                                // Options section
+                                // Now should only contain offset, but in the future may have additional settings
+                                // such as level/stage, position, screen position, screen size, etc...
+                                new Layout()
+                                    {
+                                        Children =
+                                        {
+                                            new Layout()
+                                                {
+                                                    LayoutModifier = new YogaModifier() { Size = new YogaVector() { x = YogaValue.Stretch } },
+                                                    Children =
+                                                    {
+                                                        new Label { Text = "Offset" }
+                                                            .AsFlexItem(),
+                                                        new Layout
+                                                            {
+                                                                Children =
+                                                                {
+                                                                    CreateOffsetButton("---", -1000),
+                                                                    CreateOffsetButton("--", -100),
+                                                                    CreateOffsetButton("-", -20),
+                                                                    new Label { Text = "0", Alignment = TextAlignmentOptions.Center }
+                                                                        .Animate(_videoConfig, (label, config) => label.Text = $"{(config?.offset ?? 0):n0} ms")
+                                                                        .AsFlexItem(0),
+                                                                    CreateOffsetButton("+", 20),
+                                                                    CreateOffsetButton("++", 100),
+                                                                    CreateOffsetButton("+++", 1000)
+                                                                }
+                                                            }
+                                                            .AsFlexGroup(FlexDirection.Row, alignItems: Align.Center, justifyContent: Justify.FlexEnd,
+                                                                gap: new YogaVector(1, 0))
+                                                            .AsFlexItem(1)
+                                                    }
+                                                }.AsFlexItem(0)
+                                                .AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween),
+                                            new Layout()
+                                                {
+                                                    LayoutModifier = new YogaModifier() { Size = new YogaVector() { x = YogaValue.Stretch } },
+                                                    Children =
+                                                    {
+                                                        new Label { Text = "Level" }
+                                                            .AsFlexItem(),
+                                                        new Layout { Children = { new TextDropdown<string>() { Items = { { "BigMirror", "Big Mirror" } } } } }
+                                                            .AsFlexGroup(FlexDirection.Row, alignItems: Align.Center, justifyContent: Justify.FlexEnd,
+                                                                gap: new YogaVector(1, 0))
+                                                            .AsFlexItem(1)
+                                                    }
+                                                }.AsFlexItem(0)
+                                                .AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween)
+                                        }
+                                    }
+                                    .AsFlexGroup(FlexDirection.Column, gap: 0.5f)
+                                    .AsFlexItem(1)
+
+                                // new Layout
+                                //     {
+                                //         Children =
+                                //         {
+                                //             new Label { Text = "Not downloaded" }
+                                //                 .AsFlexItem()
+                                //                 .Bind(ref _status),
+                                //             new BsButton { Text = "Delete Video", OnClick = () => _onDeleteVideo?.Invoke() }
+                                //                 .AsFlexItem()
+                                //                 .Bind(ref _deleteVideo)
+                                //         }
+                                //     }
+                                //     .AsFlexGroup(FlexDirection.Column)
+                                //     .AsFlexItem(1)
+                            }
+                        }
+                        .AsFlexGroup(FlexDirection.Row, gap: 2)
+                        .AsFlexItem(1),
+                    new Layout
                     {
-                        new Label { Text = "Video Offset", Alignment = TextAlignmentOptions.Center }.AsFlexItem().Bind(ref _offsetLabel),
-                        new Layout
+                        Children =
                         {
-                            Children =
-                            {
-                                CreateOffsetButton("---", -1000),
-                                CreateOffsetButton("--", -100),
-                                CreateOffsetButton("-", -20),
-                                new Label { Text = "0", Alignment = TextAlignmentOptions.Center }.AsFlexItem(size: new YogaVector(16,0)).Bind(ref _offsetValue),
-                                CreateOffsetButton("+", 20),
-                                CreateOffsetButton("++", 100),
-                                CreateOffsetButton("+++", 1000)
-                            }
-                        }.AsFlexGroup(FlexDirection.Row, justifyContent: Justify.Center, gap: new YogaVector(1,0)).AsFlexItem()
-                    }
-                }.AsFlexGroup(FlexDirection.Column).AsFlexItem(),
+                            new BsButton { Text = "Go Back" }.AsFlexItem(),
+                            new BsButton { Text = "Download" }.AsFlexItem(),
+                            new BsButton { Text = "Refine Search" }.AsFlexItem()
+                        }
+                    }.AsFlexGroup(FlexDirection.Row, gap: new YogaVector(2, 0), justifyContent: Justify.Center).AsFlexItem()
 
-                // Customize offset (label + toggle)
-                new Layout
-                {
-                    Children =
-                    {
-                        new Label { Text = "Customize offset" }.AsFlexItem(),
-                        new Toggle().AsFlexItem().Bind(ref _customizeOffset)
-                    }
-                }.AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween).AsFlexItem(),
-
-                new BsButton { Text = "Preview", OnClick = () => _onPreview?.Invoke() }.AsFlexItem().Bind(ref _previewButton)
+                    // Customize offset (label + toggle)
+                    // new Layout { Children = { new Label { Text = "Customize offset" }.AsFlexItem(), new Toggle().AsFlexItem().Bind(ref _customizeOffset) } }
+                    //     .AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween).AsFlexItem(),
+                    // new BsButton { Text = "Preview", OnClick = () => _onPreview?.Invoke() }.AsFlexItem().Bind(ref _previewButton)
+                }
             }
-        }
-        .AsFlexGroup(FlexDirection.Column, gap: new YogaVector(0, 2))
-        .Use();
+            .AsFlexGroup(FlexDirection.Column, gap: 2)
+            .AsFlexItem(1)
+            .Use();
     }
 
     public void SetVideo(VideoConfig video, BeatmapLevel? level)
     {
-        _currentVideoLocal = video;
-        _title.Text = TheaterFileHelpers.FilterEmoji(video.title ?? "Untitled Video");
-        _author.Text = "Author: " + TheaterFileHelpers.FilterEmoji(video.author ?? "Unknown Author");
-        _duration.Text = "Duration: " + TheaterFileHelpers.SecondsToString(video.duration);
-        _offsetValue.Text = $"{video.offset:n0} ms";
-    }
-
-    public void SetThumbnail(string? url)
-    {
-        if (_thumbnail == null) return;
-        if (url == null)
-        {
-            // leave it to root to call SetThumbnailFromCover if necessary
-            return;
-        }
-
-        _thumbnail.Src = url;
+        _videoConfig.Value = video;
+        _beatmapLevel.Value = level;
     }
 
     public void UpdateStatusText(VideoConfig videoConfig)
     {
         if (videoConfig == null) return;
 
-        switch (videoConfig.DownloadState)
-        {
-            case DownloadState.Downloaded:
-                _status.Text = "Downloaded";
-                _status.Color = Color.green;
-                break;
-            case DownloadState.Preparing:
-                _status.Text = "Preparing download...";
-                _status.Color = Color.yellow;
-                _previewButton.Interactable = false;
-                break;
-            case DownloadState.Downloading:
-                _status.Text = $"Downloading ({Convert.ToInt32(videoConfig.DownloadProgress * 100)}%)";
-                _status.Color = Color.yellow;
-                _previewButton.Interactable = false;
-                break;
-            case DownloadState.DownloadingVideo:
-            case DownloadState.DownloadingAudio:
-            case DownloadState.Converting:
-                _status.Text = videoConfig.DownloadState == DownloadState.Converting ? (videoConfig.ConvertingProgress.HasValue ? $"Converting ({videoConfig.ConvertingProgress:##}%)" : "Converting...") : $"Downloading ({Convert.ToInt32(videoConfig.DownloadProgress * 100)}%)";
-                _status.Color = Color.yellow;
-                _previewButton.Interactable = false;
-                break;
-            case DownloadState.NotDownloaded:
-            case DownloadState.Cancelled:
-                _status.Text = videoConfig.ErrorMessage ?? "Not downloaded";
-                _status.Color = Color.red;
-                _previewButton.Interactable = false;
-                break;
-            default:
-                _status.Text = "Unknown";
-                break;
-        }
+        // Todo: This is a hack to force refresh of the value. Could be made nicer
+        // if we were to subscribe on the actual offset value instead.
+        _videoConfig.Value = _videoConfig.Value;
     }
 
     public void SetButtonState(bool enabled, bool libsAvailable)
     {
-        _previewButton.Interactable = enabled;
+        // _previewButton.Interactable = enabled;
         _deleteConfig.Interactable = enabled;
-        _deleteVideo.Interactable = enabled;
+        // _deleteVideo.Interactable = enabled;
         // underline color handling can be performed externally/left for later
     }
 
     public void SetCustomizeOffsetVisibility(bool visible)
     {
         // Toggle is represented in layout; we enable/disable it here:
-        _customizeOffset.SetActive(visible);
-    }
-
-    public void SetOffsetText(string text)
-    {
-        _offsetValue.Text = text;
+        // _customizeOffset.SetActive(visible);
     }
 
     public void RefreshLevelDetailMenu()
@@ -202,6 +250,22 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
 
     private BsButton CreateOffsetButton(string label, int delta)
     {
-        return new BsButton { Text = label, OnClick = () => _applyOffset?.Invoke(delta) }.AsFlexItem(size: new YogaVector(10, 0));
+        return new BsButton
+            {
+                Text = label,
+                OnClick = () =>
+                {
+                    if (_videoConfig.Value != null)
+                    {
+                        _videoConfig.Value.offset += delta;
+
+                        // Todo: This is a hack to force refresh of the value. Could be made nicer
+                        // if we were to subscribe on the actual offset value instead.
+                        _videoConfig.Value = _videoConfig.Value;
+                        applyOffset?.Invoke(delta);
+                    }
+                }
+            }
+            .AsFlexItem(0);
     }
 }

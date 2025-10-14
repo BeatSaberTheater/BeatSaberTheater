@@ -42,6 +42,7 @@ namespace BeatSaberTheater.VideoMenu
                                                             new BsButton()
                                                             {
                                                                 Text = "Back",
+                                                                Skew = 0,
                                                                 OnClick = () =>
                                                                 {
                                                                     Close(false);
@@ -58,6 +59,7 @@ namespace BeatSaberTheater.VideoMenu
                                                         new BsButton()
                                                         {
                                                             Text = "Save",
+                                                            Skew = 0,
                                                             OnClick = () =>
                                                             {
                                                                 OnSave?.Invoke();
@@ -79,7 +81,7 @@ namespace BeatSaberTheater.VideoMenu
                 }
                 .AsFlexGroup()
                 // Todo: figure out how to add like a background blur shader effect? Would be cool
-                .AsBlurBackground(12F, color: new Color(0, 0, 0, 0.99f))
+                .AsBlurBackground(12F, color: ColorUtility.TryParseHtmlString("#FFFFFFFE", out var c) ? c : new Color(0, 0, 0, 0.0f))
                 .Use();
 
             obj.layer = 5;
