@@ -85,9 +85,9 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
     protected override GameObject Construct()
     {
         return new Layout()
-            {
-                LayoutModifier = new YogaModifier() { Margin = new YogaFrame() { left = 2.pt(), right = 2.pt() } },
-                Children =
+        {
+            LayoutModifier = new YogaModifier() { Margin = new YogaFrame() { left = 2.pt(), right = 2.pt() } },
+            Children =
                 {
                     new Layout()
                         {
@@ -130,7 +130,7 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
                         .AsFlexGroup(FlexDirection.Row, Justify.SpaceAround, constrainVertical: false)
                         .AsFlexItem(1)
                 }
-            }
+        }
             .AsFlexGroup(FlexDirection.Row, Justify.SpaceAround, constrainVertical: false, padding: new YogaFrame(0, YogaValue.Point(2)))
             .AsFlexItem(1)
             .Use();
@@ -156,6 +156,11 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
     }
 
     // ---- External-style methods mirroring original VideoMenuUI behavior ----
+
+    public VideoConfig? GetCurrentVideoConfig()
+    {
+        return _currentVideo.Value;
+    }
 
     public void ResetVideoMenu()
     {

@@ -13,6 +13,7 @@ namespace BeatSaberTheater.VideoMenu;
 public class VideoMenuUI : ViewController
 {
     [Inject] private readonly DiContainer _container = null!;
+    [Inject] private readonly VideoLoader _videoLoader = null!;
     private VideoMenuComponent _viewComponent = null!;
 
     public void SpawnMenu(BeatmapLevel beatmapLevel)
@@ -24,7 +25,10 @@ public class VideoMenuUI : ViewController
             beatmapLevel
         );
 
-        ModalSystem.PresentModal(new VideoMenuUIModal(_viewComponent), screenTransform, true, false);
+        var videoMenuModal = new VideoMenuUIModal(_viewComponent);
+        videoMenuModal.OnSave += OnSave;
+
+        ModalSystem.PresentModal(videoMenuModal, screenTransform, true, false);
 
         // todo: bad hack to get the modal to overlay all other UI elements
         // this should be done by the modal system?
@@ -33,6 +37,13 @@ public class VideoMenuUI : ViewController
             .GetComponent<Canvas>();
         modalSystem.overrideSorting = true;
         modalSystem.sortingOrder = 10;
+    }
+
+    private void OnSave()
+    {
+        var videoConfig = _viewComponent.GetCurrentVideoConfig();
+        if (videoConfig is not null)
+            _videoLoader.SaveVideoConfig(videoConfig);
     }
 
     //     private readonly GameplaySetup _gameplaySetup;
