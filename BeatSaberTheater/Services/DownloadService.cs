@@ -321,6 +321,13 @@ internal class DownloadService : YoutubeDLServiceBase
         videoFormat = videoFormat.Length > 0 ? $" -f \"{videoFormat}\"" : "";
         var outputPath = video.VideoPath;
 
+        if (!string.IsNullOrWhiteSpace(outputPath) && File.Exists(outputPath))
+        {
+            // This shouldn't be happening, but when it does, the download doesn't work. Lets just remove the downloaded file for now
+            Plugin._log.Info("Removing: " + outputPath);
+            File.Delete(outputPath!);
+        }
+
         var downloadProcessArguments = videoUrl +
                                        videoFormat +
                                        " --no-cache-dir" + // Don't use temp storage
@@ -332,8 +339,22 @@ internal class DownloadService : YoutubeDLServiceBase
 
         if (format == VideoFormats.Format.Webm)
         {
-            downloadProcessArguments += $" --exec \"{Path.Combine(UnityGame.LibraryPath, "ffmpeg.exe")} -i %(filepath,_filename|)q -progress pipe:1 -c:v libvpx -crf 10 -b:v 4M -quality realtime -cpu-used 8 -c:a libvorbis \\\"{Path.GetFileNameWithoutExtension(video.VideoPath)}.webm\\\"\"";
-            video.videoFile = Path.GetFileNameWithoutExtension(video.videoFile) + ".webm";
+            var convertedOutputPath = Path.GetDirectoryName(video.VideoPath);
+            var convertedOutputFileName = $"{Path.GetFileNameWithoutExtension(video.VideoPath)}.webm";
+            var outputTargetFile = Path.Combine(convertedOutputPath, convertedOutputFileName);
+            if (!string.IsNullOrWhiteSpace(outputTargetFile) && File.Exists(outputTargetFile))
+            {
+                // This shouldn't be happening, but when it does, the download doesn't work. Lets just remove the downloaded file for now
+                Plugin._log.Info("Removing: " + outputTargetFile);
+                File.Delete(outputTargetFile!);
+            }
+            else
+            {
+                Plugin._log.Info("Not removing: " + outputTargetFile);
+            }
+            
+            downloadProcessArguments += $" --exec \"{Path.Combine(UnityGame.LibraryPath, "ffmpeg.exe")} -i %(filepath,_filename|)q -progress pipe:1 -c:v libvpx -crf 10 -b:v 4M -quality realtime -cpu-used 8 -c:a libvorbis \\\"{convertedOutputFileName}\\\"\"";
+            video.videoFile = convertedOutputFileName;
         }
         else
         {

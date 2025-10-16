@@ -84,15 +84,20 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
                                                     (image, config) =>
                                                         image.Src = config?.videoID != null ? $"https://i.ytimg.com/vi/{config.videoID}/hqdefault.jpg" : null)
                                                 .AsFlexItem(1, alignSelf: Align.Center),
-                                            new BsPrimaryButton() { Skew = 0, Text = "Preview" }
-                                                .Animate(_videoConfig, (button, config) =>
+                                            new Label() { WithinLayoutIfDisabled = false, Alignment = TextAlignmentOptions.Center}
+                                                .Animate(_videoConfig, (label, config) =>
                                                 {
                                                     if (config != null)
                                                     {
-                                                        button.Text = config.DownloadState switch
+                                                        label.Text = config.DownloadState switch
                                                         {
                                                             DownloadState.Preparing => "Preparing",
-                                                            DownloadState.Downloading => $"Downloading ({Convert.ToInt32(config.DownloadProgress * 100)}%)",
+                                                            DownloadState.Downloading =>
+                                                                $"Downloading ({Convert.ToInt32(config.DownloadProgress * 100)}%)",
+                                                            DownloadState.DownloadingVideo =>
+                                                                $"Downloading video ({Convert.ToInt32(config.DownloadProgress * 100)}%)",
+                                                            DownloadState.DownloadingAudio =>
+                                                                $"Downloading audio ({Convert.ToInt32(config.DownloadProgress * 100)}%)",
                                                             DownloadState.Converting => (config.ConvertingProgress.HasValue)
                                                                 ? (config.ConvertingProgress.HasValue
                                                                     ? $"Converting ({config.ConvertingProgress:##}%)"
@@ -101,8 +106,33 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
                                                             DownloadState.Downloaded => "Preview",
                                                             _ => config.ErrorMessage ?? "Not downloaded"
                                                         };
-                                                        
-                                                        button.Interactable = config?.DownloadState == DownloadState.Downloaded;
+
+                                                        label.Color = config.DownloadState switch
+                                                        {
+                                                            DownloadState.Downloading => Color.yellow,
+                                                            DownloadState.DownloadingVideo => Color.yellow,
+                                                            DownloadState.DownloadingAudio => Color.yellow,
+                                                            DownloadState.Converting => Color.yellow,
+                                                            _ => Color.white
+                                                        };
+
+                                                        label.Enabled = config?.DownloadState != DownloadState.Downloaded;
+                                                    }
+                                                })
+                                                .AsFlexItem(),
+                                            new BsPrimaryButton()
+                                                {
+                                                    Skew = 0,
+                                                    Text = "Preview",
+                                                    RichText = true,
+                                                    Enabled = false,
+                                                    WithinLayoutIfDisabled = false
+                                                }
+                                                .Animate(_videoConfig, (button, config) =>
+                                                {
+                                                    if (config != null)
+                                                    {
+                                                        button.Enabled = config?.DownloadState == DownloadState.Downloaded;
                                                     }
                                                 })
                                                 .AsFlexItem()
@@ -162,7 +192,7 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
                                                 .AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween)
                                         }
                                     }
-                                    .AsFlexGroup(FlexDirection.Column, gap: 0.5f)
+                                    .AsFlexGroup(FlexDirection.Column, gap: 1)
                                     .AsFlexItem(1)
 
                                 // new Layout

@@ -43,7 +43,14 @@ public class VideoMenuUI : ViewController
     {
         var videoConfig = _viewComponent.GetCurrentVideoConfig();
         if (videoConfig is not null)
+        {
+            Plugin._log.Info("Saving video config: " + videoConfig.ConfigPath);
             _videoLoader.SaveVideoConfig(videoConfig);
+        }
+        else
+        {
+            Plugin._log.Warn("Video config returned null - should not happen on save!");
+        }
     }
 
     //     private readonly GameplaySetup _gameplaySetup;
