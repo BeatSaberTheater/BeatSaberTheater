@@ -221,7 +221,7 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
         _enableTheater.Active = _config?.PluginEnabled ?? false;
         _format.Select(_config?.Format ?? VideoFormats.Format.Mp4);
         _mode.Select(_config?.QualityMode ?? VideoQuality.Mode.Q1080P);
-        _forceBigMirror.Active = _config?.ForceDisableEnvironmentOverrides ?? false;
+        _forceBigMirror.Active = _config?.OverrideEnvironment ?? false;
         _disableCustomPlatforms.Active = _config?.DisableCustomPlatforms ?? false;
         _rotate90360maps.Active = _config?.Enable360Rotation ?? false;
         _showSongCover.Active = _config?.CoverEnabled ?? false;
@@ -233,7 +233,7 @@ internal class TheaterSettingsGeneralTabComponent(PluginConfig? _config) : React
             ReactiveUiHelpers.SetupPropertyBinding(_enableTheater, _config, x => x.PluginEnabled);
             ReactiveUiHelpers.SetupPropertyBinding(_format, _config, x => x.Format);
             ReactiveUiHelpers.SetupPropertyBinding(_mode, _config, x => x.QualityMode);
-            ReactiveUiHelpers.SetupPropertyBinding(_forceBigMirror, _config, x => x.ForceDisableEnvironmentOverrides);
+            ReactiveUiHelpers.SetupPropertyBinding(_forceBigMirror, _config, x => x.OverrideEnvironment);
             ReactiveUiHelpers.SetupPropertyBinding(_disableCustomPlatforms, _config, x => x.DisableCustomPlatforms);
             ReactiveUiHelpers.SetupPropertyBinding(_rotate90360maps, _config, x => x.Enable360Rotation);
             ReactiveUiHelpers.SetupPropertyBinding(_showSongCover, _config, x => x.CoverEnabled);
