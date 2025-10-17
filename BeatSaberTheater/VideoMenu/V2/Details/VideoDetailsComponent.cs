@@ -6,6 +6,7 @@ using Reactive.Yoga;
 using System;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Video;
 
 namespace BeatSaberTheater.VideoMenu.V2.Details;
 
@@ -13,7 +14,6 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
     : ReactiveComponent
 {
     // private Label _status = null!;
-    private BsButton _deleteConfig = null!;
 
     // private BsButton _deleteVideo = null!;
     // private BsButton _previewButton = null!;
@@ -58,11 +58,22 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
                                                         $"{TheaterFileHelpers.FilterEmoji(config?.author ?? "")} | {TheaterFileHelpers.SecondsToString(config?.duration ?? 0)}")
                                             .AsFlexItem(flex: 0, alignSelf: Align.FlexStart)
                                     }
-                                }.AsFlexItem(1)
+                                }.AsFlexItem(2)
                                 .AsFlexGroup(FlexDirection.Column),
-                            new BsButton { Text = "🗑", OnClick = () => _onDeleteConfig?.Invoke() }
-                                .AsFlexItem()
-                                .Bind(ref _deleteConfig)
+                            new Layout()
+                                {
+                                    Children =
+                                    {
+                                        // Todo: figure out a way to add hints/hover tips to reactive components
+                                        new ImageBsButton() { Sprite = ResourceLoader.IconTrash.Value, OnClick = () => _onDeleteConfig?.Invoke() }.AsFlexItem(
+                                            size: new YogaVector() { x = 6, y = 100.pct() }),
+                                        new ImageBsButton() { Sprite = ResourceLoader.IconDownload.Value, }.AsFlexItem(
+                                            size: new YogaVector() { x = 6, y = 100.pct() }),
+                                        new ImageBsButton() { Sprite = ResourceLoader.IconUpload.Value, }.AsFlexItem(
+                                            size: new YogaVector() { x = 6, y = 100.pct() }),
+                                    }
+                                }.AsFlexItem(1)
+                                .AsFlexGroup(FlexDirection.Row, Justify.FlexEnd, Align.Center, gap: 1)
                         }
                     }.AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween).AsFlexItem(1),
 
@@ -75,16 +86,37 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
                                     {
                                         Children =
                                         {
-                                            new WebImage()
+                                            new Layout()
+                                            {
+                                                Children =
                                                 {
-                                                    LayoutModifier = new YogaModifier() { Size = new YogaVector() { y = 100.pct(), x = 100.pct() } },
-                                                    PreserveAspect = false
+                                                    new WebImage()
+                                                        {
+                                                            LayoutModifier = new YogaModifier() { Size = new YogaVector() { y = 100.pct(), x = 100.pct() } },
+                                                            PreserveAspect = false
+                                                        }
+                                                        .Animate(_videoConfig,
+                                                            (image, config) =>
+                                                                image.Src = config?.videoID != null ? $"https://i.ytimg.com/vi/{config.videoID}/hqdefault.jpg" : null)
+                                                        .AsFlexItem(1, alignSelf: Align.Center),
+                                                    
+                                                    // Todo: Add second element to this container
+                                                    // or move the current video player 'here' while preview is active
+                                                    // new Image()
+                                                    // {
+                                                    //     Name = "Previewer",
+                                                    //     LayoutModifier = new YogaModifier() { Size = new YogaVector() { y = 100.pct(), x = 100.pct() } },
+                                                    //     PreserveAspect = false,
+                                                    // }
+                                                    // .AsFlexItem(1)
+                                                    // .Bind(ref _previewer)
+                                                    //     // .AsBackground(color: Color.green.ColorWithAlpha(0.5f))
                                                 }
-                                                .Animate(_videoConfig,
-                                                    (image, config) =>
-                                                        image.Src = config?.videoID != null ? $"https://i.ytimg.com/vi/{config.videoID}/hqdefault.jpg" : null)
-                                                .AsFlexItem(1, alignSelf: Align.Center),
-                                            new Label() { WithinLayoutIfDisabled = false, Alignment = TextAlignmentOptions.Center}
+                                            }
+                                            .AsFlexGroup()
+                                            .AsFlexItem(1),
+                                            
+                                            new Label() { WithinLayoutIfDisabled = false, Alignment = TextAlignmentOptions.Center }
                                                 .Animate(_videoConfig, (label, config) =>
                                                 {
                                                     if (config != null)
@@ -126,7 +158,8 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
                                                     Text = "Preview",
                                                     RichText = true,
                                                     Enabled = false,
-                                                    WithinLayoutIfDisabled = false
+                                                    WithinLayoutIfDisabled = false,
+                                                    OnClick = OnPreviewClick
                                                 }
                                                 .Animate(_videoConfig, (button, config) =>
                                                 {
@@ -148,90 +181,44 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
                                     {
                                         Children =
                                         {
-                                            new Layout()
+                                            new Layout
                                                 {
-                                                    LayoutModifier = new YogaModifier() { Size = new YogaVector() { x = YogaValue.Stretch } },
                                                     Children =
                                                     {
-                                                        new Label { Text = "Offset" }
-                                                            .AsFlexItem(),
-                                                        new Layout
-                                                            {
-                                                                Children =
-                                                                {
-                                                                    CreateOffsetButton("---", -1000),
-                                                                    CreateOffsetButton("--", -100),
-                                                                    CreateOffsetButton("-", -20),
-                                                                    new Label { Text = "0", Alignment = TextAlignmentOptions.Center }
-                                                                        .Animate(_videoConfig, (label, config) => label.Text = $"{(config?.offset ?? 0):n0} ms")
-                                                                        .AsFlexItem(0),
-                                                                    CreateOffsetButton("+", 20),
-                                                                    CreateOffsetButton("++", 100),
-                                                                    CreateOffsetButton("+++", 1000)
-                                                                }
-                                                            }
-                                                            .AsFlexGroup(FlexDirection.Row, alignItems: Align.Center, justifyContent: Justify.FlexEnd,
-                                                                gap: new YogaVector(1, 0))
-                                                            .AsFlexItem(1)
+                                                        CreateOffsetButton("---", -1000),
+                                                        CreateOffsetButton("--", -100),
+                                                        CreateOffsetButton("-", -20),
+                                                        new Label { Text = "0", Alignment = TextAlignmentOptions.Center }
+                                                            .Animate(_videoConfig, (label, config) => label.Text = $"{(config?.offset ?? 0):n0} ms")
+                                                            .AsFlexItem(0),
+                                                        CreateOffsetButton("+", 20),
+                                                        CreateOffsetButton("++", 100),
+                                                        CreateOffsetButton("+++", 1000)
                                                     }
-                                                }.AsFlexItem(0)
-                                                .AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween),
-                                            new Layout()
-                                                {
-                                                    LayoutModifier = new YogaModifier() { Size = new YogaVector() { x = YogaValue.Stretch } },
-                                                    Children =
-                                                    {
-                                                        new Label { Text = "Level" }
-                                                            .AsFlexItem(),
-                                                        new Layout { Children = { new TextDropdown<string>() { Items = { { "BigMirror", "Big Mirror" } } } } }
-                                                            .AsFlexGroup(FlexDirection.Row, alignItems: Align.Center, justifyContent: Justify.FlexEnd,
-                                                                gap: new YogaVector(1, 0))
-                                                            .AsFlexItem(1)
-                                                    }
-                                                }.AsFlexItem(0)
-                                                .AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween)
+                                                }
+                                                .AsFlexGroup(FlexDirection.Row, alignItems: Align.Center, justifyContent: Justify.FlexEnd,
+                                                    gap: new YogaVector(1, 0))
+                                                .InNamedRail("Offset"),
+                                            new TextDropdown<string>() { Items = { { "BigMirror", "Big Mirror" } }, Skew = 0 }
+                                                .InNamedRail("Level")
+                                                .AsFlexItem(0),
                                         }
                                     }
                                     .AsFlexGroup(FlexDirection.Column, gap: 1)
                                     .AsFlexItem(1)
-
-                                // new Layout
-                                //     {
-                                //         Children =
-                                //         {
-                                //             new Label { Text = "Not downloaded" }
-                                //                 .AsFlexItem()
-                                //                 .Bind(ref _status),
-                                //             new BsButton { Text = "Delete Video", OnClick = () => _onDeleteVideo?.Invoke() }
-                                //                 .AsFlexItem()
-                                //                 .Bind(ref _deleteVideo)
-                                //         }
-                                //     }
-                                //     .AsFlexGroup(FlexDirection.Column)
-                                //     .AsFlexItem(1)
                             }
                         }
                         .AsFlexGroup(FlexDirection.Row, gap: 2)
                         .AsFlexItem(1),
-                    new Layout
-                    {
-                        Children =
-                        {
-                            new BsButton { Text = "Go Back" }.AsFlexItem(),
-                            new BsButton { Text = "Download" }.AsFlexItem(),
-                            new BsButton { Text = "Refine Search" }.AsFlexItem()
-                        }
-                    }.AsFlexGroup(FlexDirection.Row, gap: new YogaVector(2, 0), justifyContent: Justify.Center).AsFlexItem()
-
-                    // Customize offset (label + toggle)
-                    // new Layout { Children = { new Label { Text = "Customize offset" }.AsFlexItem(), new Toggle().AsFlexItem().Bind(ref _customizeOffset) } }
-                    //     .AsFlexGroup(FlexDirection.Row, Justify.SpaceBetween).AsFlexItem(),
-                    // new BsButton { Text = "Preview", OnClick = () => _onPreview?.Invoke() }.AsFlexItem().Bind(ref _previewButton)
                 }
             }
             .AsFlexGroup(FlexDirection.Column, gap: 2)
             .AsFlexItem(1)
             .Use();
+    }
+
+    private void OnPreviewClick()
+    {
     }
 
     public void SetVideo(VideoConfig video, BeatmapLevel? level)
@@ -252,7 +239,7 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
     public void SetButtonState(bool enabled, bool libsAvailable)
     {
         // _previewButton.Interactable = enabled;
-        _deleteConfig.Interactable = enabled;
+        // _deleteConfig.Interactable = enabled;
         // _deleteVideo.Interactable = enabled;
         // underline color handling can be performed externally/left for later
     }

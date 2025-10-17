@@ -32,11 +32,17 @@
         <EmbeddedResource Include="Settings\Views\settings.bsml"/>
         <None Remove="Resources\trash.png"/>
         <EmbeddedResource Include="Resources\trash.png"/>
+        <None Remove="Resources\trash-2.png"/>
+        <EmbeddedResource Include="Resources\trash-2.png"/>
         <None Remove="Resources\configs.json"/>
         <EmbeddedResource Include="Resources\configs.json"/>
         <None Remove="VideoMenu\Views\level-detail.bsml"/>
         <None Remove="Resources\bstheater.bundle"/>
         <EmbeddedResource Include="Resources\bstheater.bundle"/>
+        <None Remove="Resources\cloud-up.png" />
+        <EmbeddedResource Include="Resources\upload.png" />
+        <None Remove="Resources\download.png" />
+        <EmbeddedResource Include="Resources\download.png" />
     </ItemGroup>
 
     <ItemGroup>
@@ -225,6 +231,10 @@
         </Reference>
         <Reference Include="UnityEngine.VRModule">
             <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.VRModule.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="UnityEngine.ImageConversionModule">
+            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.ImageConversionModule.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="VRUI">
