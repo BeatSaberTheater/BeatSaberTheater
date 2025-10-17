@@ -1,3 +1,4 @@
+using BeatSaberTheater.State;
 using BeatSaberTheater.Util;
 using Zenject;
 
@@ -27,5 +28,7 @@ internal class AppInstaller : Installer
         Container.BindInstance(_pluginConfig).AsSingle();
         Container.BindInterfacesAndSelfTo<LoggingService>().AsSingle();
         Container.Bind<TheaterCoroutineStarter>().FromNewComponentOnNewGameObject().AsSingle();
+        Container.BindInterfacesAndSelfTo<TheaterState>().AsSingle();
+        Container.BindInterfacesAndSelfTo<StateManager>().AsSingle();
     }
 }

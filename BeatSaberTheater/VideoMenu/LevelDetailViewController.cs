@@ -99,9 +99,10 @@ public class LevelDetailViewController : ViewController
 
     private void OnLevelDetailButtonPressed()
     {
-        if (_standardLevelDetailViewController?.beatmapLevel != null)
-        {
-            _videoMenuUI.SpawnMenu(_standardLevelDetailViewController.beatmapLevel);
-        }
+        _videoMenuUI.SpawnMenu();
+        // if (_standardLevelDetailViewController?.beatmapLevel != null)
+        // {
+        //     _videoMenuUI.SpawnMenu();
+        // }
     }
 }

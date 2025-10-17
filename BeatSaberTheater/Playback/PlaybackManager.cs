@@ -8,6 +8,7 @@ using BeatSaberTheater.Download;
 using BeatSaberTheater.Environment.Interfaces;
 using BeatSaberTheater.Screen;
 using BeatSaberTheater.Screen.Interfaces;
+using BeatSaberTheater.State;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
 using BeatSaberTheater.Video.Config;
@@ -29,7 +30,6 @@ public class PlaybackManager : MonoBehaviour
     private Scene _activeScene = Scene.Other;
     private SongPreviewPlayer.AudioSourceVolumeController[]? _audioSourceControllers;
     private DateTime _audioSourceStartTime;
-    private BeatmapLevel? _currentLevel;
     private float _lastKnownAudioSourceTime;
     private Environment.LightManager _lightManager = null!;
     private float _offsetAfterPrepare;
@@ -43,15 +43,13 @@ public class PlaybackManager : MonoBehaviour
     private SettingsManager? _settingsManager;
     private SongPreviewPlayer? _songPreviewPlayer;
     private AudioTimeSyncController? _timeSyncController;
-    private VideoConfig? _videoConfig;
     private CustomVideoPlayer _videoPlayer = null!;
 
     [Inject] private readonly PluginConfig _config = null!;
     [Inject] private readonly ILightManagerFactory _lightManagerFactory = null!;
     [Inject] private readonly LoggingService _loggingService = null!;
+    [Inject] private readonly TheaterState _state = null!;
     [Inject] private readonly VideoLoader _videoLoader = null!;
-
-    // [Inject] private readonly VideoMenuUI _videoMenu = null!;
     [Inject] private readonly ICustomVideoPlayerFactory _videoPlayerFactory = null!;
 
     #region Unity Event Functions
@@ -130,7 +128,7 @@ public class PlaybackManager : MonoBehaviour
 
     private void DifficultySelected(ExtraSongDataArgs extraSongDataArgs)
     {
-        if (_videoConfig == null) return;
+        if (_state.CurrentVideoConfig == null) return;
 
         var difficultyData = extraSongDataArgs.SelectedDifficultyData;
         var songData = extraSongDataArgs.SongData;
@@ -139,13 +137,13 @@ public class PlaybackManager : MonoBehaviour
         // If there are no difficulties that have the suggestion set, play the video. It might be a video added by the user.
         // Otherwise, if the map is WIP, disable playback even when no difficulty has the suggestion, to convince the mapper to add it.
         if (difficultyData?.HasTheater() == false && songData?.HasTheaterInAnyDifficulty() == true)
-            _videoConfig.PlaybackDisabledByMissingSuggestion = true;
-        else if (_videoConfig.IsWIPLevel && difficultyData?.HasTheater() == false)
-            _videoConfig.PlaybackDisabledByMissingSuggestion = true;
+            _state.CurrentVideoConfig.PlaybackDisabledByMissingSuggestion = true;
+        else if (_state.CurrentVideoConfig.IsWIPLevel && difficultyData?.HasTheater() == false)
+            _state.CurrentVideoConfig.PlaybackDisabledByMissingSuggestion = true;
         else
-            _videoConfig.PlaybackDisabledByMissingSuggestion = false;
+            _state.CurrentVideoConfig.PlaybackDisabledByMissingSuggestion = false;
 
-        if (_videoConfig.PlaybackDisabledByMissingSuggestion)
+        if (_state.CurrentVideoConfig.PlaybackDisabledByMissingSuggestion)
         {
             _videoPlayer.FadeOut(0.1f);
         }
@@ -157,7 +155,7 @@ public class PlaybackManager : MonoBehaviour
 
     public void FrameReady(VideoPlayer videoPlayer, long frame)
     {
-        if (_activeAudioSource == null || _videoConfig == null) return;
+        if (_activeAudioSource == null || _state.CurrentVideoConfig == null) return;
 
         var audioSourceTime = _activeAudioSource.time;
 
@@ -177,15 +175,15 @@ public class PlaybackManager : MonoBehaviour
                                   TheaterFileHelpers.FormatFloat(audioSourceTime) + " - Error (ms): " +
                                   Math.Round(error * 1000));
 
-        if (_videoConfig.endVideoAt.HasValue)
+        if (_state.CurrentVideoConfig.endVideoAt.HasValue)
         {
-            if (referenceTime >= _videoConfig.endVideoAt - 1f)
+            if (referenceTime >= _state.CurrentVideoConfig.endVideoAt - 1f)
             {
-                var brightness = Math.Max(0f, _videoConfig.endVideoAt.Value - referenceTime);
+                var brightness = Math.Max(0f, _state.CurrentVideoConfig.endVideoAt.Value - referenceTime);
                 _videoPlayer.SetBrightness(brightness);
             }
         }
-        else if (referenceTime >= _videoPlayer.PlayerLength - 1f && _videoConfig.loop != true)
+        else if (referenceTime >= _videoPlayer.PlayerLength - 1f && _state.CurrentVideoConfig.loop != true)
         {
             var brightness = Math.Max(0f, _videoPlayer.PlayerLength - referenceTime);
             _videoPlayer.SetBrightness((float)brightness);
@@ -255,19 +253,19 @@ public class PlaybackManager : MonoBehaviour
             }
 
             var bsUtilsLevel = BS_Utils.Plugin.LevelData.GameplayCoreSceneSetupData.beatmapLevel;
-            if (_currentLevel?.levelID != bsUtilsLevel.levelID)
+            if (_state.CurrentLevel?.levelID != bsUtilsLevel.levelID)
             {
                 var video = _videoLoader.GetConfigForLevel(bsUtilsLevel);
                 SetSelectedLevel(bsUtilsLevel, video);
             }
         }
 
-        if (_videoConfig == null || !_videoConfig.IsPlayable)
+        if (_state.CurrentVideoConfig == null || !_state.CurrentVideoConfig.IsPlayable)
         {
-            _loggingService.Info("No video configured or video is not playable: " + _videoConfig?.VideoPath);
+            _loggingService.Info("No video configured or video is not playable: " + _state.CurrentVideoConfig?.VideoPath);
 
-            if (_config.CoverEnabled && (_videoConfig?.forceEnvironmentModifications == null ||
-                                         _videoConfig.forceEnvironmentModifications == false))
+            if (_config.CoverEnabled && (_state.CurrentVideoConfig?.forceEnvironmentModifications == null ||
+                                         _state.CurrentVideoConfig.forceEnvironmentModifications == false))
                 ShowSongCover().Start();
             return;
         }
@@ -275,13 +273,13 @@ public class PlaybackManager : MonoBehaviour
         // Some mappers disable this accidentally
         gameObject.SetActive(true);
 
-        if (_videoConfig.NeedsToSave) _videoLoader.SaveVideoConfig(_videoConfig);
+        if (_state.CurrentVideoConfig.NeedsToSave) _videoLoader.SaveVideoConfig(_state.CurrentVideoConfig);
 
-        UpdateVideoPlayerPlacement(_videoConfig, _activeScene);
+        UpdateVideoPlayerPlacement(_state.CurrentVideoConfig, _activeScene);
 
         _videoPlayer.Show();
         // Fixes rough pop-in at the start of the song when transparency is disabled
-        if (!(_videoConfig.TransparencyEnabled && _config.TransparencyEnabled) && _activeScene != Scene.Menu)
+        if (!(_state.CurrentVideoConfig.TransparencyEnabled && _config.TransparencyEnabled) && _activeScene != Scene.Menu)
         {
             _videoPlayer.ScreenColor = Color.black;
             _videoPlayer.ShowScreenBody();
@@ -301,8 +299,8 @@ public class PlaybackManager : MonoBehaviour
 
     private void OnConfigChanged(VideoConfig? config, bool? reloadVideo)
     {
-        var previousVideoPath = _videoConfig?.VideoPath;
-        _videoConfig = config;
+        var previousVideoPath = _state.CurrentVideoConfig?.VideoPath;
+        // _state.CurrentVideoConfig = config;
 
         if (config == null)
         {
@@ -340,7 +338,7 @@ public class PlaybackManager : MonoBehaviour
         else
             _videoPlayer.ShowScreenBody();
 
-        // if (_activeScene == Scene.SoloGameplay) EnvironmentController.VideoConfigSceneModifications(_videoConfig);
+        // if (_activeScene == Scene.SoloGameplay) EnvironmentController.VideoConfigSceneModifications(_state.CurrentVideoConfig);
     }
 
     private void OnMenuSceneLoaded()
@@ -403,7 +401,7 @@ public class PlaybackManager : MonoBehaviour
 
     private void SceneChanged()
     {
-        _videoPlayer.SetScreenShaderParameters(_videoConfig);
+        _videoPlayer.SetScreenShaderParameters(_state.CurrentVideoConfig);
     }
 
     #endregion
@@ -453,7 +451,7 @@ public class PlaybackManager : MonoBehaviour
 
         if (_activeScene != Scene.Menu) return;
 
-        if (_currentLevel != null && _currentLevel.songDuration < startTime)
+        if (_state.CurrentLevel != null && _state.CurrentLevel.songDuration < startTime)
         {
             _loggingService.Debug("Song preview start time was greater than song duration. Resetting start time to 0");
             startTime = 0;
@@ -472,7 +470,7 @@ public class PlaybackManager : MonoBehaviour
 
     private void PlayVideo(float startTime)
     {
-        if (_videoConfig == null)
+        if (_state.CurrentVideoConfig == null)
         {
             _loggingService.Warn("VideoConfig null in PlayVideo");
             return;
@@ -481,12 +479,12 @@ public class PlaybackManager : MonoBehaviour
         _videoPlayer.IsSyncing = false;
 
         // Always hide screen body in the menu, since the drawbacks of the body being visible are large
-        if (!(_videoConfig.TransparencyEnabled && _config.TransparencyEnabled) && _activeScene != Scene.Menu)
+        if (!(_state.CurrentVideoConfig.TransparencyEnabled && _config.TransparencyEnabled) && _activeScene != Scene.Menu)
             _videoPlayer.ShowScreenBody();
         else
             _videoPlayer.HideScreenBody();
 
-        var totalOffset = _videoConfig.GetOffsetInSec();
+        var totalOffset = _state.CurrentVideoConfig.GetOffsetInSec();
         var songSpeed = 1f;
         if (BS_Utils.Plugin.LevelData.IsSet)
         {
@@ -495,28 +493,27 @@ public class PlaybackManager : MonoBehaviour
             if (BS_Utils.Plugin.LevelData.GameplayCoreSceneSetupData?.practiceSettings != null)
             {
                 songSpeed = BS_Utils.Plugin.LevelData.GameplayCoreSceneSetupData.practiceSettings.songSpeedMul;
-                if (totalOffset + startTime < 0) totalOffset /= songSpeed * _videoConfig.PlaybackSpeed;
+                if (totalOffset + startTime < 0) totalOffset /= songSpeed * _state.CurrentVideoConfig.PlaybackSpeed;
             }
         }
 
-        _videoPlayer.PlaybackSpeed = songSpeed * _videoConfig.PlaybackSpeed;
+        _videoPlayer.PlaybackSpeed = songSpeed * _state.CurrentVideoConfig.PlaybackSpeed;
         totalOffset += startTime; // This must happen after song speed adjustment
 
-        if (songSpeed * _videoConfig.PlaybackSpeed < 1f && totalOffset > 0f)
+        if (songSpeed * _state.CurrentVideoConfig.PlaybackSpeed < 1f && totalOffset > 0f)
         {
             // Unity crashes if the playback speed is less than 1 and the video time at the start of playback is greater than 0
             _loggingService.Warn("Video playback disabled to prevent Unity crash");
             _videoPlayer.Hide();
             StopPlayback();
-            _videoConfig = null;
             return;
         }
 
         // Video seemingly always lags behind. A fixed offset seems to work well enough
         if (!IsPreviewPlaying) totalOffset += 0.0667f;
 
-        if (_videoConfig.endVideoAt != null && totalOffset > _videoConfig.endVideoAt)
-            totalOffset = _videoConfig.endVideoAt.Value;
+        if (_state.CurrentVideoConfig.endVideoAt != null && totalOffset > _state.CurrentVideoConfig.endVideoAt)
+            totalOffset = _state.CurrentVideoConfig.endVideoAt.Value;
 
         // This will fail if the video is not prepared yet
         if (_videoPlayer.VideoDuration > 0) totalOffset %= _videoPlayer.VideoDuration;
@@ -667,13 +664,13 @@ public class PlaybackManager : MonoBehaviour
     public void PauseVideo()
     {
         StopAllCoroutines();
-        if (_videoPlayer.IsPlaying && _videoConfig != null) _videoPlayer.Pause();
+        if (_videoPlayer.IsPlaying && _state.CurrentVideoConfig != null) _videoPlayer.Pause();
     }
 
     public void ResumeVideo()
     {
-        if (!_config.PluginEnabled || _videoPlayer.IsPlaying || _videoConfig == null || !_videoConfig.IsPlayable ||
-            (_videoPlayer.VideoEnded && _videoConfig.loop != true)) return;
+        if (!_config.PluginEnabled || _videoPlayer.IsPlaying || _state.CurrentVideoConfig == null || !_state.CurrentVideoConfig.IsPlayable ||
+            (_videoPlayer.VideoEnded && _state.CurrentVideoConfig.loop != true)) return;
 
         var referenceTime = GetReferenceTime();
         if (referenceTime > 0)
@@ -684,7 +681,7 @@ public class PlaybackManager : MonoBehaviour
 
     public void ResyncVideo(float? referenceTime = null)
     {
-        if (_activeAudioSource == null || _videoConfig == null || !_videoConfig.IsPlayable) return;
+        if (_activeAudioSource == null || _state.CurrentVideoConfig == null || !_state.CurrentVideoConfig.IsPlayable) return;
 
         float newTime;
         if (referenceTime != null)
@@ -711,16 +708,16 @@ public class PlaybackManager : MonoBehaviour
     private void VideoPlayerErrorReceived(string message)
     {
         StopPlayback();
-        if (_videoConfig == null) return;
+        if (_state.CurrentVideoConfig == null) return;
 
-        _videoConfig.UpdateDownloadState();
-        _videoConfig.ErrorMessage = "Theater playback error.";
+        _state.CurrentVideoConfig.UpdateDownloadState();
+        _state.CurrentVideoConfig.ErrorMessage = "Theater playback error.";
         if (message.Contains("Unexpected error code (10)") && SystemInfo.graphicsDeviceVendor == "NVIDIA")
-            _videoConfig.ErrorMessage += " Try disabling NVIDIA Fast Sync.";
+            _state.CurrentVideoConfig.ErrorMessage += " Try disabling NVIDIA Fast Sync.";
         else if (message.Contains("It seems that the Microsoft Media Foundation is not installed on this machine"))
-            _videoConfig.ErrorMessage += " Install Microsoft Media Foundation.";
+            _state.CurrentVideoConfig.ErrorMessage += " Install Microsoft Media Foundation.";
         else
-            _videoConfig.ErrorMessage += " See logs for details.";
+            _state.CurrentVideoConfig.ErrorMessage += " See logs for details.";
 
         // _videoMenu.SetupLevelDetailView(VideoConfig);
     }
@@ -743,10 +740,10 @@ public class PlaybackManager : MonoBehaviour
 
     private IEnumerator PrepareVideoCoroutine(VideoConfig video)
     {
-        _videoConfig = video;
+        // _state.CurrentVideoConfig = video;
 
         _videoPlayer.Pause();
-        if (_videoConfig.DownloadState != DownloadState.Downloaded)
+        if (_state.CurrentVideoConfig?.DownloadState != DownloadState.Downloaded)
         {
             _loggingService.Debug("Video is not downloaded, stopping prepare");
             _videoPlayer.FadeOut();
@@ -802,7 +799,7 @@ public class PlaybackManager : MonoBehaviour
 
     public void ApplyOffsetToVideo(float offset)
     {
-        if (_activeAudioSource == null || _videoConfig == null || !_videoConfig.IsPlayable) return;
+        if (_activeAudioSource == null || _state.CurrentVideoConfig == null || !_state.CurrentVideoConfig.IsPlayable) return;
 
         var newTime = _videoPlayer.PlayerTime + offset / 1000f;
 
@@ -855,7 +852,7 @@ public class PlaybackManager : MonoBehaviour
 
     public async Task StartPreview()
     {
-        if (_videoConfig == null || _currentLevel == null)
+        if (_state.CurrentVideoConfig == null || _state.CurrentLevel == null)
         {
             _loggingService.Warn("No video or level selected in OnPreviewAction");
             return;
@@ -877,7 +874,7 @@ public class PlaybackManager : MonoBehaviour
 
             // Start the preview at the point the video kicks in
             var startTime = 0f;
-            if (_videoConfig.offset < 0) startTime = -_videoConfig.GetOffsetInSec();
+            if (_state.CurrentVideoConfig.offset < 0) startTime = -_state.CurrentVideoConfig.GetOffsetInSec();
 
             if (_songPreviewPlayer == null)
             {
@@ -887,11 +884,11 @@ public class PlaybackManager : MonoBehaviour
 
             try
             {
-                _loggingService.Debug($"Preview start time: {startTime}, offset: {_videoConfig.GetOffsetInSec()}");
-                var audioClip = await VideoLoader.GetAudioClipForLevel(_currentLevel);
+                _loggingService.Debug($"Preview start time: {startTime}, offset: {_state.CurrentVideoConfig.GetOffsetInSec()}");
+                var audioClip = await VideoLoader.GetAudioClipForLevel(_state.CurrentLevel);
                 if (audioClip != null)
                     _songPreviewPlayer.CrossfadeTo(audioClip, -5f, startTime,
-                        _currentLevel.songDuration, null);
+                        _state.CurrentLevel.songDuration, null);
                 else
                     _loggingService.Error("AudioClip for level failed to load");
             }
@@ -913,11 +910,11 @@ public class PlaybackManager : MonoBehaviour
 
     private void StartSongPreview()
     {
-        if (!_config.PluginEnabled || _videoConfig is not { IsPlayable: true }) return;
+        if (!_config.PluginEnabled || _state.CurrentVideoConfig is not { IsPlayable: true }) return;
 
         if (_previewWaitingForPreviewPlayer || _previewWaitingForVideoPlayer || IsPreviewPlaying) return;
 
-        if (_currentLevel != null && VideoLoader.IsDlcSong(_currentLevel)) return;
+        if (_state.CurrentLevel != null && VideoLoader.IsDlcSong(_state.CurrentLevel)) return;
 
         var delay = DateTime.Now.Subtract(_previewSyncStartTime);
         var delaySeconds = (float)delay.TotalSeconds;
@@ -972,7 +969,7 @@ public class PlaybackManager : MonoBehaviour
 
     private float GetReferenceTime()
     {
-        if (_activeAudioSource == null || _videoConfig == null) return 0;
+        if (_activeAudioSource == null || _state.CurrentVideoConfig == null) return 0;
 
         float time;
         if (_activeAudioSource.time == 0)
@@ -980,13 +977,13 @@ public class PlaybackManager : MonoBehaviour
         else
             time = _activeAudioSource.time;
 
-        var speed = _videoConfig.PlaybackSpeed;
-        return time * speed + _videoConfig.offset / 1000f;
+        var speed = _state.CurrentVideoConfig.PlaybackSpeed;
+        return time * speed + _state.CurrentVideoConfig.offset / 1000f;
     }
 
     public VideoConfig? GetVideoConfig()
     {
-        return _videoConfig;
+        return _state.CurrentVideoConfig;
     }
 
     public GameObject? GetVideoPlayerFirstScreen()
@@ -999,18 +996,18 @@ public class PlaybackManager : MonoBehaviour
         _previewWaitingForPreviewPlayer = true;
         _previewWaitingForVideoPlayer = true;
 
-        _currentLevel = level;
-        _videoConfig = config;
+        // _state.CurrentLevel = level;
+        // _state.CurrentVideoConfig = config;
         _loggingService.Debug($"Selected Level: {level?.levelID ?? "null"}");
 
-        if (_videoConfig == null)
+        if (_state.CurrentVideoConfig == null)
         {
             _videoPlayer.FadeOut();
             StopAllCoroutines();
             return;
         }
 
-        PrepareVideo(_videoConfig);
+        PrepareVideo(_state.CurrentVideoConfig);
         if (level != null && VideoLoader.IsDlcSong(level)) _videoPlayer.FadeOut();
     }
 
@@ -1021,11 +1018,11 @@ public class PlaybackManager : MonoBehaviour
 
     private async Task ShowSongCover()
     {
-        if (_currentLevel == null) return;
+        if (_state.CurrentLevel == null) return;
 
         try
         {
-            var coverSprite = await _currentLevel.previewMediaData.GetCoverSpriteAsync();
+            var coverSprite = await _state.CurrentLevel.previewMediaData.GetCoverSpriteAsync();
             _videoPlayer.SetCoverTexture(coverSprite.texture);
             _videoPlayer.FadeIn();
         }

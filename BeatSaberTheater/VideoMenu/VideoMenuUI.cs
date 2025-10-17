@@ -1,6 +1,3 @@
-using BeatSaberTheater.Playback;
-using BeatSaberTheater.Services;
-using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
 using BeatSaberTheater.VideoMenu.V2;
 using HMUI;
@@ -16,13 +13,12 @@ public class VideoMenuUI : ViewController
     [Inject] private readonly VideoLoader _videoLoader = null!;
     private VideoMenuComponent _viewComponent = null!;
 
-    public void SpawnMenu(BeatmapLevel beatmapLevel)
+    public void SpawnMenu()
     {
         var screenSystem = FindObjectOfType<LevelSelectionNavigationController>();
         var screenTransform = screenSystem.transform;
         _viewComponent = new VideoMenuComponent(
-            _container!,
-            beatmapLevel
+            _container!
         );
 
         var videoMenuModal = new VideoMenuUIModal(_viewComponent);

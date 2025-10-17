@@ -5,6 +5,7 @@ using BeatmapEditor3D.DataModels;
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Playback;
 using BeatSaberTheater.Services;
+using BeatSaberTheater.State;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
 using BeatSaberTheater.Video.Config;
@@ -12,7 +13,6 @@ using BeatSaberTheater.VideoMenu.V2.Details;
 using BeatSaberTheater.VideoMenu.V2.NoVideo;
 using BeatSaberTheater.VideoMenu.V2.Presets;
 using BeatSaberTheater.VideoMenu.V2.SearchResults;
-using Newtonsoft.Json;
 using Reactive;
 using Reactive.Yoga;
 using UnityEngine;
@@ -46,21 +46,19 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
     // private string? _thumbnailURL;
     private readonly List<YTResult> _searchResults = new();
 
-    // coroutines
-    private BeatmapLevel _currentLevel;
-
     private readonly TheaterCoroutineStarter coroutineStarter = null!;
     private readonly DownloadService downloadService = null!;
     private readonly LoggingService loggingService = null!;
     private readonly PlaybackManager playbackManager = null!;
     private readonly PluginConfig pluginConfig = null!;
     private readonly SearchService searchService = null!;
+    private readonly TheaterState state = null!;
     private readonly VideoLoader videoLoader = null!;
 
-    public VideoMenuComponent(DiContainer container, BeatmapLevel currentLevel)
+    public VideoMenuComponent(DiContainer container)
     {
-        _currentLevel = currentLevel;
         videoLoader = container.Resolve<VideoLoader>();
+        state = container.Resolve<TheaterState>();
         searchService = container.Resolve<SearchService>();
         pluginConfig = container.Resolve<PluginConfig>();
         playbackManager = container.Resolve<PlaybackManager>();
@@ -78,8 +76,10 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
         VideoLoader.ConfigChanged += OnConfigChanged;
 
         _results.SearchService = searchService;
-        _results.CurrentLevel = currentLevel;
+        _results.CurrentLevel = state.CurrentLevel!;
         _results.CoroutineStarter = coroutineStarter;
+
+        HandleDidSelectLevel();
     }
 
     protected override GameObject Construct()
@@ -142,7 +142,7 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
         downloadService.DownloadProgress -= OnDownloadProgress;
         downloadService.DownloadFinished -= OnDownloadFinished;
         VideoLoader.ConfigChanged -= OnConfigChanged;
-        Events.LevelSelected -= OnLevelSelected;
+        // Events.LevelSelected -= OnLevelSelected;
 
         // if (_searchLoadingCoroutine != null) coroutineStarter.StopCoroutine(_searchLoadingCoroutine);
         // if (_updateSearchResultsCoroutine != null) coroutineStarter.StopCoroutine(_updateSearchResultsCoroutine);
@@ -171,12 +171,12 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
                 ? "Libraries not found. Please reinstall Theater.\r\nMake sure you unzip the files from the Libs folder into 'Beat Saber\\Libs'."
                 : !pluginConfig.PluginEnabled
                     ? "Theater is disabled.\r\nYou can re-enable it on the left side of the main menu."
-                    : _currentLevel == null
+                    : state.CurrentLevel == null
                         ? "No level selected"
                         : "No video configured");
 
             _activeSection.Value = VideoMenuSection.NoVideo;
-            _noVideo.SetSearchButtonActive(downloadService.LibrariesAvailable() && _currentLevel != null && !VideoLoader.IsDlcSong(_currentLevel));
+            _noVideo.SetSearchButtonActive(downloadService.LibrariesAvailable() && state.CurrentLevel != null && !VideoLoader.IsDlcSong(state.CurrentLevel));
             return;
         }
 
@@ -196,27 +196,27 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
         playbackManager.SetSelectedLevel(null, _currentVideo.Value);
     }
 
-    public void HandleDidSelectLevel(BeatmapLevel? level)
+    public void HandleDidSelectLevel()
     {
         // similar to original: stop preview, save pending config etc.
         playbackManager.StopPreview(true);
 
         if (_currentVideo.Value?.NeedsToSave == true) videoLoader.SaveVideoConfig(_currentVideo.Value);
 
-        _currentLevel = level!;
-        if (_currentLevel == null)
+        // state.CurrentLevel = level!;
+        if (state.CurrentLevel == null)
         {
             _currentVideo.Value = null;
             ResetVideoMenu();
             return;
         }
 
-        _currentVideo.Value = videoLoader.GetConfigForLevel(_currentLevel);
-        videoLoader.SetupFileSystemWatcher(_currentLevel);
-        playbackManager.SetSelectedLevel(_currentLevel, _currentVideo.Value);
+        _currentVideo.Value = videoLoader.GetConfigForLevel(state.CurrentLevel);
+        videoLoader.SetupFileSystemWatcher(state.CurrentLevel);
+        playbackManager.SetSelectedLevel(state.CurrentLevel, _currentVideo.Value);
 
         // prepare default search text similar to original
-        _searchText.Value = _currentLevel.songName + (!string.IsNullOrEmpty(_currentLevel.songAuthorName) ? " " + _currentLevel.songAuthorName : "");
+        _searchText.Value = state.CurrentLevel.songName + (!string.IsNullOrEmpty(state.CurrentLevel.songAuthorName) ? " " + state.CurrentLevel.songAuthorName : "");
         SetupVideoDetails();
     }
 
@@ -229,7 +229,7 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
             return;
         }
 
-        HandleDidSelectLevel(levelSelectedArgs.BeatmapLevel);
+        HandleDidSelectLevel();
     }
 
     private void OnConfigChanged(VideoConfig? config)
@@ -259,7 +259,7 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
         }
 
         playbackManager.PrepareVideo(vc);
-        if (_currentLevel != null) videoLoader.RemoveConfigFromCache(_currentLevel);
+        if (state.CurrentLevel != null) videoLoader.RemoveConfigFromCache(state.CurrentLevel);
         SetupVideoDetails();
         _details.RefreshLevelDetailMenu();
     }
@@ -291,7 +291,7 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
         }
 
         // Display details
-        _details.SetVideo(_currentVideo.Value, _currentLevel);
+        _details.SetVideo(_currentVideo.Value, state.CurrentLevel);
         _details.UpdateStatusText(_currentVideo.Value);
         _details.SetButtonState(true, downloadService.LibrariesAvailable());
 
@@ -366,10 +366,10 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
         // user selected a result -> show details and let them download/preview
         // Download/preview will operate based on selected result in _results
         var selected = _results.GetSelectedResult();
-        if (selected == null || _currentLevel is null) return;
+        if (selected == null || state.CurrentLevel is null) return;
 
-        var config = new VideoConfig(selected, VideoLoader.GetTheaterLevelPath(_currentLevel)) { NeedsToSave = true };
-        videoLoader.AddConfigToCache(config, _currentLevel!);
+        var config = new VideoConfig(selected, VideoLoader.GetTheaterLevelPath(state.CurrentLevel)) { NeedsToSave = true };
+        videoLoader.AddConfigToCache(config, state.CurrentLevel!);
         searchService.StopSearch();
         downloadService.StartDownload(config, pluginConfig.QualityMode, pluginConfig.Format);
         _currentVideo.Value = config;
@@ -381,15 +381,15 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
     {
         // Triggered by search results download button
         var selected = _results.GetSelectedResult();
-        if (selected == null || _currentLevel == null)
+        if (selected == null || state.CurrentLevel == null)
         {
             loggingService.Error("No selection or level on download request");
             return;
         }
 
         _results.SetDownloadInteractable(false);
-        var config = new VideoConfig(selected, VideoLoader.GetTheaterLevelPath(_currentLevel)) { NeedsToSave = true };
-        videoLoader.AddConfigToCache(config, _currentLevel);
+        var config = new VideoConfig(selected, VideoLoader.GetTheaterLevelPath(state.CurrentLevel)) { NeedsToSave = true };
+        videoLoader.AddConfigToCache(config, state.CurrentLevel);
         searchService.StopSearch();
         downloadService.StartDownload(config, pluginConfig.QualityMode, pluginConfig.Format);
         _currentVideo.Value = config;
@@ -427,7 +427,7 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
                 searchService.StopSearch();
                 downloadService.StartDownload(cur, pluginConfig.QualityMode, pluginConfig.Format);
                 cur.NeedsToSave = true;
-                videoLoader.AddConfigToCache(cur, _currentLevel!);
+                videoLoader.AddConfigToCache(cur, state.CurrentLevel!);
                 break;
             default:
                 videoLoader.DeleteVideo(cur);
@@ -444,7 +444,7 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
     private void OnDeleteConfigAction()
     {
         var cur = _currentVideo.Value;
-        if (cur == null || _currentLevel == null)
+        if (cur == null || state.CurrentLevel == null)
         {
             loggingService.Warn("Failed to delete config: Either currentVideo or currentLevel is null");
             return;
@@ -457,7 +457,7 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
         if (cur.IsDownloading) downloadService.CancelDownload(cur);
 
         videoLoader.DeleteVideo(cur);
-        var success = videoLoader.DeleteConfig(cur, _currentLevel);
+        var success = videoLoader.DeleteConfig(cur, state.CurrentLevel);
         if (success) _currentVideo.Value = null;
 
         _details.HideLevelDetailMenu();
