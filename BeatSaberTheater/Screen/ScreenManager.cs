@@ -310,13 +310,13 @@ public class ScreenManager : IInitializable
         switch (blendMode)
         {
             case BlendMode.SoftAdditive:
-            {
-                material.SetInt(SrcColor, (int)UnityEngine.Rendering.BlendMode.OneMinusDstColor);
-                material.SetInt(DestColor, (int)UnityEngine.Rendering.BlendMode.One);
-                material.SetInt(SrcAlpha, (int)UnityEngine.Rendering.BlendMode.OneMinusDstColor);
-                material.SetInt(DestAlpha, (int)UnityEngine.Rendering.BlendMode.One);
-                break;
-            }
+                {
+                    material.SetInt(SrcColor, (int)UnityEngine.Rendering.BlendMode.OneMinusDstColor);
+                    material.SetInt(DestColor, (int)UnityEngine.Rendering.BlendMode.One);
+                    material.SetInt(SrcAlpha, (int)UnityEngine.Rendering.BlendMode.OneMinusDstColor);
+                    material.SetInt(DestAlpha, (int)UnityEngine.Rendering.BlendMode.One);
+                    break;
+                }
             case BlendMode.PerfectVisibility:
                 material.SetInt(SrcColor, (int)UnityEngine.Rendering.BlendMode.One);
                 material.SetInt(DestColor, (int)UnityEngine.Rendering.BlendMode.Zero);

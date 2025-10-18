@@ -1,3 +1,5 @@
+using BeatSaberTheater.Playback;
+using BeatSaberTheater.Screen;
 using BeatSaberTheater.Video;
 using BeatSaberTheater.VideoMenu.V2;
 using HMUI;
@@ -10,6 +12,7 @@ namespace BeatSaberTheater.VideoMenu;
 public class VideoMenuUI : ViewController
 {
     [Inject] private readonly DiContainer _container = null!;
+    [Inject] private readonly PlaybackManager _playbackManager = null!;
     [Inject] private readonly VideoLoader _videoLoader = null!;
     private VideoMenuComponent _viewComponent = null!;
 
@@ -22,9 +25,14 @@ public class VideoMenuUI : ViewController
         );
 
         var videoMenuModal = new VideoMenuUIModal(_viewComponent);
+        videoMenuModal.OnCancel += OnCancel;
         videoMenuModal.OnSave += OnSave;
 
         ModalSystem.PresentModal(videoMenuModal, screenTransform, true, false);
+
+        Plugin._log.Debug("Moving video screen for menu preview");
+        _playbackManager.SetVideoPlayerBodyActive(true);
+        _playbackManager.SetVideoPlayerPlacement(Placement.VideoMenuPlacement);
 
         // todo: bad hack to get the modal to overlay all other UI elements
         // this should be done by the modal system?
@@ -35,8 +43,14 @@ public class VideoMenuUI : ViewController
         modalSystem.sortingOrder = 10;
     }
 
+    private void OnCancel()
+    {
+        ResetVideoPlayer();
+    }
+
     private void OnSave()
     {
+        ResetVideoPlayer();
         var videoConfig = _viewComponent.GetCurrentVideoConfig();
         if (videoConfig is not null)
         {
@@ -47,6 +61,12 @@ public class VideoMenuUI : ViewController
         {
             Plugin._log.Warn("Video config returned null - should not happen on save!");
         }
+    }
+
+    private void ResetVideoPlayer()
+    {
+        _playbackManager.StopPreview(stopPreviewMusic: true);
+        _playbackManager.SetVideoPlayerPlacement(Placement.MenuPlacement);
     }
 
     //     private readonly GameplaySetup _gameplaySetup;

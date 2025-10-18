@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using BeatmapEditor3D.DataModels;
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Playback;
@@ -398,7 +399,7 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
 
     private void OnPreviewAction()
     {
-        playbackManager.StartPreview().Start();
+        Task.Run(playbackManager.StartPreview);
         _details.SetButtonState(true, downloadService.LibrariesAvailable());
     }
 

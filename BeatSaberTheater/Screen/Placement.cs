@@ -38,6 +38,14 @@ public class Placement
         12f
     );
 
+    public static Placement VideoMenuPlacement => new(
+        new Vector3(-3.3f, 1.2f, 2.3f),
+        new Vector3(0, -55, 0),
+        1.6f,
+        null,
+        40f
+    );
+
     private Placement(Vector3 position, Vector3 rotation, float height, float? width = null, float? curvature = null)
     {
         Position = position;

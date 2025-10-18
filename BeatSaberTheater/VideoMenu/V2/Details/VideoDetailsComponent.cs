@@ -6,7 +6,6 @@ using Reactive.Yoga;
 using System;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Video;
 
 namespace BeatSaberTheater.VideoMenu.V2.Details;
 
@@ -35,8 +34,8 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
     protected override GameObject Construct()
     {
         return new Layout()
-            {
-                Children =
+        {
+            Children =
                 {
                     // Title + delete config
                     new Layout
@@ -115,7 +114,7 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
                                             }
                                             .AsFlexGroup()
                                             .AsFlexItem(1),
-                                            
+
                                             new Label() { WithinLayoutIfDisabled = false, Alignment = TextAlignmentOptions.Center }
                                                 .Animate(_videoConfig, (label, config) =>
                                                 {
@@ -211,7 +210,7 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
                         .AsFlexGroup(FlexDirection.Row, gap: 2)
                         .AsFlexItem(1),
                 }
-            }
+        }
             .AsFlexGroup(FlexDirection.Column, gap: 2)
             .AsFlexItem(1)
             .Use();
@@ -219,6 +218,7 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
 
     private void OnPreviewClick()
     {
+        _onPreview?.Invoke();
     }
 
     public void SetVideo(VideoConfig video, BeatmapLevel? level)
@@ -268,21 +268,21 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
     private BsButton CreateOffsetButton(string label, int delta)
     {
         return new BsButton
+        {
+            Text = label,
+            OnClick = () =>
             {
-                Text = label,
-                OnClick = () =>
+                if (_videoConfig.Value != null)
                 {
-                    if (_videoConfig.Value != null)
-                    {
-                        _videoConfig.Value.offset += delta;
+                    _videoConfig.Value.offset += delta;
 
-                        // Todo: This is a hack to force refresh of the value. Could be made nicer
-                        // if we were to subscribe on the actual offset value instead.
-                        _videoConfig.Value = _videoConfig.Value;
-                        applyOffset?.Invoke(delta);
-                    }
+                    // Todo: This is a hack to force refresh of the value. Could be made nicer
+                    // if we were to subscribe on the actual offset value instead.
+                    _videoConfig.Value = _videoConfig.Value;
+                    applyOffset?.Invoke(delta);
                 }
             }
+        }
             .AsFlexItem(0);
     }
 }

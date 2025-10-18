@@ -15,6 +15,7 @@ namespace BeatSaberTheater.VideoMenu
         public VideoMenuComponent Component { get; } = component;
 #pragma warning restore CS0108, CS0114
 
+        public event Action? OnCancel;
         public event Action? OnSave;
 
         private BsButton _backButton = null!;
@@ -23,9 +24,9 @@ namespace BeatSaberTheater.VideoMenu
         protected override GameObject Construct()
         {
             var obj = new Background()
-                {
-                    LayoutModifier = new YogaModifier() { Size = new YogaVector() { x = YogaValue.Percent(100), y = YogaValue.Percent(100), } },
-                    Children =
+            {
+                LayoutModifier = new YogaModifier() { Size = new YogaVector() { x = YogaValue.Percent(100), y = YogaValue.Percent(100), } },
+                Children =
                     {
                         new Layout()
                             {
@@ -45,6 +46,7 @@ namespace BeatSaberTheater.VideoMenu
                                                                 Skew = 0,
                                                                 OnClick = () =>
                                                                 {
+                                                                    OnCancel?.Invoke();
                                                                     Close(false);
                                                                 }
                                                             }.Bind(ref _backButton)
@@ -78,7 +80,7 @@ namespace BeatSaberTheater.VideoMenu
                             }.AsFlexGroup(FlexDirection.Column)
                             .AsFlexItem(1)
                     }
-                }
+            }
                 .AsFlexGroup()
                 // Todo: figure out how to add like a background blur shader effect? Would be cool
                 .AsBlurBackground(12F, color: ColorUtility.TryParseHtmlString("#FFFFFFFE", out var c) ? c : new Color(0, 0, 0, 0.0f))
