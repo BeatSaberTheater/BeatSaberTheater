@@ -38,7 +38,7 @@ public class Placement
         12f
     );
 
-    private Placement(Vector3 position, Vector3 rotation, float height, float? width = null, float? curvature = null)
+    public Placement(Vector3 position, Vector3 rotation, float height, float? width = null, float? curvature = null)
     {
         Position = position;
         Rotation = rotation;

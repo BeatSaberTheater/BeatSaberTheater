@@ -183,6 +183,12 @@ public class ScreenManager : IInitializable
         RegenerateScreenSurfaces();
     }
 
+    public void SetPosition(Vector3 position)
+    {
+        var screen = ScreenGroups[0].Screen;
+        screen.transform.position = position;
+    }
+
     private void InitializeSurfaces(float width, float height, float distance, float? curvatureDegrees,
         int? subsurfaces, bool? curveYAxis)
     {
@@ -310,13 +316,13 @@ public class ScreenManager : IInitializable
         switch (blendMode)
         {
             case BlendMode.SoftAdditive:
-            {
-                material.SetInt(SrcColor, (int)UnityEngine.Rendering.BlendMode.OneMinusDstColor);
-                material.SetInt(DestColor, (int)UnityEngine.Rendering.BlendMode.One);
-                material.SetInt(SrcAlpha, (int)UnityEngine.Rendering.BlendMode.OneMinusDstColor);
-                material.SetInt(DestAlpha, (int)UnityEngine.Rendering.BlendMode.One);
-                break;
-            }
+                {
+                    material.SetInt(SrcColor, (int)UnityEngine.Rendering.BlendMode.OneMinusDstColor);
+                    material.SetInt(DestColor, (int)UnityEngine.Rendering.BlendMode.One);
+                    material.SetInt(SrcAlpha, (int)UnityEngine.Rendering.BlendMode.OneMinusDstColor);
+                    material.SetInt(DestAlpha, (int)UnityEngine.Rendering.BlendMode.One);
+                    break;
+                }
             case BlendMode.PerfectVisibility:
                 material.SetInt(SrcColor, (int)UnityEngine.Rendering.BlendMode.One);
                 material.SetInt(DestColor, (int)UnityEngine.Rendering.BlendMode.Zero);
