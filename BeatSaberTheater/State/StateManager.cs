@@ -1,11 +1,10 @@
 using BeatSaberTheater.Playback;
-using BeatSaberTheater.State;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
 using System;
 using Zenject;
 
-namespace BeatSaberTheater;
+namespace BeatSaberTheater.State;
 
 public class StateManager : IInitializable, IDisposable
 {
