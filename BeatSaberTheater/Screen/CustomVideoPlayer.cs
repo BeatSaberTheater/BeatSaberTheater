@@ -282,11 +282,6 @@ public class CustomVideoPlayer : MonoBehaviour
         _screenManager.SetPlacement(placement);
     }
 
-    public void SetPosition(Vector3 position)
-    {
-        _screenManager.SetPosition(position);
-    }
-
     private void FirstFrameReady(VideoPlayer player, long frame)
     {
         //This is done because the video screen material needs to be set to white, otherwise no video would be visible.

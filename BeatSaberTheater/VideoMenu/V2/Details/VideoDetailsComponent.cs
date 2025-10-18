@@ -1,5 +1,3 @@
-using BeatSaberTheater.Playback;
-using BeatSaberTheater.Screen.Interfaces;
 using BeatSaberTheater.Util;
 using BeatSaberTheater.Video.Config;
 using Reactive;
@@ -8,15 +6,15 @@ using Reactive.Yoga;
 using System;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Video;
 
 namespace BeatSaberTheater.VideoMenu.V2.Details;
 
 internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, Action onPreview, Action onDeleteConfig, Action onDeleteVideo)
     : ReactiveComponent
 {
-    private VideoPreviewComponent _videoPreview = null!;
-
     // private Label _status = null!;
+
     // private BsButton _deleteVideo = null!;
     // private BsButton _previewButton = null!;
     // private Toggle _customizeOffset = null!;
@@ -33,14 +31,12 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
     private readonly ObservableValue<BeatmapLevel?> _beatmapLevel = Remember<BeatmapLevel?>(null);
 
     // private LevelDetailViewController? _levelDetailMenu;
-    public ICustomVideoPlayerFactory CustomVideoPlayerFactory { get; set; } = null!;
-    public PlaybackManager PlaybackManager { get; set; } = null!;
 
     protected override GameObject Construct()
     {
         return new Layout()
-        {
-            Children =
+            {
+                Children =
                 {
                     // Title + delete config
                     new Layout
@@ -94,24 +90,32 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
                                             {
                                                 Children =
                                                 {
-                                                    // new WebImage()
-                                                    //     {
-                                                    //         LayoutModifier = new YogaModifier() { Size = new YogaVector() { y = 100.pct(), x = 100.pct() } },
-                                                    //         PreserveAspect = false
-                                                    //     }
-                                                    //     .Animate(_videoConfig,
-                                                    //         (image, config) =>
-                                                    //             image.Src = config?.videoID != null ? $"https://i.ytimg.com/vi/{config.videoID}/hqdefault.jpg" : null)
-                                                    //     .AsFlexItem(1, alignSelf: Align.Center),
-
-                                                    new VideoPreviewComponent()
-                                                        .Bind(ref _videoPreview)
-                                                        .AsFlexItem(1, alignSelf: Align.Center)
+                                                    new WebImage()
+                                                        {
+                                                            LayoutModifier = new YogaModifier() { Size = new YogaVector() { y = 100.pct(), x = 100.pct() } },
+                                                            PreserveAspect = false
+                                                        }
+                                                        .Animate(_videoConfig,
+                                                            (image, config) =>
+                                                                image.Src = config?.videoID != null ? $"https://i.ytimg.com/vi/{config.videoID}/hqdefault.jpg" : null)
+                                                        .AsFlexItem(1, alignSelf: Align.Center),
+                                                    
+                                                    // Todo: Add second element to this container
+                                                    // or move the current video player 'here' while preview is active
+                                                    // new Image()
+                                                    // {
+                                                    //     Name = "Previewer",
+                                                    //     LayoutModifier = new YogaModifier() { Size = new YogaVector() { y = 100.pct(), x = 100.pct() } },
+                                                    //     PreserveAspect = false,
+                                                    // }
+                                                    // .AsFlexItem(1)
+                                                    // .Bind(ref _previewer)
+                                                    //     // .AsBackground(color: Color.green.ColorWithAlpha(0.5f))
                                                 }
                                             }
                                             .AsFlexGroup()
                                             .AsFlexItem(1),
-
+                                            
                                             new Label() { WithinLayoutIfDisabled = false, Alignment = TextAlignmentOptions.Center }
                                                 .Animate(_videoConfig, (label, config) =>
                                                 {
@@ -207,7 +211,7 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
                         .AsFlexGroup(FlexDirection.Row, gap: 2)
                         .AsFlexItem(1),
                 }
-        }
+            }
             .AsFlexGroup(FlexDirection.Column, gap: 2)
             .AsFlexItem(1)
             .Use();
@@ -215,12 +219,6 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
 
     private void OnPreviewClick()
     {
-        if (_videoConfig.Value != null && _videoConfig.Value.DownloadState == DownloadState.Downloaded)
-        {
-            PlaybackManager.StopPlayback();
-            _videoPreview.Play(CustomVideoPlayerFactory, _videoConfig.Value);
-            _onPreview?.Invoke();
-        }
     }
 
     public void SetVideo(VideoConfig video, BeatmapLevel? level)
@@ -270,21 +268,21 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
     private BsButton CreateOffsetButton(string label, int delta)
     {
         return new BsButton
-        {
-            Text = label,
-            OnClick = () =>
             {
-                if (_videoConfig.Value != null)
+                Text = label,
+                OnClick = () =>
                 {
-                    _videoConfig.Value.offset += delta;
+                    if (_videoConfig.Value != null)
+                    {
+                        _videoConfig.Value.offset += delta;
 
-                    // Todo: This is a hack to force refresh of the value. Could be made nicer
-                    // if we were to subscribe on the actual offset value instead.
-                    _videoConfig.Value = _videoConfig.Value;
-                    applyOffset?.Invoke(delta);
+                        // Todo: This is a hack to force refresh of the value. Could be made nicer
+                        // if we were to subscribe on the actual offset value instead.
+                        _videoConfig.Value = _videoConfig.Value;
+                        applyOffset?.Invoke(delta);
+                    }
                 }
             }
-        }
             .AsFlexItem(0);
     }
 }

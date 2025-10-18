@@ -1,11 +1,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using BeatmapEditor3D.DataModels;
 using BeatSaberTheater.Download;
 using BeatSaberTheater.Playback;
-using BeatSaberTheater.Screen.Interfaces;
 using BeatSaberTheater.Services;
 using BeatSaberTheater.State;
 using BeatSaberTheater.Util;
@@ -49,7 +47,6 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
     private readonly List<YTResult> _searchResults = new();
 
     private readonly TheaterCoroutineStarter coroutineStarter = null!;
-    private readonly ICustomVideoPlayerFactory customVideoPlayerFactory = null!;
     private readonly DownloadService downloadService = null!;
     private readonly LoggingService loggingService = null!;
     private readonly PlaybackManager playbackManager = null!;
@@ -67,7 +64,6 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
         playbackManager = container.Resolve<PlaybackManager>();
         loggingService = container.Resolve<LoggingService>();
         downloadService = container.Resolve<DownloadService>();
-        customVideoPlayerFactory = container.Resolve<ICustomVideoPlayerFactory>();
         coroutineStarter = container.Resolve<TheaterCoroutineStarter>();
 
         // update children enable state when active section changes
@@ -82,9 +78,6 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
         _results.SearchService = searchService;
         _results.CurrentLevel = state.CurrentLevel!;
         _results.CoroutineStarter = coroutineStarter;
-
-        _details.CustomVideoPlayerFactory = customVideoPlayerFactory;
-        _details.PlaybackManager = playbackManager;
 
         HandleDidSelectLevel();
     }
@@ -405,7 +398,7 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
 
     private void OnPreviewAction()
     {
-        Task.Run(playbackManager.StartPreview);
+        playbackManager.StartPreview().Start();
         _details.SetButtonState(true, downloadService.LibrariesAvailable());
     }
 
