@@ -11,7 +11,7 @@ This mod is not yet available on BeatMods and must be installed manually.
 
 ### Manual Installation
 
-1. Download the latest release from [here](https://github.com/neboman11/BeatSaberTheater/releases).
+1. Download the latest release from [here](https://github.com/neboman11/BeatSaberTheater/releases/latest).
 2. Copy the contents of the zip into your current Beat Saber directory (the one with `Beat Saber.exe`).
 3. That's it! Theater is now installed
 
