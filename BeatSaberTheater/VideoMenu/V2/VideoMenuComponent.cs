@@ -199,12 +199,8 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
 
     public void HandleDidSelectLevel()
     {
-        // similar to original: stop preview, save pending config etc.
-        playbackManager.StopPreview(true);
-
         if (_currentVideo.Value?.NeedsToSave == true) videoLoader.SaveVideoConfig(_currentVideo.Value);
 
-        // state.CurrentLevel = level!;
         if (state.CurrentLevel == null)
         {
             _currentVideo.Value = null;
@@ -214,7 +210,6 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
 
         _currentVideo.Value = videoLoader.GetConfigForLevel(state.CurrentLevel);
         videoLoader.SetupFileSystemWatcher(state.CurrentLevel);
-        playbackManager.SetSelectedLevel(state.CurrentLevel, _currentVideo.Value);
 
         // prepare default search text similar to original
         _searchText.Value = state.CurrentLevel.songName + (!string.IsNullOrEmpty(state.CurrentLevel.songAuthorName) ? " " + state.CurrentLevel.songAuthorName : "");
@@ -399,7 +394,13 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
 
     private void OnPreviewAction()
     {
-        Task.Run(playbackManager.StartPreview);
+        if (playbackManager.IsPreviewPlaying)
+        {
+            playbackManager.StopPreview(stopPreviewMusic: true);
+        }
+        else
+            Task.Run(playbackManager.StartPreview);
+
         _details.SetButtonState(true, downloadService.LibrariesAvailable());
     }
 
@@ -483,7 +484,7 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
     private void ApplyOffset(int offset)
     {
         if (_currentVideo.Value == null) return;
-        _currentVideo.Value.offset += offset;
+        // _currentVideo.Value.offset += offset;
         _currentVideo.Value.NeedsToSave = true;
         playbackManager.ApplyOffset(offset);
     }

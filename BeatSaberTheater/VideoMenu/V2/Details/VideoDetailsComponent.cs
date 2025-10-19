@@ -188,7 +188,7 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
                                                         CreateOffsetButton("--", -100),
                                                         CreateOffsetButton("-", -20),
                                                         new Label { Text = "0", Alignment = TextAlignmentOptions.Center }
-                                                            .Animate(_videoConfig, (label, config) => label.Text = $"{(config?.offset ?? 0):n0} ms")
+                                                            .Animate(_videoConfig, (label, config) => label.Text = $"{config?.offset ?? 0:n0} ms")
                                                             .AsFlexItem(0),
                                                         CreateOffsetButton("+", 20),
                                                         CreateOffsetButton("++", 100),
@@ -274,11 +274,12 @@ internal class VideoDetailsComponent(Action onSearch, Action<int> applyOffset, A
             {
                 if (_videoConfig.Value != null)
                 {
-                    _videoConfig.Value.offset += delta;
+                    var currentConfig = _videoConfig.Value;
+                    currentConfig.offset += delta;
 
                     // Todo: This is a hack to force refresh of the value. Could be made nicer
                     // if we were to subscribe on the actual offset value instead.
-                    _videoConfig.Value = _videoConfig.Value;
+                    _videoConfig.Value = currentConfig;
                     applyOffset?.Invoke(delta);
                 }
             }
