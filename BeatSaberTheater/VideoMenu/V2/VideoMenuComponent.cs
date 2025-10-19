@@ -14,6 +14,7 @@ using BeatSaberTheater.VideoMenu.V2.Details;
 using BeatSaberTheater.VideoMenu.V2.NoVideo;
 using BeatSaberTheater.VideoMenu.V2.Presets;
 using BeatSaberTheater.VideoMenu.V2.SearchResults;
+using IPA.Utilities.Async;
 using Reactive;
 using Reactive.Yoga;
 using UnityEngine;
@@ -399,7 +400,7 @@ internal class VideoMenuComponent : ReactiveComponent, IDisposable
             playbackManager.StopPreview(stopPreviewMusic: true);
         }
         else
-            Task.Run(playbackManager.StartPreview);
+            UnityMainThreadTaskScheduler.Factory.StartNew(() => playbackManager.StartPreview());
 
         _details.SetButtonState(true, downloadService.LibrariesAvailable());
     }
