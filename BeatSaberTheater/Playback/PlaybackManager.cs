@@ -18,6 +18,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Video;
 using Zenject;
+using Object = UnityEngine.Object;
 using Scene = BeatSaberTheater.Util.Scene;
 
 namespace BeatSaberTheater.Playback;
@@ -867,6 +868,10 @@ public class PlaybackManager : MonoBehaviour
         {
             _loggingService.Debug("Starting preview");
             IsPreviewPlaying = true;
+            
+            // Hide gameplay setup window while showing preview (looks nicer)
+            var leftScreen = Object.FindObjectOfType<GameplaySetupViewController>().transform.parent.gameObject;
+            leftScreen.transform.localScale = Vector3.zero;
 
             if (_videoPlayer.IsPlaying) StopPlayback();
 
@@ -933,6 +938,10 @@ public class PlaybackManager : MonoBehaviour
     {
         if (!IsPreviewPlaying) return;
         _loggingService.Debug($"Stopping preview (stop audio source: {stopPreviewMusic}");
+        
+        // Restore gameplay setup window after showing preview
+        var leftScreen = FindObjectOfType<GameplaySetupViewController>().transform.parent.gameObject;
+        leftScreen.transform.localScale = Vector3.one;
 
         _videoPlayer.FadeOut();
         StopAllCoroutines();
