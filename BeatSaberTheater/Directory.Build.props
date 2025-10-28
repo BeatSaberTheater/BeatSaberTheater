@@ -38,4 +38,10 @@
         <DisableZipRelease>true</DisableZipRelease>
     </PropertyGroup>
 
+    <ItemGroup>
+        <OutputCopy Include="$(OutputPath)\$(TargetFileName)" OutputPath="Plugins\$(TargetFileName)"/>
+        <OutputCopy Include="$(OutputPath)\$(TargetName).pdb" OutputPath="Plugins\$(TargetName).pdb"/>
+        <OutputCopy Include="$(OutputPath)\Resources\cinema.bplist" OutputPath="Playlists\cinema.bplist"/>
+    </ItemGroup>
+
 </Project>

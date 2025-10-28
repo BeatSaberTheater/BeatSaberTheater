@@ -225,11 +225,4 @@
             <Private>false</Private>
         </Reference>
     </ItemGroup>
-
-    <Target Name="FlattenForRelease" AfterTargets="Build">
-        <Copy SourceFiles="Resources\cinema.bplist"
-              DestinationFolder="$(OutputPath)/Artifact/Playlists"
-              SkipUnchangedFiles="true"/>
-    </Target>
-
 </Project>
