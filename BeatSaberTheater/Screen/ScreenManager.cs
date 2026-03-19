@@ -16,19 +16,32 @@ public class ScreenManager : IInitializable
     internal readonly List<ScreenObjectGroup> ScreenGroups = new();
 
     private readonly MaterialPropertyBlock _materialPropertyBlock;
-    private static readonly int Brightness = Shader.PropertyToID("_Brightness");
-    private static readonly int Contrast = Shader.PropertyToID("_Contrast");
-    private static readonly int Saturation = Shader.PropertyToID("_Saturation");
-    private static readonly int Hue = Shader.PropertyToID("_Hue");
-    private static readonly int Gamma = Shader.PropertyToID("_Gamma");
-    private static readonly int Exposure = Shader.PropertyToID("_Exposure");
-    private static readonly int VignetteRadius = Shader.PropertyToID("_VignetteRadius");
-    private static readonly int VignetteSoftness = Shader.PropertyToID("_VignetteSoftness");
-    private static readonly int VignetteElliptical = Shader.PropertyToID("_VignetteOval");
-    private static readonly int SrcColor = Shader.PropertyToID("_SrcColor");
-    private static readonly int DestColor = Shader.PropertyToID("_DestColor");
-    private static readonly int SrcAlpha = Shader.PropertyToID("_SrcAlpha");
-    private static readonly int DestAlpha = Shader.PropertyToID("_DestAlpha");
+    private static int? _brightness;
+    private static int Brightness => _brightness ??= Shader.PropertyToID("_Brightness");
+    private static int? _contrast;
+    private static int Contrast => _contrast ??= Shader.PropertyToID("_Contrast");
+    private static int? _saturation;
+    private static int Saturation => _saturation ??= Shader.PropertyToID("_Saturation");
+    private static int? _hue;
+    private static int Hue => _hue ??= Shader.PropertyToID("_Hue");
+    private static int? _gamma;
+    private static int Gamma => _gamma ??= Shader.PropertyToID("_Gamma");
+    private static int? _exposure;
+    private static int Exposure => _exposure ??= Shader.PropertyToID("_Exposure");
+    private static int? _vignetteRadius;
+    private static int VignetteRadius => _vignetteRadius ??= Shader.PropertyToID("_VignetteRadius");
+    private static int? _vignetteSoftness;
+    private static int VignetteSoftness => _vignetteSoftness ??= Shader.PropertyToID("_VignetteSoftness");
+    private static int? _vignetteElliptical;
+    private static int VignetteElliptical => _vignetteElliptical ??= Shader.PropertyToID("_VignetteOval");
+    private static int? _srcColor;
+    private static int SrcColor => _srcColor ??= Shader.PropertyToID("_SrcColor");
+    private static int? _destColor;
+    private static int DestColor => _destColor ??= Shader.PropertyToID("_DestColor");
+    private static int? _srcAlpha;
+    private static int SrcAlpha => _srcAlpha ??= Shader.PropertyToID("_SrcAlpha");
+    private static int? _destAlpha;
+    private static int DestAlpha => _destAlpha ??= Shader.PropertyToID("_DestAlpha");
     private const string BODY_SHADER_NAME = "Custom/OpaqueNeonLight";
 
     private readonly PluginConfig _config;
@@ -310,13 +323,13 @@ public class ScreenManager : IInitializable
         switch (blendMode)
         {
             case BlendMode.SoftAdditive:
-            {
-                material.SetInt(SrcColor, (int)UnityEngine.Rendering.BlendMode.OneMinusDstColor);
-                material.SetInt(DestColor, (int)UnityEngine.Rendering.BlendMode.One);
-                material.SetInt(SrcAlpha, (int)UnityEngine.Rendering.BlendMode.OneMinusDstColor);
-                material.SetInt(DestAlpha, (int)UnityEngine.Rendering.BlendMode.One);
-                break;
-            }
+                {
+                    material.SetInt(SrcColor, (int)UnityEngine.Rendering.BlendMode.OneMinusDstColor);
+                    material.SetInt(DestColor, (int)UnityEngine.Rendering.BlendMode.One);
+                    material.SetInt(SrcAlpha, (int)UnityEngine.Rendering.BlendMode.OneMinusDstColor);
+                    material.SetInt(DestAlpha, (int)UnityEngine.Rendering.BlendMode.One);
+                    break;
+                }
             case BlendMode.PerfectVisibility:
                 material.SetInt(SrcColor, (int)UnityEngine.Rendering.BlendMode.One);
                 material.SetInt(DestColor, (int)UnityEngine.Rendering.BlendMode.Zero);

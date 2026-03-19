@@ -33,9 +33,12 @@ public class CustomVideoPlayer : MonoBehaviour
     private const float MAX_BRIGHTNESS = 0.92f;
     private readonly Color _screenColorOn = Color.white.ColorWithAlpha(0f) * MAX_BRIGHTNESS;
     private readonly Color _screenColorOff = Color.clear;
-    private static readonly int MainTex = Shader.PropertyToID(MAIN_TEXTURE_NAME);
-    private static readonly int TheaterVideoTexture = Shader.PropertyToID(THEATER_TEXTURE_NAME);
-    private static readonly int TheaterStatusProperty = Shader.PropertyToID(STATUS_PROPERTY_NAME);
+    private static int? _mainTex;
+    private static int MainTex => _mainTex ??= Shader.PropertyToID(MAIN_TEXTURE_NAME);
+    private static int? _theaterVideoTexture;
+    private static int TheaterVideoTexture => _theaterVideoTexture ??= Shader.PropertyToID(THEATER_TEXTURE_NAME);
+    private static int? _theaterStatusProperty;
+    private static int TheaterStatusProperty => _theaterStatusProperty ??= Shader.PropertyToID(STATUS_PROPERTY_NAME);
     private string _currentlyPlayingVideo = "";
     private readonly Stopwatch _firstFrameStopwatch = new();
 

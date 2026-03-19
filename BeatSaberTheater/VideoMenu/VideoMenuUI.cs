@@ -140,6 +140,7 @@ public class VideoMenuUI : IInitializable, IDisposable
         if (_levelDetailMenu != null) _levelDetailMenu.ButtonPressedAction -= OnDeleteVideoAction;
 
         _levelDetailMenu = new LevelDetailViewController();
+        _levelDetailMenu.Initialize();
         _levelDetailMenu.ButtonPressedAction += OnDeleteVideoAction;
         CreateStatusListener();
         _deleteButton.transform.localScale *= 0.5f;
