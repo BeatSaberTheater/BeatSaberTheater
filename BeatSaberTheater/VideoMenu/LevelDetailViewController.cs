@@ -19,13 +19,17 @@ public class LevelDetailViewController
     [UIComponent("level-detail-button")] private readonly TextMeshProUGUI _buttonText = null!;
     [UIComponent("level-detail-text")] private readonly TextMeshProUGUI _label = null!;
 
-    private readonly Image? _buttonUnderline;
-    private readonly StandardLevelDetailViewController? _standardLevelDetailViewController;
+    private Image? _buttonUnderline;
+    private StandardLevelDetailViewController? _standardLevelDetailViewController;
 
     internal event Action? ButtonPressedAction;
 
-    // ReSharper disable Unity.InefficientPropertyAccess
     internal LevelDetailViewController()
+    {
+    }
+
+    // ReSharper disable Unity.InefficientPropertyAccess
+    internal void Initialize()
     {
         _standardLevelDetailViewController =
             Resources.FindObjectsOfTypeAll<StandardLevelDetailViewController>().LastOrDefault();
@@ -97,7 +101,8 @@ public class LevelDetailViewController
         _label.color = textColor ?? Color.white;
         _button.gameObject.SetActive(button != null);
         _buttonText.text = button ?? "";
-        _buttonUnderline!.color = underlineColor ?? Color.clear;
+        if (_buttonUnderline != null)
+            _buttonUnderline.color = underlineColor ?? Color.clear;
     }
 
     [UIAction("level-detail-button-action")]
