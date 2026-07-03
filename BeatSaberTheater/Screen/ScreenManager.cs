@@ -291,7 +291,10 @@ public class ScreenManager : IInitializable
             var colorCorrection = config?.colorCorrection;
             var vignette = config?.vignette;
 
-            ApplyRenderInFrontOfEnvironment(screenRenderer.material);
+            // Guard before touching .material at all - accessing it force-instantiates a unique
+            // material clone (unlike sharedMaterial), which we only want to pay for when the
+            // setting is actually enabled.
+            if (_config.RenderInFrontOfEnvironment) ApplyRenderInFrontOfEnvironment(screenRenderer.material);
 
             screenRenderer.GetPropertyBlock(_materialPropertyBlock);
 
