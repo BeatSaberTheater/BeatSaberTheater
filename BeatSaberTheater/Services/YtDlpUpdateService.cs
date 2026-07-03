@@ -170,24 +170,29 @@ public class YtDlpUpdateService : IInitializable
             }
 
             _loggingService.Info("Downloaded latest yt-dlp.exe");
-
-            // Copy ffmpeg.exe to Theater directory if it doesn't exist
-            string theaterFfmpegPath = Path.Combine(TheaterFileHelpers.TheaterLibsPath, "ffmpeg.exe");
-            if (!File.Exists(theaterFfmpegPath))
-            {
-                string baseFfmpegPath = Path.Combine(UnityGame.LibraryPath, "ffmpeg.exe");
-                if (File.Exists(baseFfmpegPath))
-                {
-                    File.Copy(baseFfmpegPath, theaterFfmpegPath);
-                    _loggingService.Info("Copied ffmpeg.exe to Theater directory");
-                }
-            }
         }
         catch (Exception ex)
         {
             _loggingService.Error($"Error downloading yt-dlp: {ex}");
             _config.PluginEnabled = false;
         }
+    }
+
+    private void EnsureFfmpegPresent()
+    {
+        var theaterFfmpegPath = Path.Combine(TheaterFileHelpers.TheaterLibsPath, "ffmpeg.exe");
+        if (File.Exists(theaterFfmpegPath)) return;
+
+        var baseFfmpegPath = Path.Combine(UnityGame.LibraryPath, "ffmpeg.exe");
+        if (!File.Exists(baseFfmpegPath))
+        {
+            _loggingService.Warn("ffmpeg.exe was not found in the Theater library path or the base library path");
+            return;
+        }
+
+        if (!Directory.Exists(TheaterFileHelpers.TheaterLibsPath)) Directory.CreateDirectory(TheaterFileHelpers.TheaterLibsPath);
+        File.Copy(baseFfmpegPath, theaterFfmpegPath);
+        _loggingService.Info("Copied ffmpeg.exe to Theater directory");
     }
 
     public void Initialize()
@@ -200,6 +205,7 @@ public class YtDlpUpdateService : IInitializable
     {
         try
         {
+            EnsureFfmpegPresent();
             var tasks = new List<Task> { CheckAndDownloadDeno() };
             if (await CheckForUpdate())
             {
