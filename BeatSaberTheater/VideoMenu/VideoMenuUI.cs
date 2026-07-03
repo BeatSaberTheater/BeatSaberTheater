@@ -16,7 +16,6 @@ using BeatSaberTheater.Util;
 using BeatSaberTheater.Video;
 using BeatSaberTheater.Video.Config;
 using HMUI;
-using IPA.Utilities;
 using JetBrains.Annotations;
 using SongCore.Data;
 using TMPro;
@@ -161,7 +160,7 @@ public class VideoMenuUI : IInitializable, IDisposable
 
         if (!_downloadService.LibrariesAvailable())
             _loggingService.Warn(
-                $"One or more of the libraries are missing. Downloading videos will not work. To fix this, reinstall Theater and make sure yt-dlp and ffmpeg are in the Libs folder of Beat Saber, which is located at {UnityGame.LibraryPath}.");
+                $"One or more of the libraries are missing. Downloading videos will not work. To fix this, reinstall Theater and make sure yt-dlp and ffmpeg are in the Theater Libs folder, which is located at {TheaterFileHelpers.TheaterLibsPath}.");
     }
 
     public void Dispose()
