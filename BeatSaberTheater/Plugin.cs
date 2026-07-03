@@ -104,7 +104,7 @@ internal class Plugin
     {
         if (!InstalledMods.BetterSongList || _filterAdded) return;
 
-        _filterAdded = BetterSongList.FilterMethods.Register(new HasVideoFilter());
+        _filterAdded = HasVideoFilter.Register();
 
         if (_filterAdded)
             _log.Debug($"Registered {nameof(HasVideoFilter)}");

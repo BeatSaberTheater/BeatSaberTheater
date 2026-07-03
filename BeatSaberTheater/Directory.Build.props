@@ -25,7 +25,6 @@
         <DependsOn Include="BeatSaberPlaylistsLib" Version="^1.7.0"/>
         <!--        <DependsOn Include="FFmpeg" Version="^4.3.0"/>-->
         <DependsOn Include="BeatSaberMarkupLanguage" Version="^1.12.0"/>
-        <DependsOn Include="BetterSongList" Version="^0.4.0"/>
     </ItemGroup>
 
     <PropertyGroup>
