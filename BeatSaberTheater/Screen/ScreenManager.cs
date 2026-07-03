@@ -42,7 +42,13 @@ public class ScreenManager : IInitializable
     private static int SrcAlpha => _srcAlpha ??= Shader.PropertyToID("_SrcAlpha");
     private static int? _destAlpha;
     private static int DestAlpha => _destAlpha ??= Shader.PropertyToID("_DestAlpha");
+    private static int? _zTest;
+    private static int ZTest => _zTest ??= Shader.PropertyToID("_ZTest");
     private const string BODY_SHADER_NAME = "Custom/OpaqueNeonLight";
+
+    // Only takes effect on shaders that expose _ZTest as a property (falls back to the shader's compiled default otherwise)
+    private const int IN_FRONT_RENDER_QUEUE = (int)UnityEngine.Rendering.RenderQueue.Overlay;
+    private const int DEFAULT_RENDER_QUEUE = -1;
 
     private readonly PluginConfig _config;
     private readonly ICurvedSurfaceFactory _curvedSurfaceFactory;
@@ -149,6 +155,29 @@ public class ScreenManager : IInitializable
         }
 
         bodyRenderer.material.color = new Color(0, 0, 0, 0);
+        ApplyRenderInFrontOfEnvironment(bodyRenderer.material);
+    }
+
+    public void SetRenderInFrontOfEnvironment(bool enabled)
+    {
+        foreach (var screenGroup in ScreenGroups)
+        {
+            ApplyRenderInFrontOfEnvironment(screenGroup.Screen.GetComponent<Renderer>().material);
+
+            var body = screenGroup.Screen.transform.Find("Body");
+            var bodyRenderer = body != null ? body.GetComponent<Renderer>() : null;
+            if (bodyRenderer != null) ApplyRenderInFrontOfEnvironment(bodyRenderer.material);
+        }
+    }
+
+    private void ApplyRenderInFrontOfEnvironment(Material material)
+    {
+        var enabled = _config.RenderInFrontOfEnvironment;
+        material.renderQueue = enabled ? IN_FRONT_RENDER_QUEUE : DEFAULT_RENDER_QUEUE;
+        material.SetInt(ZTest,
+            (int)(enabled
+                ? UnityEngine.Rendering.CompareFunction.Always
+                : UnityEngine.Rendering.CompareFunction.LessEqual));
     }
 
     public void SetScreensActive(bool active)
@@ -261,6 +290,8 @@ public class ScreenManager : IInitializable
 
             var colorCorrection = config?.colorCorrection;
             var vignette = config?.vignette;
+
+            ApplyRenderInFrontOfEnvironment(screenRenderer.material);
 
             screenRenderer.GetPropertyBlock(_materialPropertyBlock);
 
