@@ -20,6 +20,8 @@ This mod is not yet available on BeatMods and must be installed manually.
 This mod has several dependencies, ensure they are all installed before launching the game. These dependencies
 can be installed through your favorite mod manager (BSManager, ModAssistant, etc.).
 
+#### Required
+
 * BSIPA
 * SongCore
 * BS Utils
@@ -27,6 +29,9 @@ can be installed through your favorite mod manager (BSManager, ModAssistant, etc
 * BeatSaberPlaylistsLib
 * ffmpeg
 * BeatSaberMarkupLanguage
+
+#### Optional
+
 * BetterSongList
 
 ## Usage
