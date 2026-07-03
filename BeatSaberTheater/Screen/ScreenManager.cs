@@ -48,7 +48,6 @@ public class ScreenManager : IInitializable
 
     // Only takes effect on shaders that expose _ZTest as a property (falls back to the shader's compiled default otherwise)
     private const int IN_FRONT_RENDER_QUEUE = (int)UnityEngine.Rendering.RenderQueue.Overlay;
-    private const int DEFAULT_RENDER_QUEUE = -1;
 
     private readonly PluginConfig _config;
     private readonly ICurvedSurfaceFactory _curvedSurfaceFactory;
@@ -172,12 +171,13 @@ public class ScreenManager : IInitializable
 
     private void ApplyRenderInFrontOfEnvironment(Material material)
     {
-        var enabled = _config.RenderInFrontOfEnvironment;
-        material.renderQueue = enabled ? IN_FRONT_RENDER_QUEUE : DEFAULT_RENDER_QUEUE;
-        material.SetInt(ZTest,
-            (int)(enabled
-                ? UnityEngine.Rendering.CompareFunction.Always
-                : UnityEngine.Rendering.CompareFunction.LessEqual));
+        // Leave the material untouched when disabled instead of resetting renderQueue/ZTest to
+        // hardcoded values - the shipped materials may rely on non-default values for correct
+        // compositing (e.g. bloom pre-pass ordering), which we can't know from this repo.
+        if (!_config.RenderInFrontOfEnvironment) return;
+
+        material.renderQueue = IN_FRONT_RENDER_QUEUE;
+        material.SetInt(ZTest, (int)UnityEngine.Rendering.CompareFunction.Always);
     }
 
     public void SetScreensActive(bool active)
