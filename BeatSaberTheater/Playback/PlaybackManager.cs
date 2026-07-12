@@ -213,15 +213,6 @@ public class PlaybackManager : MonoBehaviour
 
     private void GameSceneActive()
     {
-        // If BSUtils has no level data, we're probably in the tutorial
-        if (BS_Utils.Plugin.LevelData.IsSet)
-        {
-            // Move to the environment scene to be picked up by Chroma
-            var sceneName = BS_Utils.Plugin.LevelData.GameplayCoreSceneSetupData.targetEnvironmentInfo.environmentSceneName;
-            var scene = SceneManager.GetSceneByName(sceneName);
-            SceneManager.MoveGameObjectToScene(gameObject, scene);
-        }
-
         _loggingService.Info("Moving to game scene");
     }
 
@@ -229,6 +220,18 @@ public class PlaybackManager : MonoBehaviour
     {
         StopAllCoroutines();
         _loggingService.Info("GameSceneLoaded");
+
+        // If BSUtils has no level data, we're probably in the tutorial
+        if (BS_Utils.Plugin.LevelData.IsSet)
+        {
+            // Move to the environment scene (only guaranteed loaded by this point) so Chroma's
+            // environment enhancement pass can find and duplicate our screen via "_id": "CinemaScreen$".
+            // Doing this earlier, in GameSceneActive, races the environment scene's async load.
+            var sceneName = TheaterFileHelpers.GetEnvironmentSceneName(
+                BS_Utils.Plugin.LevelData.GameplayCoreSceneSetupData.targetEnvironmentInfo);
+            var scene = SceneManager.GetSceneByName(sceneName);
+            SceneManager.MoveGameObjectToScene(gameObject, scene);
+        }
 
         _activeScene = Scene.SoloGameplay;
 

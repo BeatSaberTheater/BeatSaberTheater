@@ -343,11 +343,11 @@ public class EnvironmentManipulator : IInitializable
         _loggingService.Debug($"Screens found: {screenCount}");
         foreach (Transform screen in _playbackManager.gameObject.transform)
         {
-            if (!screen.name.StartsWith("CinemaScreen")) return;
+            if (!screen.name.StartsWith("CinemaScreen")) continue;
 
             var customBloomPrePass = screen.gameObject.GetComponent<CustomBloomPrePass>();
 
-            if (screen.name.Contains("(Clone)"))
+            if (screen.name.Contains("(Clone)") || screen.name.Contains("TheaterInternal"))
             {
                 _loggingService.Debug($"Cloning screen: {screen.name}");
                 if (!screen.name.Contains("TheaterInternal"))

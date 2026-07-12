@@ -134,4 +134,16 @@ public static class TheaterFileHelpers
     }
 
     public static string TheaterLibsPath => Path.Combine(UnityGame.LibraryPath, "Theater");
+
+    // Reflection-based so one build works against both BS 1.40.8 (sceneInfo.sceneName) and 1.44.1+ (environmentSceneName).
+    public static string GetEnvironmentSceneName(object environmentInfo)
+    {
+        var type = environmentInfo.GetType();
+
+        var sceneNameProperty = type.GetProperty("environmentSceneName");
+        if (sceneNameProperty != null) return (string)sceneNameProperty.GetValue(environmentInfo);
+
+        var sceneInfo = type.GetProperty("sceneInfo")!.GetValue(environmentInfo);
+        return (string)sceneInfo.GetType().GetProperty("sceneName")!.GetValue(sceneInfo);
+    }
 }

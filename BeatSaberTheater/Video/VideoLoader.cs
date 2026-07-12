@@ -353,7 +353,7 @@ internal class VideoLoader(
         if (videoConfig == null)
         {
             var mapPath = GetMapPath(level);
-            videoConfig = LoadConfig(GetConfigPath(mapPath));
+            if (mapPath != null) videoConfig = LoadConfig(GetConfigPath(mapPath));
         }
 
         if (InstalledMods.BeatSaberPlaylistsLib && videoConfig == null &&
@@ -362,9 +362,12 @@ internal class VideoLoader(
         return videoConfig ?? GetConfigFromBundledConfigs(level);
     }
 
-    private string GetMapPath(BeatmapLevel level)
+    private string? GetMapPath(BeatmapLevel level)
     {
-        _customLevelLoader._loadedBeatmapSaveData.TryGetValue(level.levelID, out var loadedSaveData);
+        // OST/base-game levels aren't custom levels and have no entry here
+        if (!_customLevelLoader._loadedBeatmapSaveData.TryGetValue(level.levelID, out var loadedSaveData))
+            return null;
+
         var mapPath = loadedSaveData.customLevelFolderInfo.folderPath;
         _loggingService.Debug($"Found map: {mapPath}");
 
