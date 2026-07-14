@@ -6,7 +6,7 @@ using IPA.Config.Stores;
 
 namespace BeatSaberTheater;
 
-internal class PluginConfig
+public class PluginConfig
 {
     public virtual bool PluginEnabled { get; set; } = true;
     public virtual bool OverrideEnvironment { get; set; } = true;
