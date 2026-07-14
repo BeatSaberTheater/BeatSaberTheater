@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BeatSaberTheater.Util;
 using IPA.Utilities;
@@ -178,10 +179,43 @@ public class YtDlpUpdateService : IInitializable
         }
     }
 
+    private bool IsFfmpegWorking(string ffmpegPath)
+    {
+        try
+        {
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = ffmpegPath,
+                    Arguments = "-version",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+            process.Start();
+            var output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+            return Regex.IsMatch(output, "ffmpeg version .*?Copyright", RegexOptions.Singleline);
+        }
+        catch (Exception ex)
+        {
+            _loggingService.Warn($"Failed to execute ffmpeg.exe at '{ffmpegPath}': {ex.Message}");
+            return false;
+        }
+    }
+
     private void EnsureFfmpegPresent()
     {
         var theaterFfmpegPath = Path.Combine(TheaterFileHelpers.TheaterLibsPath, "ffmpeg.exe");
-        if (File.Exists(theaterFfmpegPath)) return;
+        if (File.Exists(theaterFfmpegPath))
+        {
+            if (IsFfmpegWorking(theaterFfmpegPath)) return;
+
+            _loggingService.Warn("ffmpeg.exe in the Theater library path is present but not working. Removing it and attempting to restore it from the base library path");
+            File.Delete(theaterFfmpegPath);
+        }
 
         var baseFfmpegPath = Path.Combine(UnityGame.LibraryPath, "ffmpeg.exe");
         if (!File.Exists(baseFfmpegPath))
@@ -191,7 +225,16 @@ public class YtDlpUpdateService : IInitializable
         }
 
         if (!Directory.Exists(TheaterFileHelpers.TheaterLibsPath)) Directory.CreateDirectory(TheaterFileHelpers.TheaterLibsPath);
-        File.Copy(baseFfmpegPath, theaterFfmpegPath);
+        File.Copy(baseFfmpegPath, theaterFfmpegPath, true);
+
+        if (!IsFfmpegWorking(theaterFfmpegPath))
+        {
+            _loggingService.Error("ffmpeg.exe was copied from the base library path but is not working. Disabling plugin");
+            File.Delete(theaterFfmpegPath);
+            _config.PluginEnabled = false;
+            return;
+        }
+
         _loggingService.Info("Copied ffmpeg.exe to Theater directory");
     }
 
