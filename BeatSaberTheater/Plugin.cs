@@ -104,11 +104,12 @@ internal class Plugin
     {
         if (!InstalledMods.BetterSongList || _filterAdded) return;
 
-        _filterAdded = HasVideoFilter.Register();
+        var videoFilter = VideoFilterRegister.CreateVideoFilterIfBetterSongListPresent();
+        _filterAdded = videoFilter();
 
         if (_filterAdded)
-            _log.Debug($"Registered {nameof(HasVideoFilter)}");
+            _log.Info($"Registered Video Filter");
         else
-            _log.Error($"Failed to register {nameof(HasVideoFilter)}");
+            _log.Warn($"Failed to register Video Filter");
     }
 }

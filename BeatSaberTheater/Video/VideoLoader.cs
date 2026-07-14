@@ -23,7 +23,7 @@ using Zenject;
 
 namespace BeatSaberTheater.Video;
 
-internal class VideoLoader(
+public class VideoLoader(
     PluginConfig _config,
     TheaterCoroutineStarter _coroutineStarter,
     LoggingService _loggingService,
