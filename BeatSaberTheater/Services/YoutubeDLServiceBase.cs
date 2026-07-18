@@ -10,7 +10,7 @@ namespace BeatSaberTheater.Services;
 
 internal abstract class YoutubeDLServiceBase : IInitializable
 {
-    private readonly string _ffmpegFilepath = Path.Combine(UnityGame.LibraryPath, "ffmpeg.exe");
+    private readonly string _ffmpegFilepath = Path.Combine(TheaterFileHelpers.TheaterLibsPath, "ffmpeg.exe");
     protected readonly PluginConfig _config;
 
     private bool? _librariesAvailable;

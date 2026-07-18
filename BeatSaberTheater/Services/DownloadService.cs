@@ -372,14 +372,15 @@ internal class DownloadService : YoutubeDLServiceBase
                                        " --no-part" + // Don't store download in parts, write directly to file
                                        " --no-mtime" + //Video last modified will be when it was downloaded, not when it was uploaded to youtube
                                        " --socket-timeout 10" + //Retry if no response in 10 seconds Note: Not if download takes more than 10 seconds but if the time between any 2 messages from the server is 10 seconds
-                                       $" --js-runtimes deno:\"{_ytDlpUpdateService.DenoDlpPath}\"";
+                                       $" --js-runtimes deno:\"{_ytDlpUpdateService.DenoDlpPath}\"" +
+                                       $" --ffmpeg-location \"{TheaterFileHelpers.TheaterLibsPath}\""; // Explicitly point yt-dlp to our ffmpeg so format merging doesn't rely on it being found automatically
 
         switch (format)
         {
             case VideoFormats.Format.Webm:
                 var webmFileName = Path.GetFileNameWithoutExtension(baseFileName) + ".webm";
                 var webmPath = Path.Combine(folder, webmFileName);
-                downloadProcessArguments += $" --exec \"{Path.Combine(UnityGame.LibraryPath, "ffmpeg.exe")} -i %(filepath,_filename|)q -progress pipe:1 -c:v libvpx -crf 10 -b:v 4M -quality realtime -cpu-used 8 -c:a libvorbis \\\"{webmFileName}\\\"\"";
+                downloadProcessArguments += $" --exec \"{Path.Combine(TheaterFileHelpers.TheaterLibsPath, "ffmpeg.exe")} -i %(filepath,_filename|)q -progress pipe:1 -c:v libvpx -crf 10 -b:v 4M -quality realtime -cpu-used 8 -c:a libvorbis \\\"{webmFileName}\\\"\"";
                 video.DownloadedFormats[VideoFormats.Format.Webm] = webmPath;
                 break;
             case VideoFormats.Format.Mp4:
