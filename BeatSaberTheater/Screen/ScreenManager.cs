@@ -42,7 +42,12 @@ public class ScreenManager : IInitializable
     private static int SrcAlpha => _srcAlpha ??= Shader.PropertyToID("_SrcAlpha");
     private static int? _destAlpha;
     private static int DestAlpha => _destAlpha ??= Shader.PropertyToID("_DestAlpha");
+    private static int? _zTest;
+    private static int ZTest => _zTest ??= Shader.PropertyToID("_ZTest");
     private const string BODY_SHADER_NAME = "Custom/OpaqueNeonLight";
+
+    // Only takes effect on shaders that expose _ZTest as a property (falls back to the shader's compiled default otherwise)
+    private const int IN_FRONT_RENDER_QUEUE = (int)UnityEngine.Rendering.RenderQueue.Overlay;
 
     private readonly PluginConfig _config;
     private readonly ICurvedSurfaceFactory _curvedSurfaceFactory;
@@ -149,6 +154,30 @@ public class ScreenManager : IInitializable
         }
 
         bodyRenderer.material.color = new Color(0, 0, 0, 0);
+        ApplyRenderInFrontOfEnvironment(bodyRenderer.material);
+    }
+
+    public void SetRenderInFrontOfEnvironment(bool enabled)
+    {
+        foreach (var screenGroup in ScreenGroups)
+        {
+            ApplyRenderInFrontOfEnvironment(screenGroup.Screen.GetComponent<Renderer>().material);
+
+            var body = screenGroup.Screen.transform.Find("Body");
+            var bodyRenderer = body != null ? body.GetComponent<Renderer>() : null;
+            if (bodyRenderer != null) ApplyRenderInFrontOfEnvironment(bodyRenderer.material);
+        }
+    }
+
+    private void ApplyRenderInFrontOfEnvironment(Material material)
+    {
+        // Leave the material untouched when disabled instead of resetting renderQueue/ZTest to
+        // hardcoded values - the shipped materials may rely on non-default values for correct
+        // compositing (e.g. bloom pre-pass ordering), which we can't know from this repo.
+        if (!_config.RenderInFrontOfEnvironment) return;
+
+        material.renderQueue = IN_FRONT_RENDER_QUEUE;
+        material.SetInt(ZTest, (int)UnityEngine.Rendering.CompareFunction.Always);
     }
 
     public void SetScreensActive(bool active)
@@ -261,6 +290,11 @@ public class ScreenManager : IInitializable
 
             var colorCorrection = config?.colorCorrection;
             var vignette = config?.vignette;
+
+            // Guard before touching .material at all - accessing it force-instantiates a unique
+            // material clone (unlike sharedMaterial), which we only want to pay for when the
+            // setting is actually enabled.
+            if (_config.RenderInFrontOfEnvironment) ApplyRenderInFrontOfEnvironment(screenRenderer.material);
 
             screenRenderer.GetPropertyBlock(_materialPropertyBlock);
 

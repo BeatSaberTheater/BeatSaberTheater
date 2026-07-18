@@ -43,6 +43,8 @@
             <slider-setting apply-on-change="true" integer-only="true" value="corner-roundness" text="Corner Roundness"
                             hover-hint="Adjust the roundness of the screen's corners to your preference.&#xD;&#xA;&#xD;&#xA;Default: 0"
                             min="0" max="100" increment="1"></slider-setting>
+            <bool-setting apply-on-change="true" text='Render In Front Of Environment' value='render-in-front-of-environment'
+                          hover-hint="Makes the screen render on top of the map environment instead of being blocked by it. Depends on the environment and may not work for every map.&#xD;&#xA;&#xD;&#xA;Recommended: Off"></bool-setting>
         </modifier-container>
     </tab>
 </vertical>
