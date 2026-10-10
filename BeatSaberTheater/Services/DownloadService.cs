@@ -66,16 +66,38 @@ internal class DownloadService : YoutubeDLServiceBase
         // Track which format we're downloading
         _downloadFormats[video] = format;
 
-        var downloadProcess = CreateDownloadProcess(video, quality, format);
-        if (downloadProcess == null)
-        {
-            _loggingService.Warn("Failed to create download process");
-            yield break;
-        }
-
         video.ErrorMessage = null;
         video.DownloadState = DownloadState.Preparing;
         DownloadProgress?.Invoke(video);
+
+        // Prefer downloading VP8/VP9 directly over transcoding H.264, which is slow on weaker CPUs
+        var nativeWebm = false;
+        if (format == VideoFormats.Format.Webm)
+        {
+            var videoUrlForProbe = GetVideoUrl(video);
+            if (videoUrlForProbe != null)
+                yield return ProbeFormatCoroutine(videoUrlForProbe, VideoQuality.ToYoutubeDLWebmFormat(quality),
+                    available => nativeWebm = available);
+            _loggingService.Info(nativeWebm
+                ? "Native VP8/VP9 format available, skipping transcode"
+                : "No native VP8/VP9 format available, falling back to transcoding");
+
+            if (video.DownloadState == DownloadState.Cancelled)
+            {
+                _downloadFormats.TryRemove(video, out _);
+                yield break;
+            }
+        }
+
+        var downloadProcess = CreateDownloadProcess(video, quality, format, nativeWebm);
+        if (downloadProcess == null)
+        {
+            _loggingService.Warn("Failed to create download process");
+            video.DownloadState = DownloadState.NotDownloaded;
+            _downloadFormats.TryRemove(video, out _);
+            DownloadFinished?.Invoke(video);
+            yield break;
+        }
 
         _loggingService.Info(
             $"youtube-dl command: \"{downloadProcess.StartInfo.FileName}\" {downloadProcess.StartInfo.Arguments}");
@@ -289,7 +311,8 @@ internal class DownloadService : YoutubeDLServiceBase
         DownloadFinished?.Invoke(video);
     }
 
-    private Process? CreateDownloadProcess(VideoConfig video, VideoQuality.Mode quality, VideoFormats.Format format)
+    private Process? CreateDownloadProcess(VideoConfig video, VideoQuality.Mode quality, VideoFormats.Format format,
+        bool nativeWebm)
     {
         if (video.LevelDir == null)
         {
@@ -327,30 +350,12 @@ internal class DownloadService : YoutubeDLServiceBase
             _loggingService.Debug("Folder already exists: " + folder);
         }
 
-        string videoUrl;
-        if (video.videoUrl != null)
-        {
-            if (UrlInWhitelist(video.videoUrl))
-            {
-                videoUrl = video.videoUrl;
-            }
-            else
-            {
-                _loggingService.Error($"Video hoster for {video.videoUrl} is not allowed");
-                return null;
-            }
-        }
-        else if (video.videoID != null)
-        {
-            videoUrl = $"https://www.youtube.com/watch?v={video.videoID}";
-        }
-        else
-        {
-            _loggingService.Error("Video config has neither videoID or videoUrl set");
-            return null;
-        }
+        var videoUrl = GetVideoUrl(video);
+        if (videoUrl == null) return null;
 
-        var videoFormat = VideoQuality.ToYoutubeDLFormat(video, quality);
+        var videoFormat = nativeWebm
+            ? VideoQuality.ToYoutubeDLWebmFormat(quality)
+            : VideoQuality.ToYoutubeDLFormat(video, quality);
         videoFormat = videoFormat.Length > 0 ? $" -f \"{videoFormat}\"" : "";
 
         // Generate the base filename
@@ -362,7 +367,10 @@ internal class DownloadService : YoutubeDLServiceBase
             baseFileName += ".mp4";
         }
 
-        var outputPath = Path.Combine(folder, baseFileName);
+        // Native WebM downloads are merged straight into the final .webm file
+        var outputPath = nativeWebm
+            ? Path.Combine(folder, Path.GetFileNameWithoutExtension(baseFileName) + ".webm")
+            : Path.Combine(folder, baseFileName);
 
         var downloadProcessArguments = videoUrl +
                                        videoFormat +
@@ -377,6 +385,10 @@ internal class DownloadService : YoutubeDLServiceBase
 
         switch (format)
         {
+            case VideoFormats.Format.Webm when nativeWebm:
+                downloadProcessArguments += " --merge-output-format webm";
+                video.DownloadedFormats[VideoFormats.Format.Webm] = outputPath;
+                break;
             case VideoFormats.Format.Webm:
                 var webmFileName = Path.GetFileNameWithoutExtension(baseFileName) + ".webm";
                 var webmPath = Path.Combine(folder, webmFileName);
@@ -390,7 +402,7 @@ internal class DownloadService : YoutubeDLServiceBase
         }
 
         var process = CreateProcess(downloadProcessArguments, video.LevelDir);
-        if (format == VideoFormats.Format.Webm)
+        if (format == VideoFormats.Format.Webm && !nativeWebm)
         {
             // Clean up download .mp4 file when using Webm. It is not used, and nearly doubles the size on disk of the video files
             process.Disposed += ((_, _) =>
@@ -425,6 +437,57 @@ internal class DownloadService : YoutubeDLServiceBase
         var cancelFormat = _downloadFormats.TryGetValue(video, out var fmt) ? fmt : VideoFormats.Format.Mp4;
         _downloadFormats.TryRemove(video, out var _);
         _videoLoader.DeleteVideo(video, cancelFormat);
+    }
+
+    private string? GetVideoUrl(VideoConfig video)
+    {
+        if (video.videoUrl != null)
+        {
+            if (UrlInWhitelist(video.videoUrl)) return video.videoUrl;
+
+            _loggingService.Error($"Video hoster for {video.videoUrl} is not allowed");
+            return null;
+        }
+
+        if (video.videoID != null) return $"https://www.youtube.com/watch?v={video.videoID}";
+
+        _loggingService.Error("Video config has neither videoID or videoUrl set");
+        return null;
+    }
+
+    // Asks yt-dlp whether the format selector matches anything, without downloading. yt-dlp exits non-zero with
+    // "Requested format is not available" when it doesn't
+    private IEnumerator ProbeFormatCoroutine(string videoUrl, string formatSelector, Action<bool> callback)
+    {
+        var probeProcess = CreateProcess(videoUrl +
+                                         $" -f \"{formatSelector}\"" +
+                                         " --simulate" +
+                                         " --no-playlist" +
+                                         " --no-cache-dir" +
+                                         " --socket-timeout 10" +
+                                         $" --js-runtimes deno:\"{_ytDlpUpdateService.DenoDlpPath}\"");
+        _loggingService.Info(
+            $"youtube-dl probe command: \"{probeProcess.StartInfo.FileName}\" {probeProcess.StartInfo.Arguments}");
+
+        var exited = false;
+        probeProcess.Exited += (_, _) => exited = true;
+        StartProcessThreaded(probeProcess);
+        var timeout = new DownloadTimeout(30);
+        yield return new WaitUntil(() => exited || timeout.HasTimedOut);
+        timeout.Stop();
+
+        var available = false;
+        try
+        {
+            available = probeProcess.HasExited && probeProcess.ExitCode == 0;
+        }
+        catch (Exception e)
+        {
+            _loggingService.Warn($"Format probe failed: {e.Message}");
+        }
+
+        DisposeProcess(probeProcess);
+        callback(available);
     }
 
     private bool UrlInWhitelist(string url)

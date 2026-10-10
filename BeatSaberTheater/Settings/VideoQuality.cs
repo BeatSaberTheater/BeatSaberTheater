@@ -39,6 +39,12 @@ public static class VideoQuality
         return qualityString;
     }
 
+    // Native VP8/VP9 video with WebM (opus/vorbis) audio, so the download can be merged into a .webm without transcoding
+    public static string ToYoutubeDLWebmFormat(Mode quality)
+    {
+        return $"bestvideo[height<={(int)quality}][vcodec^=vp]+bestaudio[ext=webm]";
+    }
+
     public static Mode FromName(string mode)
     {
         var match = Regex.Match(mode, "^([0-9]{3,4})p.*");
