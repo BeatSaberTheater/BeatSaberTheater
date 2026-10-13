@@ -70,17 +70,17 @@ internal class DownloadService : YoutubeDLServiceBase
         video.DownloadState = DownloadState.Preparing;
         DownloadProgress?.Invoke(video);
 
-        // Prefer downloading VP8/VP9 directly over transcoding H.264, which is slow on weaker CPUs
-        var nativeWebm = false;
-        if (format == VideoFormats.Format.Webm)
+        // Prefer downloading VP9 directly over transcoding H.264, which is slow on weaker CPUs
+        var nativeVp9 = false;
+        if (format == VideoFormats.Format.Vp9)
         {
             var videoUrlForProbe = GetVideoUrl(video);
             if (videoUrlForProbe != null)
-                yield return ProbeFormatCoroutine(videoUrlForProbe, VideoQuality.ToYoutubeDLWebmFormat(quality),
-                    available => nativeWebm = available);
-            _loggingService.Info(nativeWebm
-                ? "Native VP8/VP9 format available, skipping transcode"
-                : "No native VP8/VP9 format available, falling back to transcoding");
+                yield return ProbeFormatCoroutine(videoUrlForProbe, VideoQuality.ToYoutubeDLVp9Format(quality),
+                    available => nativeVp9 = available);
+            _loggingService.Info(nativeVp9
+                ? "Native VP9 format available, skipping transcode"
+                : "No native VP9 format available, falling back to transcoding");
 
             if (video.DownloadState == DownloadState.Cancelled)
             {
@@ -89,7 +89,7 @@ internal class DownloadService : YoutubeDLServiceBase
             }
         }
 
-        var downloadProcess = CreateDownloadProcess(video, quality, format, nativeWebm);
+        var downloadProcess = CreateDownloadProcess(video, quality, format, nativeVp9);
         if (downloadProcess == null)
         {
             _loggingService.Warn("Failed to create download process");
@@ -268,7 +268,7 @@ internal class DownloadService : YoutubeDLServiceBase
             }
             else if (dataReceivedEventArgs.Data.Contains("[Exec]"))
             {
-                // When using the webm format, the conversion will be done by executing ffmpeg after downloading
+                // When transcoding to VP8 or VP9, the conversion will be done by executing ffmpeg after downloading
                 // and merging the video. This is currently the only --exec step in yt-dlp. Once we see the [Exec] stage
                 // being executed, we may assume the conversion has started
                 video.DownloadState = DownloadState.Converting;
@@ -312,7 +312,7 @@ internal class DownloadService : YoutubeDLServiceBase
     }
 
     private Process? CreateDownloadProcess(VideoConfig video, VideoQuality.Mode quality, VideoFormats.Format format,
-        bool nativeWebm)
+        bool nativeVp9)
     {
         if (video.LevelDir == null)
         {
@@ -353,8 +353,8 @@ internal class DownloadService : YoutubeDLServiceBase
         var videoUrl = GetVideoUrl(video);
         if (videoUrl == null) return null;
 
-        var videoFormat = nativeWebm
-            ? VideoQuality.ToYoutubeDLWebmFormat(quality)
+        var videoFormat = nativeVp9
+            ? VideoQuality.ToYoutubeDLVp9Format(quality)
             : VideoQuality.ToYoutubeDLFormat(video, quality);
         videoFormat = videoFormat.Length > 0 ? $" -f \"{videoFormat}\"" : "";
 
@@ -367,10 +367,17 @@ internal class DownloadService : YoutubeDLServiceBase
             baseFileName += ".mp4";
         }
 
-        // Native WebM downloads are merged straight into the final .webm file
-        var outputPath = nativeWebm
-            ? Path.Combine(folder, Path.GetFileNameWithoutExtension(baseFileName) + ".webm")
-            : Path.Combine(folder, baseFileName);
+        var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(baseFileName);
+        var finalFileName = fileNameWithoutExtension + VideoFormats.GetFileExtension(format);
+        var transcode = format == VideoFormats.Format.Webm || (format == VideoFormats.Format.Vp9 && !nativeVp9);
+        var outputPath = format switch
+        {
+            // Intermediate H.264 file to transcode from, named so it doesn't overwrite the Mp4 download of the same video
+            _ when transcode => Path.Combine(folder, fileNameWithoutExtension + ".h264.mp4"),
+            // Native VP9 downloads are merged straight into the final file
+            VideoFormats.Format.Vp9 => Path.Combine(folder, finalFileName),
+            _ => Path.Combine(folder, baseFileName)
+        };
 
         var downloadProcessArguments = videoUrl +
                                        videoFormat +
@@ -385,15 +392,17 @@ internal class DownloadService : YoutubeDLServiceBase
 
         switch (format)
         {
-            case VideoFormats.Format.Webm when nativeWebm:
-                downloadProcessArguments += " --merge-output-format webm";
-                video.DownloadedFormats[VideoFormats.Format.Webm] = outputPath;
+            case VideoFormats.Format.Vp9 when nativeVp9:
+                downloadProcessArguments += " --merge-output-format mp4";
+                video.DownloadedFormats[VideoFormats.Format.Vp9] = outputPath;
+                break;
+            case VideoFormats.Format.Vp9:
+                downloadProcessArguments += $" --exec \"{Path.Combine(TheaterFileHelpers.TheaterLibsPath, "ffmpeg.exe")} -y -i %(filepath,_filename|)q -progress pipe:1 -c:v libvpx-vp9 -crf 10 -b:v 4M -quality realtime -cpu-used 8 -row-mt 1 -c:a aac \\\"{finalFileName}\\\"\"";
+                video.DownloadedFormats[VideoFormats.Format.Vp9] = Path.Combine(folder, finalFileName);
                 break;
             case VideoFormats.Format.Webm:
-                var webmFileName = Path.GetFileNameWithoutExtension(baseFileName) + ".webm";
-                var webmPath = Path.Combine(folder, webmFileName);
-                downloadProcessArguments += $" --exec \"{Path.Combine(TheaterFileHelpers.TheaterLibsPath, "ffmpeg.exe")} -i %(filepath,_filename|)q -progress pipe:1 -c:v libvpx -crf 10 -b:v 4M -quality realtime -cpu-used 8 -c:a libvorbis \\\"{webmFileName}\\\"\"";
-                video.DownloadedFormats[VideoFormats.Format.Webm] = webmPath;
+                downloadProcessArguments += $" --exec \"{Path.Combine(TheaterFileHelpers.TheaterLibsPath, "ffmpeg.exe")} -i %(filepath,_filename|)q -progress pipe:1 -c:v libvpx -crf 10 -b:v 4M -quality realtime -cpu-used 8 -c:a libvorbis \\\"{finalFileName}\\\"\"";
+                video.DownloadedFormats[VideoFormats.Format.Webm] = Path.Combine(folder, finalFileName);
                 break;
             case VideoFormats.Format.Mp4:
                 downloadProcessArguments += " --recode-video mp4"; //Re-encode to mp4 (will be skipped most of the time, since it's already in an mp4 container)
@@ -402,12 +411,12 @@ internal class DownloadService : YoutubeDLServiceBase
         }
 
         var process = CreateProcess(downloadProcessArguments, video.LevelDir);
-        if (format == VideoFormats.Format.Webm && !nativeWebm)
+        if (transcode)
         {
-            // Clean up download .mp4 file when using Webm. It is not used, and nearly doubles the size on disk of the video files
+            // Clean up the intermediate H.264 file. It is not used, and nearly doubles the size on disk of the video files
             process.Disposed += ((_, _) =>
             {
-                Plugin._log.Info("Cleaning up present mp4 file. Reason: WebM is requested as output format");
+                Plugin._log.Info($"Cleaning up intermediate H.264 file. Reason: {format} is requested as output format");
                 if (File.Exists(outputPath))
                 {
                     File.Delete(outputPath);

@@ -11,7 +11,8 @@
             <dropdown-list-setting apply-on-change="true" text='Download Quality' value='quality'
                                    options='modes'></dropdown-list-setting>
             <dropdown-list-setting apply-on-change="true" text='Format' value='format'
-                                   options='formats'></dropdown-list-setting>
+                                   options='formats'
+                                   hover-hint='Video format used for new downloads.&#xD;&#xA;&#xD;&#xA;MP4 (H.264): Default.&#xD;&#xA;MP4 (VP9): For systems that cannot play H.264, such as Linux/Proton. Usually downloads without conversion, but playback is not guaranteed on every system.&#xD;&#xA;WebM (VP8): Highest compatibility, but every video is converted after downloading, which can take a while.&#xD;&#xA;&#xD;&#xA;Recommended: MP4 (H.264)'></dropdown-list-setting>
             <bool-setting apply-on-change="true" text='Force "Big Mirror" Environment' value='override-environment'
                           hover-hint='Force the use of the Big Mirror environment for songs with videos.&#xD;&#xA;&#xD;&#xA;Recommended: On'></bool-setting>
             <bool-setting apply-on-change="true" text='Disable CustomPlatforms' value='disable-custom-platforms'

@@ -39,10 +39,10 @@ public static class VideoQuality
         return qualityString;
     }
 
-    // Native VP8/VP9 video with WebM (opus/vorbis) audio, so the download can be merged into a .webm without transcoding
-    public static string ToYoutubeDLWebmFormat(Mode quality)
+    // Native VP9 video with AAC audio, so the download can be merged into an mp4 without transcoding
+    public static string ToYoutubeDLVp9Format(Mode quality)
     {
-        return $"bestvideo[height<={(int)quality}][vcodec^=vp]+bestaudio[ext=webm]";
+        return $"bestvideo[height<={(int)quality}][vcodec~='^vp0?9']+bestaudio[ext=m4a]";
     }
 
     public static Mode FromName(string mode)
