@@ -7,7 +7,7 @@
         <PluginId>BeatSaberTheater</PluginId>
         <PluginName>BeatSaberTheater</PluginName>
         <Authors>Michael Nesbitt</Authors>
-        <Version>0.3.0</Version>
+        <Version>0.4.0</Version>
         <GameVersion>1.44.1</GameVersion>
         <Description>Reimagination of BeatSaberCinema. Play videos in the background of maps.</Description>
         <!--<PluginIcon></PluginIcon>-->
