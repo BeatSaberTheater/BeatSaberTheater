@@ -109,6 +109,13 @@ internal class TheaterSettingsViewController
         set => _config.CoverEnabled = value;
     }
 
+    [UIValue("render-in-front-of-environment")]
+    public bool RenderInFrontOfEnvironment
+    {
+        get => _config.RenderInFrontOfEnvironment;
+        set => _config.RenderInFrontOfEnvironment = value;
+    }
+
     [UIValue("quality")]
     public string QualityMode
     {

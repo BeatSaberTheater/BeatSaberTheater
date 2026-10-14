@@ -16,6 +16,7 @@ public class PluginConfig
     public virtual bool TransparencyEnabled { get; set; } = true;
     public virtual bool ColorBlendingEnabled { get; set; } = true;
     public virtual bool CoverEnabled { get; set; }
+    public virtual bool RenderInFrontOfEnvironment { get; set; }
     public virtual int BloomIntensity { get; set; } = 100;
     public virtual float CornerRoundness { get; set; }
     public virtual VideoQuality.Mode QualityMode { get; set; } = VideoQuality.Mode.Q720P;
