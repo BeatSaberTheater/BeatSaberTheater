@@ -66,16 +66,38 @@ internal class DownloadService : YoutubeDLServiceBase
         // Track which format we're downloading
         _downloadFormats[video] = format;
 
-        var downloadProcess = CreateDownloadProcess(video, quality, format);
-        if (downloadProcess == null)
-        {
-            _loggingService.Warn("Failed to create download process");
-            yield break;
-        }
-
         video.ErrorMessage = null;
         video.DownloadState = DownloadState.Preparing;
         DownloadProgress?.Invoke(video);
+
+        // Prefer downloading VP9 directly over transcoding H.264, which is slow on weaker CPUs
+        var nativeVp9 = false;
+        if (format == VideoFormats.Format.Vp9)
+        {
+            var videoUrlForProbe = GetVideoUrl(video);
+            if (videoUrlForProbe != null)
+                yield return ProbeFormatCoroutine(videoUrlForProbe, VideoQuality.ToYoutubeDLVp9Format(quality),
+                    available => nativeVp9 = available);
+            _loggingService.Info(nativeVp9
+                ? "Native VP9 format available, skipping transcode"
+                : "No native VP9 format available, falling back to transcoding");
+
+            if (video.DownloadState == DownloadState.Cancelled)
+            {
+                _downloadFormats.TryRemove(video, out _);
+                yield break;
+            }
+        }
+
+        var downloadProcess = CreateDownloadProcess(video, quality, format, nativeVp9);
+        if (downloadProcess == null)
+        {
+            _loggingService.Warn("Failed to create download process");
+            video.DownloadState = DownloadState.NotDownloaded;
+            _downloadFormats.TryRemove(video, out _);
+            DownloadFinished?.Invoke(video);
+            yield break;
+        }
 
         _loggingService.Info(
             $"youtube-dl command: \"{downloadProcess.StartInfo.FileName}\" {downloadProcess.StartInfo.Arguments}");
@@ -246,7 +268,7 @@ internal class DownloadService : YoutubeDLServiceBase
             }
             else if (dataReceivedEventArgs.Data.Contains("[Exec]"))
             {
-                // When using the webm format, the conversion will be done by executing ffmpeg after downloading
+                // When transcoding to VP8 or VP9, the conversion will be done by executing ffmpeg after downloading
                 // and merging the video. This is currently the only --exec step in yt-dlp. Once we see the [Exec] stage
                 // being executed, we may assume the conversion has started
                 video.DownloadState = DownloadState.Converting;
@@ -289,7 +311,8 @@ internal class DownloadService : YoutubeDLServiceBase
         DownloadFinished?.Invoke(video);
     }
 
-    private Process? CreateDownloadProcess(VideoConfig video, VideoQuality.Mode quality, VideoFormats.Format format)
+    private Process? CreateDownloadProcess(VideoConfig video, VideoQuality.Mode quality, VideoFormats.Format format,
+        bool nativeVp9)
     {
         if (video.LevelDir == null)
         {
@@ -327,30 +350,12 @@ internal class DownloadService : YoutubeDLServiceBase
             _loggingService.Debug("Folder already exists: " + folder);
         }
 
-        string videoUrl;
-        if (video.videoUrl != null)
-        {
-            if (UrlInWhitelist(video.videoUrl))
-            {
-                videoUrl = video.videoUrl;
-            }
-            else
-            {
-                _loggingService.Error($"Video hoster for {video.videoUrl} is not allowed");
-                return null;
-            }
-        }
-        else if (video.videoID != null)
-        {
-            videoUrl = $"https://www.youtube.com/watch?v={video.videoID}";
-        }
-        else
-        {
-            _loggingService.Error("Video config has neither videoID or videoUrl set");
-            return null;
-        }
+        var videoUrl = GetVideoUrl(video);
+        if (videoUrl == null) return null;
 
-        var videoFormat = VideoQuality.ToYoutubeDLFormat(video, quality);
+        var videoFormat = nativeVp9
+            ? VideoQuality.ToYoutubeDLVp9Format(quality)
+            : VideoQuality.ToYoutubeDLFormat(video, quality);
         videoFormat = videoFormat.Length > 0 ? $" -f \"{videoFormat}\"" : "";
 
         // Generate the base filename
@@ -362,7 +367,17 @@ internal class DownloadService : YoutubeDLServiceBase
             baseFileName += ".mp4";
         }
 
-        var outputPath = Path.Combine(folder, baseFileName);
+        var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(baseFileName);
+        var finalFileName = fileNameWithoutExtension + VideoFormats.GetFileExtension(format);
+        var transcode = format == VideoFormats.Format.Webm || (format == VideoFormats.Format.Vp9 && !nativeVp9);
+        var outputPath = format switch
+        {
+            // Intermediate H.264 file to transcode from, named so it doesn't overwrite the Mp4 download of the same video
+            _ when transcode => Path.Combine(folder, fileNameWithoutExtension + ".h264.mp4"),
+            // Native VP9 downloads are merged straight into the final file
+            VideoFormats.Format.Vp9 => Path.Combine(folder, finalFileName),
+            _ => Path.Combine(folder, baseFileName)
+        };
 
         var downloadProcessArguments = videoUrl +
                                        videoFormat +
@@ -377,11 +392,17 @@ internal class DownloadService : YoutubeDLServiceBase
 
         switch (format)
         {
+            case VideoFormats.Format.Vp9 when nativeVp9:
+                downloadProcessArguments += " --merge-output-format mp4";
+                video.DownloadedFormats[VideoFormats.Format.Vp9] = outputPath;
+                break;
+            case VideoFormats.Format.Vp9:
+                downloadProcessArguments += $" --exec \"{Path.Combine(TheaterFileHelpers.TheaterLibsPath, "ffmpeg.exe")} -y -i %(filepath,_filename|)q -progress pipe:1 -c:v libvpx-vp9 -crf 10 -b:v 4M -quality realtime -cpu-used 8 -row-mt 1 -c:a aac \\\"{finalFileName}\\\"\"";
+                video.DownloadedFormats[VideoFormats.Format.Vp9] = Path.Combine(folder, finalFileName);
+                break;
             case VideoFormats.Format.Webm:
-                var webmFileName = Path.GetFileNameWithoutExtension(baseFileName) + ".webm";
-                var webmPath = Path.Combine(folder, webmFileName);
-                downloadProcessArguments += $" --exec \"{Path.Combine(TheaterFileHelpers.TheaterLibsPath, "ffmpeg.exe")} -i %(filepath,_filename|)q -progress pipe:1 -c:v libvpx -crf 10 -b:v 4M -quality realtime -cpu-used 8 -c:a libvorbis \\\"{webmFileName}\\\"\"";
-                video.DownloadedFormats[VideoFormats.Format.Webm] = webmPath;
+                downloadProcessArguments += $" --exec \"{Path.Combine(TheaterFileHelpers.TheaterLibsPath, "ffmpeg.exe")} -i %(filepath,_filename|)q -progress pipe:1 -c:v libvpx -crf 10 -b:v 4M -quality realtime -cpu-used 8 -c:a libvorbis \\\"{finalFileName}\\\"\"";
+                video.DownloadedFormats[VideoFormats.Format.Webm] = Path.Combine(folder, finalFileName);
                 break;
             case VideoFormats.Format.Mp4:
                 downloadProcessArguments += " --recode-video mp4"; //Re-encode to mp4 (will be skipped most of the time, since it's already in an mp4 container)
@@ -390,12 +411,12 @@ internal class DownloadService : YoutubeDLServiceBase
         }
 
         var process = CreateProcess(downloadProcessArguments, video.LevelDir);
-        if (format == VideoFormats.Format.Webm)
+        if (transcode)
         {
-            // Clean up download .mp4 file when using Webm. It is not used, and nearly doubles the size on disk of the video files
+            // Clean up the intermediate H.264 file. It is not used, and nearly doubles the size on disk of the video files
             process.Disposed += ((_, _) =>
             {
-                Plugin._log.Info("Cleaning up present mp4 file. Reason: WebM is requested as output format");
+                Plugin._log.Info($"Cleaning up intermediate H.264 file. Reason: {format} is requested as output format");
                 if (File.Exists(outputPath))
                 {
                     File.Delete(outputPath);
@@ -425,6 +446,57 @@ internal class DownloadService : YoutubeDLServiceBase
         var cancelFormat = _downloadFormats.TryGetValue(video, out var fmt) ? fmt : VideoFormats.Format.Mp4;
         _downloadFormats.TryRemove(video, out var _);
         _videoLoader.DeleteVideo(video, cancelFormat);
+    }
+
+    private string? GetVideoUrl(VideoConfig video)
+    {
+        if (video.videoUrl != null)
+        {
+            if (UrlInWhitelist(video.videoUrl)) return video.videoUrl;
+
+            _loggingService.Error($"Video hoster for {video.videoUrl} is not allowed");
+            return null;
+        }
+
+        if (video.videoID != null) return $"https://www.youtube.com/watch?v={video.videoID}";
+
+        _loggingService.Error("Video config has neither videoID or videoUrl set");
+        return null;
+    }
+
+    // Asks yt-dlp whether the format selector matches anything, without downloading. yt-dlp exits non-zero with
+    // "Requested format is not available" when it doesn't
+    private IEnumerator ProbeFormatCoroutine(string videoUrl, string formatSelector, Action<bool> callback)
+    {
+        var probeProcess = CreateProcess(videoUrl +
+                                         $" -f \"{formatSelector}\"" +
+                                         " --simulate" +
+                                         " --no-playlist" +
+                                         " --no-cache-dir" +
+                                         " --socket-timeout 10" +
+                                         $" --js-runtimes deno:\"{_ytDlpUpdateService.DenoDlpPath}\"");
+        _loggingService.Info(
+            $"youtube-dl probe command: \"{probeProcess.StartInfo.FileName}\" {probeProcess.StartInfo.Arguments}");
+
+        var exited = false;
+        probeProcess.Exited += (_, _) => exited = true;
+        StartProcessThreaded(probeProcess);
+        var timeout = new DownloadTimeout(30);
+        yield return new WaitUntil(() => exited || timeout.HasTimedOut);
+        timeout.Stop();
+
+        var available = false;
+        try
+        {
+            available = probeProcess.HasExited && probeProcess.ExitCode == 0;
+        }
+        catch (Exception e)
+        {
+            _loggingService.Warn($"Format probe failed: {e.Message}");
+        }
+
+        DisposeProcess(probeProcess);
+        callback(available);
     }
 
     private bool UrlInWhitelist(string url)

@@ -206,8 +206,7 @@ public class VideoConfig
         baseFileName = TheaterFileHelpers.ShortenFilename(folder, baseFileName);
 
         // Add the appropriate extension for the format
-        var extension = "." + format.ToString().ToLower();
-        var fileName = baseFileName + extension;
+        var fileName = baseFileName + VideoFormats.GetFileExtension(format);
 
         return Path.Combine(folder, fileName);
     }

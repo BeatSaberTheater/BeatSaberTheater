@@ -39,6 +39,12 @@ public static class VideoQuality
         return qualityString;
     }
 
+    // Native VP9 video with AAC audio, so the download can be merged into an mp4 without transcoding
+    public static string ToYoutubeDLVp9Format(Mode quality)
+    {
+        return $"bestvideo[height<={(int)quality}][vcodec~='^vp0?9']+bestaudio[ext=m4a]";
+    }
+
     public static Mode FromName(string mode)
     {
         var match = Regex.Match(mode, "^([0-9]{3,4})p.*");
